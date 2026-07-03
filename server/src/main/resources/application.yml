@@ -1,6 +1,8 @@
 spring:
   application:
     name: love-notes-server
+  lifecycle:
+    timeout-per-shutdown-phase: 25s
   profiles:
     default: dev
   jackson:
@@ -24,6 +26,7 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
+  forward-headers-strategy: framework
   servlet:
     context-path: /api/v1
     encoding:
@@ -38,12 +41,17 @@ management:
         include: health,info,prometheus
   endpoint:
     health:
+      show-details: never
       probes:
         enabled: true
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+logging:
+  level:
+    root: ${LOG_LEVEL_ROOT:INFO}
 
 love-notes:
   session:

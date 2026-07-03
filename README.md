@@ -29,3 +29,5 @@
 当前使用 `miniprogram/core/mock-api.ts` 和本地存储模拟服务端。正式联调时应保持页面和 store 的调用方式，替换领域 service 为统一 `/api/v1` 客户端，并接入微信登录、私有对象存储直传、内容安全、短期媒体地址、服务端模板渲染和审计。客户端状态不能作为权限安全边界。
 
 后端基础版位于 [server/README.md](server/README.md)，已经实现会话、情侣邀请、时刻权限、时间线首屏和腾讯云 COS 上传会话，并提供独立测试环境。
+
+服务端生产发布采用 Jenkins + Docker Compose，配置和首次部署步骤见 [Jenkins + Docker Compose 服务端部署指南](docs/Jenkins-Docker-Compose服务端部署指南.md)。`develop` 分支只执行构建与测试，`main` 分支通过后自动发布生产容器。

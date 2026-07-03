@@ -4,5 +4,9 @@ server/target/
 server/data/
 *.log
 .env
+.env.*
+!.env.example
 server/.env
+server/.env.*
+!server/.env.example
 project.private.config.json

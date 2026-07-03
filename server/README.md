@@ -77,6 +77,31 @@ java -jar target\love-notes-server-0.1.0-SNAPSHOT.jar
 
 `COS_SECRET_ID/COS_SECRET_KEY` 必须属于最小权限 CAM 子用户或云角色，只存在于受控服务端。小程序收到的是约 30 分钟、只允许上传一个随机对象 Key 的 STS 临时凭证。
 
+## Docker Compose
+
+仓库根目录提供 `docker-compose.yml`，镜像由 `server/Dockerfile` 构建。Compose 只运行 API，MySQL、Redis 和 COS 使用外部托管资源。
+
+在 Linux 部署服务器手动验证生产编排时，先复制示例配置并填写测试资源，禁止使用生产数据做开发测试：
+
+```powershell
+Copy-Item .env.example .env
+cd ..
+docker compose --env-file server/.env config --quiet
+docker compose --env-file server/.env build api
+docker compose --env-file server/.env up -d --wait api
+docker compose --env-file server/.env ps api
+```
+
+Windows 开发机只需要执行 Maven 测试和 Compose 配置校验；正式 Linux 镜像由带有 `linux-docker` 标签的 Jenkins 节点构建。
+
+默认只将容器端口映射到宿主机 `127.0.0.1:8080`。公网流量应先经过 Nginx、负载均衡或 API 网关终止 HTTPS，不要直接开放 8080。
+
+完整的 Jenkins 凭据、分支、发布、验证和回滚步骤见：
+
+```text
+docs/Jenkins-Docker-Compose服务端部署指南.md
+```
+
 ## 数据库初始化
 
 应用启动时由 Flyway 自动执行 `src/main/resources/db/migration`。生产账号需要目标 schema 的建表/变更权限；稳定运行后可将迁移身份和应用运行身份拆分。
