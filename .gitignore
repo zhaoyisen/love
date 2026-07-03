@@ -1,0 +1,8 @@
+node_modules/
+tmp/
+server/target/
+server/data/
+*.log
+.env
+server/.env
+project.private.config.json

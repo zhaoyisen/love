@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "时光",
+  "usingComponents": {
+    "moment-card": "/components/moment-card/index",
+    "empty-state": "/components/empty-state/index"
+  }
+}

@@ -1,0 +1,17 @@
+.welcome-page { position: relative; min-height: 100vh; padding: 94rpx 42rpx calc(48rpx + env(safe-area-inset-bottom)); overflow: hidden; background: #F7F1E8; }
+.grain { position: absolute; inset: 0; opacity: .26; background-image: radial-gradient(#8D7B69 1rpx,transparent 1rpx); background-size: 12rpx 12rpx; pointer-events: none; }
+.brand-mark { position: relative; width: 250rpx; height: 250rpx; margin-left: auto; display: flex; align-items: center; justify-content: center; color: #6C5A4B; font-size: 26rpx; transform: rotate(6deg); }
+.orbit { position: absolute; inset: 28rpx; border: 3rpx solid #BD4E4E; border-radius: 47% 53% 52% 48%; }
+.orbit-b { inset: 52rpx 16rpx; border-color: #557263; transform: rotate(48deg); }
+.welcome-copy { position: relative; margin-top: 20rpx; }
+.welcome-title { display: block; margin-top: 26rpx; font-size: 65rpx; font-weight: 700; line-height: 1.25; letter-spacing: 2rpx; }
+.welcome-title text { color: #BD4E4E; }
+.welcome-note { display: block; margin-top: 28rpx; color: #675F58; font: 27rpx/1.8 sans-serif; }
+.privacy-promise { position: relative; margin-top: 56rpx; padding: 26rpx 0; border-top: 2rpx solid #CFC2B4; border-bottom: 2rpx solid #CFC2B4; }
+.privacy-promise view { display: flex; align-items: center; min-height: 55rpx; color: #4E4944; font: 24rpx/1.4 sans-serif; }
+.promise-no { width: 70rpx; color: #BD4E4E; font: 20rpx/1 Georgia,serif; letter-spacing: 2rpx; }
+.welcome-actions { position: relative; margin-top: 52rpx; }
+.agreement { display: flex; align-items: center; justify-content: center; margin-top: 24rpx; color: #817970; font: 21rpx/1.4 sans-serif; }
+.checkbox { display: flex; align-items: center; justify-content: center; width: 31rpx; height: 31rpx; margin-right: 10rpx; border: 2rpx solid #A99B8E; border-radius: 8rpx; }
+.checkbox.checked { color: #FFF; border-color: #557263; background: #557263; }
+.agreement-link { color: #BD4E4E; }

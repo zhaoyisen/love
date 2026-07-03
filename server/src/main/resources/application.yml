@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: love-notes-server
+  profiles:
+    default: dev
+  jackson:
+    default-property-inclusion: non_null
+    property-naming-strategy: SNAKE_CASE
+  data:
+    redis:
+      repositories:
+        enabled: false
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        type:
+          preferred_uuid_jdbc_type: BINARY
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  servlet:
+    context-path: /api/v1
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+love-notes:
+  session:
+    access-ttl: PT30M
+    refresh-ttl: P30D
+  invitation:
+    ttl: PT24H
+  media:
+    image-max-bytes: 20971520
+    video-max-bytes: 209715200
+    upload-credential-ttl-seconds: 1800
+  wechat:
+    session-url: https://api.weixin.qq.com/sns/jscode2session

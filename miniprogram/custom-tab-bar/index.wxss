@@ -1,0 +1,11 @@
+.tab-shell { position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; height: 124rpx; background: rgba(255,253,248,.98); box-shadow: 0 -12rpx 36rpx rgba(65,48,36,.08); }
+.tab-rule { position: absolute; top: 0; left: 32rpx; right: 32rpx; height: 2rpx; background: #E6DDD2; }
+.tab-list { height: 124rpx; padding: 0 14rpx; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; }
+.tab-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; height: 112rpx; color: #8A8178; background: transparent; font: 20rpx/1 sans-serif; }
+.tab-icon { font: 34rpx/1 Georgia, serif; }
+.is-selected { color: #BD4E4E; }
+.compose-space { width: 100%; }
+.compose-button { position: absolute; left: 50%; top: -34rpx; transform: translateX(-50%); width: 112rpx; height: 112rpx; border-radius: 56rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #FFF; background: #BD4E4E; border: 8rpx solid #F7F1E8; box-shadow: 0 12rpx 24rpx rgba(139,61,61,.24); }
+.compose-button:active { transform: translateX(-50%) scale(.97); }
+.compose-plus { font: 45rpx/.8 sans-serif; }
+.compose-label { margin-top: 7rpx; font: 18rpx/1 sans-serif; letter-spacing: 2rpx; }

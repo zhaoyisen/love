@@ -1,0 +1,12 @@
+{
+  "name": "love-notes-miniprogram",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "validate": "node scripts/validate-project.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

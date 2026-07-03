@@ -1,0 +1,8 @@
+.empty-state { display: flex; flex-direction: column; align-items: center; padding: 80rpx 30rpx; text-align: center; }
+.empty-mark { position: relative; width: 130rpx; height: 104rpx; border: 3rpx solid #BFAF9F; border-radius: 65rpx 65rpx 42rpx 42rpx; transform: rotate(-5deg); }
+.empty-mark::before,.empty-mark::after { content: ''; position: absolute; top: -12rpx; width: 36rpx; height: 42rpx; border: 3rpx solid #BFAF9F; background: #F7F1E8; transform: rotate(40deg); }
+.empty-mark::before { left: 16rpx; }.empty-mark::after { right: 16rpx; transform: rotate(-40deg); }
+.empty-mark view { position: absolute; left: 36rpx; right: 36rpx; bottom: 28rpx; height: 3rpx; background: #BD4E4E; transform: rotate(4deg); }
+.empty-title { margin-top: 30rpx; font-size: 34rpx; font-weight: 700; }
+.empty-description { max-width: 480rpx; margin-top: 12rpx; color: #817970; font: 25rpx/1.7 sans-serif; }
+.empty-action { margin-top: 30rpx; padding: 22rpx 38rpx; border-radius: 40rpx; color: #FFF; background: #BD4E4E; font: 25rpx/1 sans-serif; }

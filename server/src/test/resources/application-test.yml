@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:love_notes_test;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    clean-disabled: false
+
+love-notes:
+  storage:
+    provider: local
+    bucket: test-bucket
+    region: local
+
+management:
+  health:
+    redis:
+      enabled: false

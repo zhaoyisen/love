@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/love-notes-dev;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+love-notes:
+  storage:
+    provider: local
+    bucket: love-notes-media-dev
+    region: local
+
+logging:
+  level:
+    com.lovenotes: INFO
+
+management:
+  health:
+    redis:
+      enabled: false

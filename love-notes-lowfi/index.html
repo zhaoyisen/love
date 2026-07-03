@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="恋爱笔记微信小程序低保真交互原型">
+  <title>恋爱笔记 · 低保真交互原型</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="prototype-workspace">
+    <aside class="review-board" aria-label="原型评审导航">
+      <div class="board-kicker">LOVENOTES / WIREFRAME 0.1</div>
+      <h1>恋爱笔记<br>低保真交互原型</h1>
+      <p class="board-intro">验证交互路径和信息结构，不代表最终视觉。灰色是内容，珊瑚色表示当前操作，虚线表示可继续探索。</p>
+
+      <section class="board-section">
+        <h2>评审任务</h2>
+        <div class="flow-list">
+          <button data-flow="first-record"><span>01</span>首次记录</button>
+          <button data-flow="pair"><span>02</span>邀请配对</button>
+          <button data-flow="timeline"><span>03</span>时间回看</button>
+          <button data-flow="recap"><span>04</span>年度回顾</button>
+          <button data-flow="unbind"><span>05</span>单方解绑</button>
+        </div>
+      </section>
+
+      <section class="board-section board-notes">
+        <h2>本轮重点</h2>
+        <ul>
+          <li>能否在 2 分钟内完成首条记录？</li>
+          <li>共享范围是否足够清楚？</li>
+          <li>天/周/月/年切换是否自然？</li>
+          <li>敏感内容是否被默认保护？</li>
+          <li>解绑后数据归属是否可理解？</li>
+        </ul>
+      </section>
+
+      <div class="board-actions">
+        <button class="text-button" data-action="reset-demo">重置全部演示数据</button>
+        <span id="prototype-status">演示数据仅保存在当前浏览器</span>
+      </div>
+    </aside>
+
+    <section class="device-stage" aria-label="移动端原型">
+      <div class="device-note note-a">可点击区域<br>均有按压反馈</div>
+      <div class="phone" id="phone-frame">
+        <div class="phone-status" aria-hidden="true">
+          <span>09:41</span>
+          <span>● ● ▰</span>
+        </div>
+        <header class="app-header" id="app-header"></header>
+        <section class="app-screen" id="app-screen" aria-live="polite"></section>
+        <nav class="bottom-nav" id="bottom-nav" aria-label="主导航"></nav>
+        <button class="record-fab" id="record-fab" data-action="new-record" aria-label="记录一个时刻">＋</button>
+        <div class="toast" id="toast" role="status"></div>
+        <div class="modal-layer" id="modal-layer" aria-live="assertive"></div>
+      </div>
+      <div class="device-note note-b">使用左侧任务<br>快速跳转流程</div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

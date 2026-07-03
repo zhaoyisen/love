@@ -1,0 +1,21 @@
+<view class="detail-page">
+  <view wx:if="{{moment.mediaType !== 'TEXT'}}" class="hero tone-{{moment.media[0].tone || 'paper'}}">
+    <image wx:if="{{moment.media[0].path}}" src="{{moment.media[0].path}}" mode="aspectFill"></image>
+    <view wx:else class="hero-art"><view class="hero-sun"></view><view class="hero-hill"></view></view>
+    <view class="hero-frame"><text>{{moment.template || '原始照片'}}</text><text>{{moment.date}}</text></view>
+  </view>
+  <view class="detail-content">
+    <view class="detail-meta"><view class="author-avatar">{{moment.author === '我' ? '满' : '屿'}}</view><view><text>{{moment.author}}记录</text><text class="label">{{moment.date}} · {{moment.time}}</text></view><button class="more-button press" bindtap="menu">•••</button></view>
+    <text class="detail-title">{{moment.title}}</text><text class="detail-copy">{{moment.body}}</text>
+    <view class="detail-tags"><text class="tag">{{moment.mood}}</text><text wx:for="{{moment.events}}" wx:key="*this" class="tag">{{item}}</text></view>
+    <view class="visibility-banner"><text>{{moment.visibility === 'PRIVATE' ? '◉' : '∞'}}</text><view><text>{{moment.visibilityLabel}}</text><text class="label">{{moment.visibility === 'PRIVATE' ? '这段内容没有与 TA 分享' : '仅在当前情侣关系有效时可访问'}}</text></view></view>
+    <view wx:if="{{moment.visibility === 'SHARED'}}" class="interaction-section">
+      <text class="section-title">留一个回应</text><text class="section-note">每人保留一个回应，可以随时修改。</text>
+      <scroll-view scroll-x class="reaction-scroll" show-scrollbar="false"><view class="reaction-list"><button wx:for="{{reactions}}" wx:key="*this" class="reaction {{moment.reactionValue === item ? 'active' : ''}}" data-value="{{item}}" bindtap="react"><text>{{index === 0 ? '♥' : index === 1 ? '☁' : index === 2 ? '☺' : index === 3 ? '◉' : index === 4 ? '↶' : '☆'}}</text><text class="label">{{item}}</text></button></view></scroll-view>
+      <view class="comments-head"><text class="section-title">短评</text><text>{{moment.comments.length}} 条</text></view>
+      <view wx:if="{{moment.comments.length}}" class="comment-list"><view wx:for="{{moment.comments}}" wx:key="id" class="comment"><view class="comment-avatar">{{item.author === '我' ? '满' : '屿'}}</view><view><text>{{item.author}} · {{item.createdAt}}</text><text class="label">{{item.body}}</text></view></view></view>
+      <view wx:else class="no-comment">还没有短评。说一句轻轻的话吧。</view>
+      <view class="comment-box"><input value="{{commentText}}" maxlength="300" placeholder="写一句回应…" bindinput="commentInput" /><button class="press" bindtap="sendComment">发送</button></view>
+    </view>
+  </view>
+</view>

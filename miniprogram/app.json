@@ -1,0 +1,53 @@
+{
+  "pages": [
+    "pages/welcome/index",
+    "pages-main/time/index",
+    "pages-main/couple/index",
+    "pages-main/recap/index",
+    "pages-main/mine/index"
+  ],
+  "subpackages": [
+    {
+      "root": "pkg-compose",
+      "pages": ["composer/index", "beautify/index", "preview/index"]
+    },
+    {
+      "root": "pkg-moment",
+      "pages": ["detail/index", "recycle-bin/index"]
+    },
+    {
+      "root": "pkg-couple",
+      "pages": ["invite/index", "messages/index", "privacy/index", "unbind/index"]
+    },
+    {
+      "root": "pkg-recap",
+      "pages": ["editor/index", "preview/index"]
+    },
+    {
+      "root": "pkg-pet",
+      "pages": ["detail/index"]
+    }
+  ],
+  "window": {
+    "navigationBarTitleText": "恋爱笔记",
+    "navigationBarBackgroundColor": "#F7F1E8",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F7F1E8",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#8A8178",
+    "selectedColor": "#BD4E4E",
+    "backgroundColor": "#FFFDF8",
+    "list": [
+      { "pagePath": "pages-main/time/index", "text": "时光" },
+      { "pagePath": "pages-main/couple/index", "text": "我们" },
+      { "pagePath": "pages-main/recap/index", "text": "回顾" },
+      { "pagePath": "pages-main/mine/index", "text": "我的" }
+    ]
+  },
+  "lazyCodeLoading": "requiredComponents",
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

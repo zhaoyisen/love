@@ -1,0 +1,24 @@
+<view class="welcome-page">
+  <view class="grain"></view>
+  <view class="brand-mark">
+    <view class="orbit orbit-a"></view><view class="orbit orbit-b"></view>
+    <text>两个人的日子</text>
+  </view>
+  <view class="welcome-copy">
+    <text class="eyebrow">LOVE NOTES · PRIVATE BY DEFAULT</text>
+    <text class="welcome-title">把普通日子，&#10;<text>慢慢写成我们。</text></text>
+    <text class="welcome-note">记录照片、心情和片刻回应。可以先独自使用，也可以邀请另一半建立只属于你们的空间。</text>
+  </view>
+  <view class="privacy-promise">
+    <view><text class="promise-no">01</text><text>记录默认仅自己可见</text></view>
+    <view><text class="promise-no">02</text><text>旧记录不会因配对自动共享</text></view>
+    <view><text class="promise-no">03</text><text>任一方解绑后立即停止互访</text></view>
+  </view>
+  <view class="welcome-actions safe-bottom">
+    <button class="primary-button press" loading="{{loading}}" bindtap="login">微信登录并开始</button>
+    <view class="agreement" bindtap="toggleAgree">
+      <view class="checkbox {{agreed ? 'checked' : ''}}">{{agreed ? '✓' : ''}}</view>
+      <text>我已阅读并同意</text><text class="agreement-link" catchtap="openPrivacy">《用户协议》与《隐私政策》</text>
+    </view>
+  </view>
+</view>

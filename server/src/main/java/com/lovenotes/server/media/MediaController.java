@@ -1,0 +1,14 @@
+package com.lovenotes.server.media;
+import com.lovenotes.server.auth.*;import com.lovenotes.server.common.*;import com.lovenotes.server.domain.MediaAssetEntity;import jakarta.servlet.http.HttpServletRequest;import jakarta.validation.Valid;import jakarta.validation.constraints.*;import org.springframework.http.*;import org.springframework.web.bind.annotation.*;import java.time.Instant;import java.util.UUID;
+@RestController
+public class MediaController {
+    private final MediaService service;public MediaController(MediaService service){this.service=service;}
+    @PostMapping("/upload-sessions") ResponseEntity<ApiResponse<UploadResponse>> create(@RequestAttribute(AuthFilter.ACTOR_ATTRIBUTE) Actor actor,@Valid @RequestBody CreateUploadRequest body,HttpServletRequest request){var result=service.create(actor.userId(),body.mimeType(),body.size(),body.sha256());return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(UploadResponse.from(result),RequestContext.requestId(request)));}
+    @PostMapping("/upload-sessions/{id}/complete") ApiResponse<AssetResponse> complete(@RequestAttribute(AuthFilter.ACTOR_ATTRIBUTE) Actor actor,@PathVariable UUID id,@Valid @RequestBody CompleteUploadRequest body,HttpServletRequest request){return ApiResponse.ok(AssetResponse.from(service.complete(actor.userId(),id,body.etag())),RequestContext.requestId(request));}
+    @GetMapping("/media-assets/{id}") ApiResponse<AssetResponse> get(@RequestAttribute(AuthFilter.ACTOR_ATTRIBUTE) Actor actor,@PathVariable UUID id,HttpServletRequest request){return ApiResponse.ok(AssetResponse.from(service.getAuthorized(actor.userId(),id)),RequestContext.requestId(request));}
+    public record CreateUploadRequest(@NotBlank String fileName,@NotBlank String mimeType,@Positive long size,String sha256){}
+    public record CompleteUploadRequest(String etag){}
+    public record UploadResponse(UUID assetId,UUID uploadSessionId,String bucket,String region,String key,String provider,ObjectStorageCredential credentials,Instant expiresAt){static UploadResponse from(MediaService.CreatedUpload value){var c=value.credential().credentials();return new UploadResponse(value.asset().getId(),value.session().getId(),value.credential().bucket(),value.credential().region(),value.credential().key(),value.credential().provider(),c==null?null:new ObjectStorageCredential(c.tmpSecretId(),c.tmpSecretKey(),c.sessionToken(),c.startTime(),c.expiredTime()),value.credential().expiresAt());}}
+    public record ObjectStorageCredential(String tmpSecretId,String tmpSecretKey,String sessionToken,long startTime,long expiredTime){}
+    public record AssetResponse(UUID id,String kind,String status){static AssetResponse from(MediaAssetEntity entity){return new AssetResponse(entity.getId(),entity.getKind().name(),entity.getStatus().name());}}
+}

@@ -1,0 +1,11 @@
+<view class="page beautify-page">
+  <view class="beautify-head"><view><text class="eyebrow">TEMPLATE STUDIO</text><text class="display-title">给照片一点温度</text></view><button class="text-button" bindtap="reset">还原原图</button></view>
+  <view class="preview-frame">
+    <image wx:if="{{draft.media[0].path}}" src="{{draft.media[0].path}}" mode="aspectFill"></image><view wx:else class="preview-image"><view class="sun"></view><view class="horizon"></view></view>
+    <view class="frame-line"></view><text class="frame-kicker">{{selected}}</text><text wx:if="{{showDate}}" class="frame-date">07 / 02 / 2026</text><text wx:if="{{showCopy}}" class="frame-copy">{{draft.title || '今天也有值得记住的小事'}}</text>
+  </view>
+  <view class="toggle-row"><button class="toggle {{showDate ? 'on' : ''}}" bindtap="toggleDate">日期 {{showDate ? '开' : '关'}}</button><button class="toggle {{showCopy ? 'on' : ''}}" bindtap="toggleCopy">配文 {{showCopy ? '开' : '关'}}</button><button class="toggle">贴纸 · 小花</button></view>
+  <scroll-view scroll-x class="template-scroll" show-scrollbar="false"><view class="template-list"><button wx:for="{{templates}}" wx:key="name" class="template-item {{selected === item.name ? 'active' : ''}}" data-name="{{item.name}}" bindtap="select"><view class="template-thumb {{item.color}}"><text>{{item.mark}}</text></view><text>{{item.name}}</text></button></view></scroll-view>
+  <text class="safe-note">预览采用轻量效果；最终图会使用同版本模板生成。原图不会被覆盖，生成失败仍可直接发布。</text>
+  <button class="primary-button done-button press" bindtap="done">使用「{{selected}}」</button>
+</view>

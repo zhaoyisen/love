@@ -1,0 +1,31 @@
+<view class="moment-card press" bindtap="open">
+  <view class="moment-date">
+    <text class="date-day">{{display.day}}</text>
+    <text class="date-meta">{{display.month}}月 · {{display.time}}</text>
+  </view>
+  <view wx:if="{{display.mediaType !== 'TEXT'}}" class="media-cover tone-{{display.media[0].tone || 'paper'}}">
+    <image wx:if="{{display.media[0].path}}" class="media-image" src="{{display.media[0].path}}" mode="aspectFill"></image>
+    <view wx:else class="cover-art">
+      <view class="cover-sun"></view>
+      <view class="cover-line"></view>
+      <text>{{display.mediaType === 'VIDEO' ? '▶ 片刻影像' : display.template || '原始照片'}}</text>
+    </view>
+  </view>
+  <view class="moment-body">
+    <view class="author-row">
+      <text class="author-dot {{display.author === '我' ? 'mine' : 'partner'}}"></text>
+      <text>{{display.author}}记录</text>
+      <text wx:if="{{display.visibility === 'PRIVATE'}}" class="lock-label">仅自己</text>
+    </view>
+    <text class="moment-title">{{display.title}}</text>
+    <text class="moment-copy">{{display.body}}</text>
+    <view class="tag-row">
+      <text wx:if="{{display.mood}}" class="tag">{{display.mood}}</text>
+      <text wx:for="{{display.events}}" wx:key="*this" wx:for-item="tag" wx:if="{{index < 2}}" class="tag">{{tag}}</text>
+    </view>
+    <view wx:if="{{display.reaction || display.commentCount}}" class="response-row">
+      <text wx:if="{{display.reaction}}">♥ {{display.reaction.value}}</text>
+      <text wx:if="{{display.commentCount}}">{{display.commentCount}} 条短评</text>
+    </view>
+  </view>
+</view>
