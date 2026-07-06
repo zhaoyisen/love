@@ -65,8 +65,10 @@ export interface AppState {
   schemaVersion: number;
   loggedIn: boolean;
   consented: boolean;
-  profile: { name: string; avatarText: string; defaultVisibility: Visibility };
+  profile: { id?: string; name: string; avatarText: string; defaultVisibility: Visibility };
   couple: {
+    id?: string;
+    version?: number;
     status: "UNPAIRED" | "PAIRED" | "ENDED";
     partnerName: string;
     relationshipName: string;

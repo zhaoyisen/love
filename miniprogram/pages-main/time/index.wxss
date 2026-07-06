@@ -19,3 +19,6 @@
 .month-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12rpx; margin-top: 24rpx; }.month-cell{height:90rpx;padding:16rpx;border:2rpx solid #E5DBCF;border-radius:16rpx;color:#91867B;font:20rpx/1 sans-serif}.month-cell.has-record{color:#4D6659;background:#DCE7DC;border-color:#B6C9BA}.month-count{display:block;margin-top:12rpx;font:26rpx/1 Georgia,serif}
 .date-range { display:flex;align-items:center;gap:14rpx;margin-top:24rpx }.date-range view{flex:1;padding:18rpx;border-radius:16rpx;background:#EEE7DC}.date-range view text{display:block}.date-range view text:first-child{margin-bottom:8rpx;color:#817970;font:19rpx/1 sans-serif}.date-range view text:last-child{font:22rpx/1 sans-serif}
 .section-row { margin-top: 42rpx; }
+.sync-status { display: flex; align-items: center; gap: 12rpx; margin-top: 18rpx; color: #6E766F; font: 22rpx/1 sans-serif; }
+.sync-dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: #557263; animation: sync-pulse 1.2s ease-in-out infinite; }
+@keyframes sync-pulse { 0%,100% { opacity: .35; transform: scale(.85); } 50% { opacity: 1; transform: scale(1); } }

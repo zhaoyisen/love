@@ -1,7 +1,7 @@
 <view class="page time-page">
   <view class="top-row">
     <view>
-      <text class="eyebrow">JUL · 2026</text>
+      <text class="eyebrow">{{dateEyebrow}}</text>
       <text class="display-title">今天，也值得记下</text>
     </view>
     <button class="message-button press" bindtap="messages">信<text wx:if="{{unread}}">{{unread}}</text></button>
@@ -12,6 +12,9 @@
       <button wx:for="{{views}}" wx:key="key" class="view-tab {{viewType === item.key ? 'active' : ''}} press" data-view="{{item.key}}" bindtap="switchView">{{item.label}}</button>
     </view>
   </scroll-view>
+
+  <view wx:if="{{loading}}" class="sync-status"><view class="sync-dot"></view><text>正在同步时光</text></view>
+  <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="refresh">重试</button></view>
 
   <view class="summary-card">
     <view><text class="summary-number">{{moments.length}}</text><text class="summary-label">段时刻</text></view>
@@ -31,21 +34,21 @@
     <view wx:for="{{weekDays}}" wx:key="day" class="week-day {{item.active ? 'active' : ''}}"><text>{{item.label}}</text><text class="week-number">{{item.day}}</text><view class="decor" wx:if="{{item.count}}"></view></view>
   </view>
   <view wx:elif="{{viewType === 'month'}}" class="calendar-card card">
-    <view class="calendar-heading"><text>2026 年 7 月</text><text>普通的日子也发着光</text></view>
+    <view class="calendar-heading"><text>{{currentMonthTitle}}</text><text>普通的日子也发着光</text></view>
     <view class="calendar-week"><text wx:for="{{['一','二','三','四','五','六','日']}}" wx:key="*this">{{item}}</text></view>
     <view class="calendar-grid"><view wx:for="{{calendar}}" wx:key="index" class="calendar-day {{item.muted ? 'muted' : ''}} {{item.active ? 'active' : ''}}"><text>{{item.day}}</text><view class="decor" wx:if="{{item.count}}"></view></view></view>
   </view>
   <view wx:elif="{{viewType === 'year'}}" class="year-card card">
-    <view class="year-heading"><text>2026</text><text>这一年的 3 个片段</text></view>
+    <view class="year-heading"><text>{{currentYear}}</text><text>这一年的 {{moments.length}} 个片段</text></view>
     <view class="month-grid"><view wx:for="{{months}}" wx:key="label" class="month-cell {{item.count ? 'has-record' : ''}}"><text>{{item.label}}</text><text class="month-count">{{item.count || '·'}}</text></view></view>
   </view>
   <view wx:elif="{{viewType === 'custom'}}" class="custom-card card">
     <text class="section-title">一段自己的时间</text><text class="section-note">选择起止日期后，我们只展示你有权查看的时刻。</text>
-    <view class="date-range"><view><text>开始</text><text>2026-05-01</text></view><text>—</text><view><text>结束</text><text>2026-07-02</text></view></view>
+    <view class="date-range"><picker mode="date" value="{{customStart}}" end="{{customEnd}}" bindchange="customStartChange"><view><text>开始</text><text>{{customStart}}</text></view></picker><text>—</text><picker mode="date" value="{{customEnd}}" start="{{customStart}}" bindchange="customEndChange"><view><text>结束</text><text>{{customEnd}}</text></view></picker></view>
   </view>
 
   <view class="section-row">
-    <view><text class="section-title">{{viewType === 'day' ? '7 月 2 日' : viewType === 'week' ? '本周代表时刻' : viewType === 'month' ? '选中日的时刻' : viewType === 'year' ? '这一年的时刻' : '筛选结果'}}</text><text class="section-note">按发生时间排列，不评价感情好坏</text></view>
+    <view><text class="section-title">{{viewType === 'day' ? currentDateLabel : viewType === 'week' ? '本周代表时刻' : viewType === 'month' ? '选中日的时刻' : viewType === 'year' ? '这一年的时刻' : '筛选结果'}}</text><text class="section-note">按发生时间排列，不评价感情好坏</text></view>
   </view>
   <block wx:if="{{moments.length}}"><moment-card wx:for="{{moments}}" wx:key="id" item="{{item}}" bind:open="openMoment"></moment-card></block>
   <empty-state wx:else title="今天还没有被记下" description="不必完整，也不用特别。写下一件此刻想留住的小事。" action="记录现在" bind:action="compose"></empty-state>

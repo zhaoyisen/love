@@ -6,9 +6,10 @@
   <view class="stepper"><view class="step {{step >= 1 ? 'active' : ''}}"><text>1</text><text class="label">选择形式</text></view><view class="decor"></view><view class="step {{step >= 2 ? 'active' : ''}}"><text>2</text><text class="label">写下感受</text></view><view class="decor"></view><view class="step"><text>3</text><text class="label">预览发布</text></view></view>
 
   <view wx:if="{{step === 1}}" class="compose-section">
-    <text class="section-title">今天想用什么留下？</text><text class="section-note">照片最多 9 张；单条记录不混合照片与视频。</text>
+    <text class="section-title">今天想用什么留下？</text><text class="section-note">{{remoteTextOnly ? '当前可发布纯文字记录，照片和视频的安全上传正在接入。' : '照片最多 9 张；单条记录不混合照片与视频。'}}</text>
+    <view wx:if="{{remoteTextOnly}}" class="status-banner"><text>纯文字记录已连接服务端，可正常发布和跨设备查看。</text></view>
     <view class="media-type-grid">
-      <button wx:for="{{mediaTypes}}" wx:key="key" class="media-type {{draft.mediaType === item.key ? 'active' : ''}} press" data-type="{{item.key}}" bindtap="selectType"><text class="type-icon">{{item.key === 'IMAGE' ? '▧' : item.key === 'VIDEO' ? '▷' : 'Aa'}}</text><text>{{item.label}}</text><text class="label">{{item.note}}</text></button>
+      <button wx:for="{{mediaTypes}}" wx:key="key" class="media-type {{draft.mediaType === item.key ? 'active' : ''}} press" disabled="{{!item.available}}" data-type="{{item.key}}" bindtap="selectType"><text class="type-icon">{{item.key === 'IMAGE' ? '▧' : item.key === 'VIDEO' ? '▷' : 'Aa'}}</text><text>{{item.label}}</text><text class="label">{{item.note}}</text></button>
     </view>
     <view wx:if="{{draft.mediaType !== 'TEXT'}}" class="media-picker">
       <view class="media-grid">

@@ -1,4 +1,5 @@
 import { apiRequest, saveTokens } from "./request";
+import { API_CONFIG } from "../core/api-config";
 
 export interface LoginResponse {
   user_id: string;
@@ -12,9 +13,13 @@ function wechatCode(): Promise<string> {
   return new Promise((resolve, reject) => wx.login({ success: (result: any) => result.code ? resolve(result.code) : reject(new Error("微信登录失败")), fail: reject }));
 }
 
+function developmentCode(): string {
+  return wx.getStorageSync("love-notes:dev-identity") || "dev-user-a";
+}
+
 export const authService = {
   async login(): Promise<LoginResponse> {
-    const code = await wechatCode();
+    const code = API_CONFIG.stableDevIdentity ? developmentCode() : await wechatCode();
     const result = await apiRequest<LoginResponse>({ path: "/auth/wechat/session", method: "POST", data: { code }, public: true });
     saveTokens(result.access_token, result.refresh_token);
     return result;
