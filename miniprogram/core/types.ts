@@ -6,9 +6,16 @@ export interface MediaItem {
   id: string;
   type: MediaType;
   path?: string;
+  thumbnailPath?: string;
+  fileName?: string;
+  mimeType?: string;
+  size?: number;
+  assetId?: string;
+  uploadSessionId?: string;
+  error?: string;
   tone?: "sunset" | "lake" | "berry" | "paper";
   progress: number;
-  status: "READY" | "UPLOADING" | "FAILED";
+  status: "READY" | "UPLOADING" | "PROCESSING" | "FAILED";
 }
 
 export interface CommentItem {
@@ -33,6 +40,7 @@ export interface Moment {
   reaction?: { actor: "我" | "TA"; value: string };
   comments: CommentItem[];
   status: "PUBLISHED" | "UPLOADING" | "PARTIAL_FAILED" | "DELETED";
+  version?: number;
   deletedAt?: string;
 }
 

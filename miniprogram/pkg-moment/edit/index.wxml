@@ -1,0 +1,18 @@
+<view class="page moment-edit-page">
+  <text class="eyebrow">EDIT MOMENT</text>
+  <text class="display-title">修改这段记录</text>
+  <text class="section-note">媒体文件不会被覆盖；修改可见范围会立即影响另一半的访问权限。</text>
+
+  <view wx:if="{{loading}}" class="edit-loading">正在读取记录…</view>
+  <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text></view>
+
+  <view wx:if="{{!loading}}" class="edit-form card">
+    <view class="form-field"><view class="field-head"><text class="form-label">标题 · 可选</text><text>{{titleLeft}}</text></view><input class="input" value="{{title}}" maxlength="30" bindinput="titleInput" /></view>
+    <view class="form-field"><view class="field-head"><text class="form-label">正文</text><text>{{bodyLeft}}</text></view><textarea class="textarea" value="{{body}}" maxlength="1000" auto-height bindinput="bodyInput"></textarea></view>
+    <view class="form-field"><text class="form-label">心情</text><view class="chip-list"><button wx:for="{{moods}}" wx:key="*this" class="chip {{mood === item ? 'chip--active' : ''}}" data-value="{{item}}" bindtap="selectMood">{{item}}</button></view></view>
+    <view class="form-field"><text class="form-label">事件 · 最多 3 个</text><view class="chip-list"><button wx:for="{{eventOptions}}" wx:key="value" class="chip {{item.active ? 'chip--active' : ''}}" data-value="{{item.value}}" bindtap="toggleEvent">{{item.value}}</button></view></view>
+    <view class="form-field"><text class="form-label">发生日期</text><picker mode="date" value="{{selectedDate}}" bindchange="dateChange"><view class="picker-row"><text>{{selectedDate}}</text><text>修改 ›</text></view></picker></view>
+    <view class="form-field"><text class="form-label">可见范围</text><button class="visibility-option {{visibility === 'PRIVATE' ? 'active' : ''}}" data-value="PRIVATE" bindtap="visibility"><text>仅自己可见</text><text>{{visibility === 'PRIVATE' ? '●' : '○'}}</text></button><button class="visibility-option {{visibility === 'SHARED' ? 'active' : ''}}" data-value="SHARED" bindtap="visibility"><text>与另一半共同可见</text><text>{{visibility === 'SHARED' ? '●' : '○'}}</text></button></view>
+  </view>
+  <button wx:if="{{!loading}}" class="primary-button press save-button" disabled="{{saving}}" loading="{{saving}}" bindtap="save">保存修改</button>
+</view>

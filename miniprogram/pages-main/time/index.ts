@@ -9,18 +9,21 @@ Page({
     profile: {}, couple: {}, moments: [] as any[], viewType: "day" as ViewType,
     views: Object.keys(labels).map((key) => ({ key, label: labels[key as ViewType] })),
     weekDays: [], calendar: [], months: [], showFilter: false, filterMood: "全部", unread: 0,
-    loading: false, loaded: false, error: "", dateEyebrow: "", currentDateLabel: "", currentYear: 0, currentMonthTitle: "",
-    customStart: "", customEnd: ""
+    loading: false, loadingMore: false, loaded: false, error: "", dateEyebrow: "", currentDateLabel: "", currentYear: 0, currentMonthTitle: "",
+    nextCursor: "", hasMore: false, timelineFrom: "", timelineTo: "",
+    customStart: "", customEnd: "", isRemote: appService.isRemote
   },
   onShow() {
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 0 });
     this.refresh();
   },
   onPullDownRefresh() { this.refresh(); },
+  onReachBottom() { this.loadMore(); },
   async refresh() {
     this.setData({ loading: true, error: "" });
     try {
-      await appService.refresh();
+      const page = await appService.refresh();
+      if (page) this.setData({ nextCursor: page.nextCursor, hasMore: page.hasMore, timelineFrom: page.from, timelineTo: page.to });
       this.render();
       this.setData({ loaded: true });
     } catch (error) {
@@ -31,6 +34,18 @@ Page({
       this.setData({ loading: false });
       wx.stopPullDownRefresh();
     }
+  },
+  async loadMore() {
+    if (!appService.isRemote || !this.data.hasMore || this.data.loadingMore) return;
+    this.setData({ loadingMore: true });
+    try {
+      const page = await appService.timelinePage(this.data.timelineFrom, this.data.timelineTo, 50, this.data.nextCursor);
+      store.appendRemoteMoments(page.items);
+      this.setData({ nextCursor: page.next_cursor || "", hasMore: Boolean(page.has_more) });
+      this.render();
+    } catch (error) {
+      if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "更多记录加载失败"), icon: "none" });
+    } finally { this.setData({ loadingMore: false }); }
   },
   render() {
     const state = store.getState();
@@ -45,7 +60,7 @@ Page({
     const filtered = this.data.filterMood === "全部" ? ranged : ranged.filter((item) => item.mood === this.data.filterMood);
     this.setData({
       profile: state.profile, couple: state.couple, moments: filtered,
-      unread: state.messages.filter((item) => !item.read).length,
+      unread: appService.isRemote ? 0 : state.messages.filter((item) => !item.read).length,
       weekDays: this.buildWeek(now, moments), calendar: this.buildCalendar(now, moments), months: this.buildMonths(now, moments),
       dateEyebrow: `${now.getFullYear()} · ${now.getMonth() + 1}月`,
       currentDateLabel: `${now.getMonth() + 1} 月 ${now.getDate()} 日`, currentYear: now.getFullYear(),
@@ -83,5 +98,5 @@ Page({
   filterMood(event: any) { this.setData({ filterMood: event.currentTarget.dataset.value, showFilter: false }); this.render(); },
   openMoment(event: any) { wx.navigateTo({ url: `/pkg-moment/detail/index?id=${event.detail.id}` }); },
   compose() { wx.navigateTo({ url: "/pkg-compose/composer/index" }); },
-  messages() { wx.navigateTo({ url: "/pkg-couple/messages/index" }); }
+  messages() { if (!appService.isRemote) wx.navigateTo({ url: "/pkg-couple/messages/index" }); }
 });

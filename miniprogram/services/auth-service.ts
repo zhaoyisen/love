@@ -9,6 +9,13 @@ export interface LoginResponse {
   expires_in: number;
 }
 
+export interface MeResponse {
+  id: string;
+  nickname: string;
+  couple_id?: string;
+  relationship_status: "UNPAIRED" | "PAIRED" | "FROZEN";
+}
+
 function wechatCode(): Promise<string> {
   return new Promise((resolve, reject) => wx.login({ success: (result: any) => result.code ? resolve(result.code) : reject(new Error("微信登录失败")), fail: reject }));
 }
@@ -24,5 +31,10 @@ export const authService = {
     saveTokens(result.access_token, result.refresh_token);
     return result;
   },
-  me: () => apiRequest<any>({ path: "/me" })
+  me: () => apiRequest<MeResponse>({ path: "/me" }),
+  updateProfile: (nickname: string) => apiRequest<MeResponse>({
+    path: "/me",
+    method: "PATCH",
+    data: { nickname }
+  })
 };

@@ -4,14 +4,14 @@
       <text class="eyebrow">{{dateEyebrow}}</text>
       <text class="display-title">今天，也值得记下</text>
     </view>
-    <button class="message-button press" bindtap="messages">信<text wx:if="{{unread}}">{{unread}}</text></button>
+    <button wx:if="{{!isRemote}}" class="message-button press" bindtap="messages" aria-label="打开消息"><view class="message-icon"><view></view></view><text class="message-label">消息</text><text wx:if="{{unread}}" class="message-badge">{{unread}}</text></button>
   </view>
 
-  <scroll-view class="view-tabs" scroll-x enhanced show-scrollbar="false">
+  <view class="view-tabs">
     <view class="view-tabs-inner">
       <button wx:for="{{views}}" wx:key="key" class="view-tab {{viewType === item.key ? 'active' : ''}} press" data-view="{{item.key}}" bindtap="switchView">{{item.label}}</button>
     </view>
-  </scroll-view>
+  </view>
 
   <view wx:if="{{loading}}" class="sync-status"><view class="sync-dot"></view><text>正在同步时光</text></view>
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="refresh">重试</button></view>
@@ -20,7 +20,7 @@
     <view><text class="summary-number">{{moments.length}}</text><text class="summary-label">段时刻</text></view>
     <view class="summary-divider"></view>
     <view><text class="summary-number">{{couple.status === 'PAIRED' ? '2' : '1'}}</text><text class="summary-label">位记录者</text></view>
-    <button class="filter-button press" bindtap="toggleFilter">筛选 · {{filterMood}}</button>
+    <button class="filter-button press" bindtap="toggleFilter"><text>筛选</text><text>{{filterMood}}</text></button>
   </view>
 
   <view wx:if="{{showFilter}}" class="filter-sheet">
@@ -52,4 +52,5 @@
   </view>
   <block wx:if="{{moments.length}}"><moment-card wx:for="{{moments}}" wx:key="id" item="{{item}}" bind:open="openMoment"></moment-card></block>
   <empty-state wx:else title="今天还没有被记下" description="不必完整，也不用特别。写下一件此刻想留住的小事。" action="记录现在" bind:action="compose"></empty-state>
+  <button wx:if="{{hasMore}}" class="load-more press" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">{{loadingMore ? '正在加载' : '查看更多记录'}}</button>
 </view>

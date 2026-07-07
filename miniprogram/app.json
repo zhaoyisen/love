@@ -13,7 +13,7 @@
     },
     {
       "root": "pkg-moment",
-      "pages": ["detail/index", "recycle-bin/index"]
+      "pages": ["detail/index", "edit/index", "recycle-bin/index"]
     },
     {
       "root": "pkg-couple",
@@ -26,6 +26,10 @@
     {
       "root": "pkg-pet",
       "pages": ["detail/index"]
+    },
+    {
+      "root": "pkg-profile",
+      "pages": ["edit/index"]
     }
   ],
   "window": {

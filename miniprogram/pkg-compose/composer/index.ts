@@ -4,13 +4,19 @@ import { appService } from "../../services/app-service";
 
 let saveTimer: any;
 
+function selectedFileSize(path: string, provided: any) {
+  if (Number(provided) > 0) return Number(provided);
+  try { return Number(wx.getFileSystemManager().statSync(path).size || 0); }
+  catch (_) { return 0; }
+}
+
 Page({
   data: {
     draftId: "", step: 1, draft: {} as Draft, paired: false, savedText: "已自动保存",
-    remoteTextOnly: appService.isRemote,
+    remoteUploadEnabled: appService.isRemote,
     mediaTypes: [
-      { key: "IMAGE", label: "照片", note: appService.isRemote ? "接入中" : "1–9 张", available: !appService.isRemote },
-      { key: "VIDEO", label: "视频", note: appService.isRemote ? "接入中" : "1 段", available: !appService.isRemote },
+      { key: "IMAGE", label: "照片", note: "1–9 张", available: true },
+      { key: "VIDEO", label: "视频", note: "1 段", available: true },
       { key: "TEXT", label: "文字", note: "安静写下", available: true }
     ],
     moods: ["开心","心动","平静","想念","委屈","生气","和好","其他"],
@@ -19,7 +25,7 @@ Page({
   },
   onLoad(query: any) {
     const existing = query.draftId ? store.getDraft(query.draftId) : undefined;
-    const draft = existing || store.createDraft(appService.isRemote ? "TEXT" : "IMAGE");
+    const draft = existing || store.createDraft("IMAGE");
     this.setData({ draftId: draft.id, draft, step: draft.step, paired: store.getState().couple.status === "PAIRED", bodyLeft: 1000 - draft.body.length, titleLeft: 30 - draft.title.length, today: this.dateValue(new Date()), selectedDate: this.dateValue(new Date(draft.occurredAt)), eventOptions: this.data.eventOptions.map((item: any) => ({ ...item, active: draft.events.includes(item.value) })) });
   },
   onUnload() { clearTimeout(saveTimer); this.persistNow(); },
@@ -33,7 +39,6 @@ Page({
   persistNow() { if (this.data.draftId && this.data.draft.id) store.saveDraft(this.data.draftId, this.data.draft); },
   selectType(event: any) {
     const mediaType = event.currentTarget.dataset.type as MediaType;
-    if (appService.isRemote && mediaType !== "TEXT") return;
     this.patchDraft({ mediaType, media: [] });
     if (mediaType === "TEXT") this.setData({ step: 2 });
   },
@@ -44,7 +49,23 @@ Page({
         if (wx.chooseMedia) wx.chooseMedia({ count: mediaType === "VIDEO" ? 1 : 9, mediaType: [mediaType === "VIDEO" ? "video" : "image"], sourceType: ["album", "camera"], success: resolve, fail: reject });
         else wx.chooseImage({ count: 9, success: (res: any) => resolve({ tempFiles: res.tempFilePaths.map((path: string) => ({ tempFilePath: path, fileType: "image" })) }), fail: reject });
       });
-      const media = result.tempFiles.map((file: any, index: number) => ({ id: `local_${Date.now()}_${index}`, type: mediaType, path: file.tempFilePath, progress: 100, status: "READY" }));
+      const media = result.tempFiles.map((file: any, index: number) => {
+        const path = file.tempFilePath || file.path;
+        const extension = String(path || "").split(".").pop()?.toLowerCase();
+        const mimeType = mediaType === "VIDEO"
+          ? (extension === "mov" ? "video/quicktime" : "video/mp4")
+          : (extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg");
+        return {
+          id: `local_${Date.now()}_${index}`,
+          type: mediaType,
+          path,
+          fileName: String(path || `memory_${index}`).split("/").pop() || `memory_${index}`,
+          mimeType,
+          size: selectedFileSize(path, file.size),
+          progress: 100,
+          status: "READY"
+        };
+      });
       this.patchDraft({ media });
     } catch (_) { /* user cancelled */ }
   },

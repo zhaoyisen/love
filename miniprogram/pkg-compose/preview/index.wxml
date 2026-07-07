@@ -8,6 +8,13 @@
     <view class="preview-content"><text class="preview-date">{{date.date}} · {{date.time}}</text><text class="preview-title">{{draft.title || '一个普通却想记住的时刻'}}</text><text class="preview-copy">{{draft.body}}</text><view class="preview-tags"><text class="tag">{{draft.mood}}</text><text wx:for="{{draft.events}}" wx:key="*this" class="tag">{{item}}</text></view></view>
   </view>
   <view class="disclosure-card"><view><text class="disclosure-icon">◉</text><view><text>可见范围</text><text class="label">{{visibilityLabel}}</text></view></view><view><text class="disclosure-icon">⌁</text><view><text>原始内容</text><text class="label">原图不会被模板覆盖</text></view></view><view><text class="disclosure-icon">⌇</text><view><text>发生日期</text><text class="label">将按 {{date.date}} 排入时间线</text></view></view></view>
+  <view wx:if="{{draft.media.length}}" class="upload-panel">
+    <view class="upload-heading"><text>媒体上传</text><text>{{draft.media.length}} 项</text></view>
+    <view wx:for="{{draft.media}}" wx:key="id" class="upload-row">
+      <view class="upload-state {{item.status}}"></view>
+      <view><text>{{item.fileName || (item.type === 'VIDEO' ? '视频' : '照片')}}</text><text class="label">{{item.status === 'UPLOADING' ? '正在上传 ' + item.progress + '%' : item.status === 'PROCESSING' ? '安全处理中，完成前仅自己可见' : item.status === 'FAILED' ? (item.error || '上传失败，可重试') : '等待上传'}}</text></view>
+    </view>
+  </view>
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text></view>
-  <view class="button-row"><button class="secondary-button press" bindtap="edit">返回修改</button><button class="primary-button press" loading="{{publishing}}" bindtap="publish">确认发布</button></view>
+  <view class="button-row"><button class="secondary-button press" disabled="{{publishing}}" bindtap="edit">返回修改</button><button class="primary-button press" disabled="{{publishing}}" loading="{{publishing}}" bindtap="publish">{{publishing ? publishText : '确认发布'}}</button></view>
 </view>

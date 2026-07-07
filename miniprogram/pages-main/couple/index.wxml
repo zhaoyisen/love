@@ -1,5 +1,5 @@
 <view class="page couple-page">
-  <view class="couple-heading"><view><text class="eyebrow">BETWEEN US</text><text class="display-title">我们</text></view><button class="mail-button press" bindtap="messages">信笺<text wx:if="{{unread}}">{{unread}}</text></button></view>
+  <view class="couple-heading"><view><text class="eyebrow">BETWEEN US</text><text class="display-title">我们</text></view><view class="heading-actions"><button wx:if="{{!isRemote}}" class="mail-button press" bindtap="messages">消息<text wx:if="{{unread}}">{{unread}}</text></button><button class="settings-button press" bindtap="settings">设置</button></view></view>
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="retry">重试</button></view>
   <view wx:if="{{loading && !loaded}}" class="couple-skeleton"><view></view><view></view><text>正在确认你们的空间</text></view>
   <view wx:elif="{{couple.status === 'UNPAIRED'}}" class="unpaired-card">
@@ -11,8 +11,8 @@
       <view class="relation-art"><view class="avatar mine">{{myInitial}}</view><view class="thread"></view><view class="avatar partner">{{partnerInitial}}</view></view>
       <text class="relation-kicker">{{couple.relationshipName}}</text><text class="relation-days">{{days}}</text><text class="relation-unit">一起生活的日子</text><view class="anniversary"><text>纪念日</text><text>{{couple.anniversary}}</text></view>
     </view>
-    <view class="quick-grid"><button class="quick-card press" bindtap="messages"><text>{{unread}}</text><text class="label">新的信笺</text><text class="small">回应与短评</text></button><button class="quick-card press"><text>{{sharedCount}}</text><text class="label">共同片段</text><text class="small">已共享记录</text></button></view>
-    <button class="pet-card press" bindtap="pet"><view class="pet-scene"><view class="pet-body"><view class="decor"></view><view class="decor"></view><text>⌁</text></view><view class="pet-shadow"></view></view><view class="pet-copy"><text class="eyebrow">OUR LITTLE CLOUD</text><text class="pet-name">{{pet.name}} · Lv.{{pet.level}}</text><text class="label">{{pet.kind}}今天在等你们</text><view class="growth-track"><view class="decor" style="width: {{pet.growth}}%"></view></view><text class="small">成长值 {{pet.growth}} / 100</text></view><text class="pet-arrow">›</text></button>
-    <view class="memory-prompt"><text>今日轻任务</text><text class="label">记录一件让你想起 TA 的小事</text><button bindtap="messages">稍后看看</button></view>
+    <view class="quick-grid"><button wx:if="{{!isRemote}}" class="quick-card press" bindtap="messages"><text>{{unread}}</text><text class="label">新的信笺</text><text class="small">回应与短评</text></button><button class="quick-card press"><text>{{sharedCount}}</text><text class="label">共同片段</text><text class="small">已共享记录</text></button></view>
+    <button wx:if="{{!isRemote}}" class="pet-card press" bindtap="pet"><view class="pet-scene"><view class="pet-body"><view class="decor"></view><view class="decor"></view><text>⌁</text></view><view class="pet-shadow"></view></view><view class="pet-copy"><text class="eyebrow">OUR LITTLE CLOUD</text><text class="pet-name">{{pet.name}} · Lv.{{pet.level}}</text><text class="label">{{pet.kind}}今天在等你们</text><view class="growth-track"><view class="decor" style="width: {{pet.growth}}%"></view></view><text class="small">成长值 {{pet.growth}} / 100</text></view><text class="pet-arrow">›</text></button>
+    <view wx:if="{{!isRemote}}" class="memory-prompt"><text>今日轻任务</text><text class="label">记录一件让你想起 TA 的小事</text><button bindtap="messages">稍后看看</button></view>
   </block>
 </view>

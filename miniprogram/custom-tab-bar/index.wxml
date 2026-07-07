@@ -1,16 +1,15 @@
-<view class="tab-shell safe-bottom">
+<view class="tab-shell">
   <view class="tab-rule"></view>
   <view class="tab-list">
     <block wx:for="{{tabs}}" wx:key="page">
-      <view wx:if="{{index === 2}}" class="compose-space"></view>
       <button class="tab-item {{selected === index ? 'is-selected' : ''}} press" data-index="{{index}}" bindtap="switchTab">
-        <text class="tab-icon">{{item.icon}}</text>
+        <view class="tab-glyph glyph-{{item.icon}}"></view>
         <text>{{item.label}}</text>
       </button>
     </block>
   </view>
   <button class="compose-button press" bindtap="compose" aria-label="记录一个时刻">
-    <text class="compose-plus">＋</text>
+    <text class="compose-plus">+</text>
     <text class="compose-label">记录</text>
   </button>
 </view>

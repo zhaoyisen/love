@@ -1,11 +1,45 @@
-.tab-shell { position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; height: 124rpx; background: rgba(255,253,248,.98); box-shadow: 0 -12rpx 36rpx rgba(65,48,36,.08); }
-.tab-rule { position: absolute; top: 0; left: 32rpx; right: 32rpx; height: 2rpx; background: #E6DDD2; }
-.tab-list { height: 124rpx; padding: 0 14rpx; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; }
-.tab-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; height: 112rpx; color: #8A8178; background: transparent; font: 20rpx/1 sans-serif; }
-.tab-icon { font: 34rpx/1 Georgia, serif; }
-.is-selected { color: #BD4E4E; }
-.compose-space { width: 100%; }
-.compose-button { position: absolute; left: 50%; top: -34rpx; transform: translateX(-50%); width: 112rpx; height: 112rpx; border-radius: 56rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #FFF; background: #BD4E4E; border: 8rpx solid #F7F1E8; box-shadow: 0 12rpx 24rpx rgba(139,61,61,.24); }
-.compose-button:active { transform: translateX(-50%) scale(.97); }
-.compose-plus { font: 45rpx/.8 sans-serif; }
-.compose-label { margin-top: 7rpx; font: 18rpx/1 sans-serif; letter-spacing: 2rpx; }
+.tab-shell {
+  position: fixed; z-index: 50; left: 0; right: 0; bottom: 0;
+  height: calc(112rpx + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: #FCF9F3;
+  box-shadow: 0 -8rpx 28rpx rgba(62,48,38,.08);
+  box-sizing: border-box;
+}
+.tab-rule { position: absolute; top: 0; left: 0; right: 0; height: 2rpx; background: #E5DCD1; }
+.tab-list { width: 100%; height: 112rpx; display: flex; align-items: center; }
+.tab-item {
+  position: relative; flex: 1 1 0; width: 0; min-width: 0; max-width: none; height: 104rpx; margin: 0; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7rpx;
+  color: #8A8178; background: transparent; font: 500 20rpx/1.2 "PingFang SC",sans-serif;
+}
+.tab-item::after,.compose-button::after { border: 0; }
+.tab-item.is-selected { color: #A94444; font-weight: 600; }
+.tab-item.is-selected::after { content: ""; position: absolute; left: 50%; right: auto; top: auto; bottom: 5rpx; width: 8rpx; height: 8rpx; border: 0; border-radius: 50%; background: #A94444; transform: translateX(-50%); transform-origin: center; }
+.tab-glyph { position: relative; width: 36rpx; height: 36rpx; color: currentColor; box-sizing: border-box; }
+.glyph-time { border: 3rpx solid currentColor; border-radius: 50%; }
+.glyph-time::before { content: ""; position: absolute; left: 16rpx; top: 7rpx; width: 3rpx; height: 10rpx; border-radius: 2rpx; background: currentColor; transform-origin: bottom center; transform: rotate(-8deg); }
+.glyph-time::after { content: ""; position: absolute; left: 16rpx; top: 15rpx; width: 9rpx; height: 3rpx; border-radius: 2rpx; background: currentColor; transform: rotate(24deg); transform-origin: left center; }
+.glyph-couple::before,.glyph-couple::after { content: ""; position: absolute; top: 6rpx; width: 21rpx; height: 24rpx; border: 3rpx solid currentColor; border-radius: 50%; box-sizing: border-box; }
+.glyph-couple::before { left: 1rpx; transform: rotate(-12deg); }
+.glyph-couple::after { right: 1rpx; transform: rotate(12deg); }
+.glyph-recap { border: 3rpx solid currentColor; border-radius: 5rpx; }
+.glyph-recap::before,.glyph-recap::after { content: ""; position: absolute; left: 7rpx; right: 7rpx; height: 3rpx; border-radius: 2rpx; background: currentColor; }
+.glyph-recap::before { top: 10rpx; }
+.glyph-recap::after { top: 20rpx; }
+.glyph-mine::before { content: ""; position: absolute; left: 12rpx; top: 2rpx; width: 13rpx; height: 13rpx; border: 3rpx solid currentColor; border-radius: 50%; box-sizing: border-box; }
+.glyph-mine::after { content: ""; position: absolute; left: 6rpx; bottom: 1rpx; width: 25rpx; height: 16rpx; border: 3rpx solid currentColor; border-bottom: 0; border-radius: 18rpx 18rpx 0 0; box-sizing: border-box; }
+.compose-button {
+  position: absolute; left: 50%; top: 9rpx;
+  width: 92rpx; min-width: 92rpx; max-width: 92rpx; height: 92rpx; margin: 0; padding: 0;
+  transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5rpx;
+  border-radius: 28rpx; color: #FFF9F4; background: #A94444;
+  box-shadow: 0 8rpx 18rpx rgba(143,63,63,.22); line-height: 1; box-sizing: border-box;
+}
+.compose-button:active { transform: translateX(-50%) scale(.94); opacity: .86; }
+.compose-plus { font: 400 35rpx/.8 system-ui,sans-serif; }
+.compose-label { font: 600 18rpx/1.1 "PingFang SC",sans-serif; letter-spacing: 1rpx; }
+@media (prefers-reduced-motion: no-preference) {
+  .tab-item,.tab-glyph,.compose-button { transition: transform 180ms cubic-bezier(.22,1,.36,1),color 180ms ease,opacity 180ms ease; }
+  .tab-item.is-selected .tab-glyph { transform: translateY(-2rpx); }
+}

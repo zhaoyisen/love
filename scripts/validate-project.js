@@ -36,6 +36,14 @@ for (const file of files.filter((item) => item.endsWith(".wxml"))) {
   if (methodExpression) failures.push(`${path.relative(root, file)}: method call in WXML expression ${methodExpression[0]}`);
 }
 
+for (const file of files.filter((item) => item.endsWith(".wxss"))) {
+  const source = fs.readFileSync(file, "utf8");
+  const barePseudoAfterChildCombinator = source.match(/>\s*:[a-z-]+/i);
+  if (barePseudoAfterChildCombinator) {
+    failures.push(`${path.relative(root, file)}: WXSS requires an explicit selector before ${barePseudoAfterChildCombinator[0].trim()}`);
+  }
+}
+
 if (failures.length) {
   console.error(failures.join("\n"));
   process.exit(1);

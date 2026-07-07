@@ -1,5 +1,7 @@
 # Jenkins + Docker Compose 服务端部署指南
 
+> 如果你的唯一目标是把小程序正式上线，请先完整执行[《生产上线唯一操作手册》](生产上线唯一操作手册.md)。本文只补充 Jenkins 与 Docker Compose 专题细节，不再作为上线起点。
+
 本指南用于把 `server/` 中的 Spring Boot API 部署到一台 Linux 服务器。数据库、Redis 和腾讯云 COS 使用外部托管资源，不由 Docker Compose 创建。
 
 ## 1. 最终结构
@@ -49,8 +51,7 @@ server/.env.example         生产环境变量模板，不含真实密钥
 - Docker Engine；
 - Docker Compose v2.20 或更高版本，需支持 `docker compose up --wait`；
 - Git；
-- Java 21；
-- Maven 3.9；
+- Java 21（运行 Jenkins）；
 - Jenkins LTS；
 - Jenkins Pipeline、Git、Credentials Binding、JUnit 插件；
 - Nginx、腾讯云负载均衡或其他 HTTPS 入口。
@@ -60,7 +61,6 @@ server/.env.example         生产环境变量模板，不含真实密钥
 ```bash
 git --version
 java -version
-mvn -version
 docker version
 docker compose version
 ```
@@ -73,7 +73,7 @@ Jenkins 执行用户必须可以运行 Docker。将用户加入 `docker` 组等�
 linux-docker
 ```
 
-仓库中的 `Jenkinsfile` 固定选择该标签，确保 Maven 测试、Linux 镜像构建和 Docker Compose 发布都发生在服务器，而不是 Windows 开发机。
+仓库中的 `Jenkinsfile` 固定选择该标签。Node.js 20 和 Maven 3.9 均通过 Docker 镜像运行，服务器无需单独安装 Node.js 或 Maven；测试、Linux 镜像构建和 Docker Compose 发布都发生在服务器，而不是 Windows 开发机。
 
 ## 4. 网络与云资源
 
@@ -83,7 +83,7 @@ linux-docker
 2. MySQL 安全组只允许部署服务器私网 IP；
 3. Redis 只允许部署服务器私网访问，并启用密码；
 4. 条件允许时启用 MySQL/Redis TLS；
-5. COS 使用私有桶和最小权限 CAM 子用户；
+5. COS 使用私有桶并绑定数据万象；主账号需完成数据万象角色授权，长期建议改为最小权限 CAM 子用户或云角色；
 6. 部署服务器能够访问微信 API、COS、MySQL 和 Redis；
 7. 公网安全组只开放 80/443，禁止直接开放 MySQL、Redis 和 8080。
 
@@ -118,10 +118,17 @@ WECHAT_APP_ID=你的小程序AppID
 WECHAT_APP_SECRET=你的小程序AppSecret
 
 COS_BUCKET=你的存储桶名称
-COS_REGION=ap-shanghai
-COS_SECRET_ID=CAM子用户SecretId
-COS_SECRET_KEY=CAM子用户SecretKey
+COS_REGION=ap-chengdu
+COS_SECRET_ID=腾讯云API SecretId
+COS_SECRET_KEY=腾讯云API SecretKey
+TIMELINE_CURSOR_SECRET=至少32位随机字符串
+MEDIA_PROCESSING_POLL_MS=5000
+MEDIA_CLEANUP_POLL_MS=3600000
+MEDIA_TRASH_RETENTION_DAYS=30
+MEDIA_ORPHAN_RETENTION_HOURS=24
 ```
+
+`SERVER_BIND_ADDRESS` 填监听 IP，不填域名。同机 Nginx 代理时使用 `127.0.0.1`。如果你使用主账号密钥，程序可以运行，但密钥只能保存于此 Secret file；不要写入仓库、小程序或 Jenkins Console。
 
 在 Jenkins 中依次操作：
 
@@ -154,6 +161,7 @@ COS_SECRET_KEY=CAM子用户SecretKey
 ```text
 Checkout
 Verify toolchain
+Mini Program checks
 Backend test
 Build image
 Validate Compose
@@ -185,6 +193,22 @@ docker inspect love-notes-api-1
 ```
 
 常见原因包括 MySQL/Redis 安全组未放行、内网地址错误、密码错误、Redis TLS 配置不一致、COS 地域或桶名错误。
+
+首次部署还要检查 Flyway 已执行到 V3：
+
+```sql
+SELECT version, description, success
+FROM flyway_schema_history
+ORDER BY installed_rank;
+```
+
+应看到 `1 foundation`、`2 media processing`、`3 media derivatives` 且 `success=1`。然后用体验账号完成一次真实图片发布，确认：
+
+1. COS 出现对应的 `original/`、`display/`、`thumbnail/` 三个对象；
+2. 图片审核通过后记录由 `UPLOADING` 变为 `PUBLISHED`；
+3. 时间线图片 URL 指向 `thumbnail/`，详情 URL 指向 `display/`；
+4. 无痕浏览器直接打开不带签名的 COS URL 返回拒绝访问；
+5. 审核失败时记录不会对另一半可见。
 
 ## 8. 配置 HTTPS 入口
 
@@ -250,6 +274,14 @@ IMAGE_TAG=上一个提交短哈希 docker compose \
 
 回滚后再次检查健康接口和核心登录流程。不要随意执行 `docker system prune -a`，否则会删除用于快速回滚的旧镜像。
 
-## 11. 当前发布边界
+## 11. 发布前数据库和回滚边界
 
-这套配置已经支持服务端容器化构建、自动测试、生产变量注入、健康等待和按提交版本回滚，但不代表当前业务已经满足小程序正式上线条件。媒体 Worker、内容安全、剩余领域 API、生产 MySQL/Redis/COS 联调和完整真机测试仍需继续完成。
+每次 `main` 发布前执行 MySQL 快照或逻辑备份。Flyway 迁移发生在新容器启动阶段；如果 V3 已成功执行后回滚旧镜像，旧镜像通常会忽略新增的可空列，但数据库结构不会自动降级。不要删除 `display_storage_key`、`thumbnail_storage_key` 或相关索引。
+
+回滚后仍需检查媒体处理 Worker；否则已上传对象可能长期停留在 `PROCESSING`。
+
+## 12. 当前发布边界
+
+这套配置已经支持小程序静态检查、服务端自动测试、Linux 镜像构建、生产变量注入、Flyway V3、媒体审核/图片派生、清理任务、健康等待和按提交版本回滚。
+
+仍不能只凭 Jenkins 绿色就直接全量上线。生产 MySQL/Redis/COS/微信 AppID 联调、至少两台 iPhone 和两台 Android 真机测试、隐私与合法域名配置仍是人工发布门禁。回应、短评、消息、宠物和回顾尚未接入真实服务端；提审版本必须隐藏这些入口，或先完成对应 API。

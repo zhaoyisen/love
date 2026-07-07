@@ -63,5 +63,9 @@ love-notes:
     image-max-bytes: 20971520
     video-max-bytes: 209715200
     upload-credential-ttl-seconds: 1800
+    trash-retention-days: ${MEDIA_TRASH_RETENTION_DAYS:30}
+    orphan-retention-hours: ${MEDIA_ORPHAN_RETENTION_HOURS:24}
+  timeline:
+    cursor-secret: ${TIMELINE_CURSOR_SECRET:dev-only-change-me}
   wechat:
     session-url: https://api.weixin.qq.com/sns/jscode2session

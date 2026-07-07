@@ -1,1 +1,16 @@
-<view class="page messages-page"><view class="messages-head"><view><text class="eyebrow">LETTERS BETWEEN US</text><text class="display-title">信笺</text></view><button class="text-button" bindtap="readAll">全部已读</button></view><text class="section-note">新共享时刻、回应、短评和安全通知会留在这里。</text><view class="message-list"><button wx:for="{{messages}}" wx:key="id" class="message-item {{!item.read ? 'unread' : ''}} press" data-id="{{item.momentId}}" bindtap="open"><view class="message-mark">{{item.type === 'REACTION' ? '♥' : item.type === 'PET' ? '☁' : item.type === 'COMMENT' ? '“' : '⌁'}}</view><view class="message-copy"><view><text>{{item.title}}</text><text class="time">{{item.createdAt}}</text></view><text class="label">{{item.summary}}</text></view><view class="decor" wx:if="{{!item.read}}"></view></button></view></view>
+<view class="page messages-page">
+  <view class="messages-head">
+    <view><text class="eyebrow">NOTIFICATIONS</text><text class="display-title">消息</text></view>
+    <button class="read-button press" disabled="{{!unread}}" bindtap="readAll">{{unread ? '全部已读' : '已全部阅读'}}</button>
+  </view>
+  <text class="section-note">共同记录、回应和重要通知都在这里。</text>
+
+  <view wx:if="{{messages.length}}" class="message-list">
+    <view wx:for="{{messages}}" wx:key="id" class="message-item {{!item.read ? 'unread' : ''}}" hover-class="message-item--pressed" hover-stay-time="120" role="button" data-id="{{item.momentId}}" bindtap="open">
+      <view class="message-mark">{{item.type === 'REACTION' ? '♥' : item.type === 'PET' ? '☁' : item.type === 'COMMENT' ? '“' : '•'}}</view>
+      <view class="message-copy"><view class="message-title-row"><text class="message-title">{{item.title}}</text><text class="time">{{item.createdAt}}</text></view><text class="message-summary">{{item.summary}}</text></view>
+      <view wx:if="{{!item.read}}" class="unread-dot"></view><text wx:else class="message-arrow">›</text>
+    </view>
+  </view>
+  <view wx:else class="message-empty"><view class="empty-icon"><view></view></view><text>暂时没有新消息</text><text>共同记录有新回应时，会出现在这里。</text></view>
+</view>

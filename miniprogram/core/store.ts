@@ -169,6 +169,19 @@ class LoveNotesStore {
     this.update((state) => { state.moments = moments; });
   }
 
+  appendRemoteMoments(moments: Moment[]) {
+    this.update((state) => {
+      const incoming = new Set(moments.map((item) => item.id));
+      state.moments = [...state.moments.filter((item) => !incoming.has(item.id)), ...moments];
+    });
+  }
+
+  upsertRemoteMoment(moment: Moment) {
+    this.update((state) => {
+      state.moments = [moment, ...state.moments.filter((item) => item.id !== moment.id)];
+    });
+  }
+
   publishRemoteDraft(draftId: string, moment: Moment) {
     this.update((state) => {
       state.moments = [moment, ...state.moments.filter((item) => item.id !== moment.id)];
@@ -265,6 +278,14 @@ class LoveNotesStore {
     });
   }
 
+  editMoment(momentId: string, patch: Partial<Moment>) {
+    this.update((state) => {
+      const moment = state.moments.find((item) => item.id === momentId);
+      if (moment) Object.assign(moment, patch, { version: (moment.version || 0) + 1 });
+    });
+    return this.getMoment(momentId);
+  }
+
   restoreMoment(momentId: string) {
     this.update((state) => {
       const moment = state.moments.find((item) => item.id === momentId);
@@ -291,6 +312,13 @@ class LoveNotesStore {
 
   updatePreference(key: keyof AppState["preferences"], value: boolean) {
     this.update((state) => { state.preferences[key] = value; });
+  }
+
+  updateProfileName(nickname: string) {
+    this.update((state) => {
+      state.profile.name = nickname;
+      state.profile.avatarText = nickname.slice(0, 1) || "我";
+    });
   }
 
   updateDefaultVisibility(value: Visibility) {
