@@ -39,7 +39,14 @@ services:
       MEDIA_ORPHAN_RETENTION_HOURS: ${MEDIA_ORPHAN_RETENTION_HOURS:-24}
       LOG_LEVEL_ROOT: ${LOG_LEVEL_ROOT:-INFO}
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://127.0.0.1:8080/api/v1/actuator/health"]
+      test:
+        - CMD
+        - bash
+        - -ec
+        - >
+          exec 3<>/dev/tcp/127.0.0.1/8080;
+          printf 'GET /api/v1/actuator/health HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n' >&3;
+          grep -q '"status":"UP"' <&3
       interval: 10s
       timeout: 5s
       retries: 12

@@ -42,9 +42,9 @@ server/.dockerignore        镜像构建上下文排除规则
 server/.env.example         生产环境变量模板，不含真实密钥
 ```
 
-镜像以非 root 用户运行，根文件系统只读，仅 `/tmp` 可写；端口默认只绑定到宿主机 `127.0.0.1`。Compose 配置了健康检查、优雅停止、日志轮转、CPU/内存限制和禁止提权。
+镜像以非 root 用户运行，根文件系统只读，仅 `/tmp` 可写；端口默认只绑定到宿主机 `127.0.0.1`。Compose 配置了健康检查、优雅停止、日志轮转、CPU/内存限制和禁止提权。运行镜像不执行 `apt-get update`，也不安装 `curl`；健康检查使用基础镜像自带的 `bash` 和 `grep` 请求本机 Actuator。
 
-`Backend test` 阶段负责执行 `mvn clean verify` 并生成 `server/target/love-notes-server-*.jar`。`Build image` 阶段只把该 jar 复制进运行镜像，不再在 Dockerfile 内重复执行 Maven；这样可以避免轻量服务器在同一次流水线里下载和编译两轮后端依赖。
+`Backend test` 阶段负责执行 `mvn clean verify` 并生成 `server/target/love-notes-server-*.jar`。`Build image` 阶段只把该 jar 复制进运行镜像，不再在 Dockerfile 内重复执行 Maven；这样可以避免轻量服务器在同一次流水线里下载和编译两轮后端依赖。npm 缓存保存在 Jenkins 工作区的 `.npm` 目录，Maven 缓存保存在 `.m2` 目录。
 
 ## 3. 部署服务器前置条件
 
@@ -271,7 +271,7 @@ love-notes-server:fdbc746301c6
 ```bash
 IMAGE_TAG=上一个提交短哈希 docker compose \
   --env-file /安全路径/prod.env \
-  up -d --no-deps --wait --wait-timeout 180 api
+  up -d --no-deps --wait --wait-timeout 300 api
 ```
 
 回滚后再次检查健康接口和核心登录流程。不要随意执行 `docker system prune -a`，否则会删除用于快速回滚的旧镜像。

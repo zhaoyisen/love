@@ -44,7 +44,7 @@ pipeline {
                         docker run --rm \
                             --user "$(id -u):$(id -g)" \
                             --env HOME=/tmp \
-                            --env npm_config_cache=/tmp/.npm \
+                            --env npm_config_cache="$WORKSPACE/.npm" \
                             --volumes-from "$(hostname)" \
                             --workdir "$WORKSPACE" \
                             node:20-bookworm-slim \
@@ -53,7 +53,7 @@ pipeline {
                         docker run --rm \
                             --user "$(id -u):$(id -g)" \
                             --env HOME=/tmp \
-                            --env npm_config_cache=/tmp/.npm \
+                            --env npm_config_cache=/workspace/.npm \
                             --volume "$WORKSPACE:/workspace" \
                             --workdir /workspace \
                             node:20-bookworm-slim \
@@ -71,18 +71,20 @@ pipeline {
                         docker run --rm \
                             --user "$(id -u):$(id -g)" \
                             --env HOME=/tmp \
+                            --env MAVEN_CONFIG="$WORKSPACE/.m2" \
                             --volumes-from "$(hostname)" \
                             --workdir "$WORKSPACE/server" \
                             maven:3.9-eclipse-temurin-21 \
-                            mvn -B -ntp clean verify
+                            mvn -B -ntp -Dmaven.repo.local="$WORKSPACE/.m2/repository" clean verify
                     else
                         docker run --rm \
                             --user "$(id -u):$(id -g)" \
                             --env HOME=/tmp \
+                            --env MAVEN_CONFIG=/workspace/.m2 \
                             --volume "$WORKSPACE:/workspace" \
                             --workdir /workspace/server \
                             maven:3.9-eclipse-temurin-21 \
-                            mvn -B -ntp clean verify
+                            mvn -B -ntp -Dmaven.repo.local=/workspace/.m2/repository clean verify
                     fi
                 '''
             }
@@ -127,7 +129,7 @@ pipeline {
                         IMAGE_TAG="${IMAGE_TAG}" docker compose \
                             --env-file "${PROD_ENV_FILE}" \
                             up -d --no-deps --remove-orphans \
-                            --wait --wait-timeout 180 api
+                            --wait --wait-timeout 300 api
                         docker compose \
                             --env-file "${PROD_ENV_FILE}" \
                             ps api
