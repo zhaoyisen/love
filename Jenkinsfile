@@ -92,7 +92,7 @@ pipeline {
             steps {
                 sh '''
                     set -eu
-                    DOCKER_BUILDKIT=1 docker build --pull --tag "love-notes-server:${IMAGE_TAG}" server
+                    docker build --pull --tag "love-notes-server:${IMAGE_TAG}" server
                 '''
             }
         }
