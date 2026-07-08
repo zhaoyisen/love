@@ -2,11 +2,13 @@
 
 基于《恋爱笔记微信小程序产品需求文档 PRD v1.0》《技术详细设计说明书 v1.0/v1.1》和低保真交互原型 v0.1 实现的原生微信小程序客户端 MVP。
 
+如果你的目标是从当前代码直接走到正式发布，请只按[《生产上线唯一操作手册》](docs/生产上线唯一操作手册.md)从第 1 步执行。
+
 ## 运行
 
 1. 安装依赖：`npm install`
 2. 执行检查：`npm run validate && npm run typecheck`
-3. 使用微信开发者工具导入本目录。当前 `appid` 为 `touristappid`，可直接体验本地 mock 流程；接入真实微信能力时替换为正式 AppID。
+3. 使用微信开发者工具导入本目录。当前 `appid` 为 `touristappid`，可直接体验本地 mock 流程；真实联调时替换为正式 AppID，并在 `miniprogram/core/api-config.ts` 设置 HTTPS API 地址和 `useRemoteApi: true`。
 
 第一次开发微信小程序，请按[零基础运行、测试、部署与上线指南](docs/零基础运行部署上线指南.md)逐项操作。导入开发者工具时必须选择包含 `project.config.json` 的项目根目录，不能选择 `miniprogram` 子目录。
 
@@ -24,8 +26,10 @@
 - 年度回顾候选、敏感内容默认排除、编辑、披露检查与生成状态
 - 默认可见范围、提醒设置、单方解绑和数据隔离说明
 
-## 联调边界
+## 真实联调状态
 
-当前使用 `miniprogram/core/mock-api.ts` 和本地存储模拟服务端。正式联调时应保持页面和 store 的调用方式，替换领域 service 为统一 `/api/v1` 客户端，并接入微信登录、私有对象存储直传、内容安全、短期媒体地址、服务端模板渲染和审计。客户端状态不能作为权限安全边界。
+登录、昵称、邀请、配对、记录、时间线、删除恢复和腾讯云 COS 媒体已经接入统一 `/api/v1`。生产媒体会经过文字/图片/视频审核；图片生成去 EXIF 的展示图和缩略图，回收站与孤儿上传有自动清理任务。客户端状态不作为权限安全边界。
 
-后端基础版位于 [server/README.md](server/README.md)，已经实现会话、情侣邀请、时刻权限、时间线首屏和腾讯云 COS 上传会话，并提供独立测试环境。
+回应、短评、消息、宠物和年度回顾仍使用本地 store，不能作为跨设备正式功能。提审版本应隐藏这些入口，或先实现真实服务端 API。后端说明见 [server/README.md](server/README.md)。
+
+服务端生产发布采用 Jenkins + Docker Compose，配置和首次部署步骤见 [Jenkins + Docker Compose 服务端部署指南](docs/Jenkins-Docker-Compose服务端部署指南.md)。`develop` 分支只执行构建与测试，`main` 分支通过后自动发布生产容器。

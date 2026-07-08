@@ -1,0 +1,11 @@
+target/*
+!target/*.jar
+data/
+.env
+.env.*
+!.env.example
+.git/
+.idea/
+.vscode/
+*.log
+README.md

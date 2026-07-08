@@ -1,8 +1,14 @@
 node_modules/
+.npm/
+.m2/
 tmp/
 server/target/
 server/data/
 *.log
 .env
+.env.*
+!.env.example
 server/.env
+server/.env.*
+!server/.env.example
 project.private.config.json

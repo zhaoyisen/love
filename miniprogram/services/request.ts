@@ -16,7 +16,7 @@ export interface RequestOptions {
 }
 
 function rawRequest<T>(options: any): Promise<any> {
-  return new Promise((resolve, reject) => wx.request({ ...options, success: resolve, fail: reject }));
+  return new Promise((resolve, reject) => wx.request({ timeout: 12000, ...options, success: resolve, fail: reject }));
 }
 
 export async function apiRequest<T>(options: RequestOptions, allowRefresh = true): Promise<T> {
@@ -31,9 +31,17 @@ export async function apiRequest<T>(options: RequestOptions, allowRefresh = true
   if (!options.public && token) headers.Authorization = `Bearer ${token}`;
   if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
 
-  const response = await rawRequest<Envelope<T>>({ url: `${API_CONFIG.baseUrl}${options.path}`, method: options.method || "GET", data: options.data, header: headers });
+  let response: any;
+  try {
+    response = await rawRequest<Envelope<T>>({ url: `${API_CONFIG.baseUrl}${options.path}`, method: options.method || "GET", data: options.data, header: headers });
+  } catch (_) {
+    const exception: any = new Error("网络连接失败，请检查网络后重试。");
+    exception.code = "NETWORK_ERROR";
+    throw exception;
+  }
   if (response.statusCode >= 200 && response.statusCode < 300) return (response.data as Envelope<T>).data;
   if (response.statusCode === 401 && allowRefresh && !options.public && await refreshSession()) return apiRequest<T>(options, false);
+  if (response.statusCode === 401 && !options.public) clearTokens();
   const error = response.data as ErrorEnvelope;
   const exception: any = new Error(error.error?.user_message || "服务暂时不可用，请稍后重试。");
   exception.code = error.error?.code || "REQUEST_FAILED";
@@ -49,6 +57,10 @@ export function saveTokens(accessToken: string, refreshToken: string) {
 export function clearTokens() {
   wx.removeStorageSync(ACCESS_TOKEN_KEY);
   wx.removeStorageSync(REFRESH_TOKEN_KEY);
+}
+
+export function hasSession(): boolean {
+  return Boolean(wx.getStorageSync(ACCESS_TOKEN_KEY) && wx.getStorageSync(REFRESH_TOKEN_KEY));
 }
 
 async function refreshSession(): Promise<boolean> {

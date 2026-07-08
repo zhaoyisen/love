@@ -1,1 +1,2 @@
 .display-title{display:block}.deleted-card{display:flex;align-items:center;justify-content:space-between;margin-top:24rpx;padding:26rpx}.deleted-card view text,.deleted-card view .label{display:block}.deleted-card view text{font-size:29rpx;font-weight:700}.deleted-card view .label{margin-top:10rpx;color:#817970;font:20rpx/1 sans-serif}
+.recycle-loading{margin-top:30rpx;padding:30rpx;text-align:center;color:#817970;font-size:23rpx}

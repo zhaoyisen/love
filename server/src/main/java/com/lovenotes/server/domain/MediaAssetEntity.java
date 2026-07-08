@@ -29,6 +29,12 @@ public class MediaAssetEntity {
     private long sizeBytes;
     @Column(length = 100)
     private String etag;
+    @Column(name = "processing_job_id", length = 100)
+    private String processingJobId;
+    @Column(name = "display_storage_key", length = 300)
+    private String displayStorageKey;
+    @Column(name = "thumbnail_storage_key", length = 300)
+    private String thumbnailStorageKey;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private DomainEnums.MediaStatus status;
     @Column(name = "created_at", nullable = false)
@@ -45,10 +51,34 @@ public class MediaAssetEntity {
     @PreUpdate void touch() { updatedAt = Instant.now(); }
     public UUID getId() { return id; }
     public UUID getUploaderId() { return uploaderId; }
+    public UUID getMomentId() { return momentId; }
     public String getStorageKey() { return storageKey; }
     public DomainEnums.MediaKind getKind() { return kind; }
     public DomainEnums.MediaStatus getStatus() { return status; }
     public long getSizeBytes() { return sizeBytes; }
-    public void complete(String etag) { this.etag = etag; this.status = DomainEnums.MediaStatus.UPLOADED; }
+    public String getProcessingJobId() { return processingJobId; }
+    public String getDisplayStorageKey() { return displayStorageKey; }
+    public String getThumbnailStorageKey() { return thumbnailStorageKey; }
+    public Instant getCreatedAt() { return createdAt; }
+    public void complete(String etag, boolean requiresProcessing) {
+        this.etag = etag;
+        this.status = requiresProcessing ? DomainEnums.MediaStatus.PROCESSING : DomainEnums.MediaStatus.READY;
+    }
+    public void markReady(String displayStorageKey, String thumbnailStorageKey) {
+        this.displayStorageKey = displayStorageKey;
+        this.thumbnailStorageKey = thumbnailStorageKey;
+        this.status = DomainEnums.MediaStatus.READY;
+    }
+    public void markBlocked() { this.status = DomainEnums.MediaStatus.BLOCKED; }
+    public void markFailed() { this.status = DomainEnums.MediaStatus.FAILED; }
+    public void processingJob(String jobId) { this.processingJobId = jobId; this.updatedAt = Instant.now(); }
     public void attach(UUID momentId) { this.momentId = momentId; }
+    public void markDeleted() { this.status = DomainEnums.MediaStatus.DELETED; }
+    public java.util.List<String> objectKeys() {
+        return java.util.stream.Stream.of(storageKey, displayStorageKey, thumbnailStorageKey)
+                .filter(java.util.Objects::nonNull)
+                .filter(value -> !value.isBlank())
+                .distinct()
+                .toList();
+    }
 }

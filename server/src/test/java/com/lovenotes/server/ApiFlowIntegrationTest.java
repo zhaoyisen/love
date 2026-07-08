@@ -46,6 +46,35 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
+    void shouldUpdateProfileAndRejectInvalidNickname() throws Exception {
+        Login user = login("profile-user");
+
+        mvc.perform(patch("/me").header("Authorization", bearer(user.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"  小满的新名字  \"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value("小满的新名字"));
+
+        mvc.perform(get("/me").header("Authorization", bearer(user.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value("小满的新名字"));
+
+        Assertions.assertEquals("小满的新名字", users.findById(UUID.fromString(user.userId())).orElseThrow().getNickname());
+
+        mvc.perform(patch("/me").header("Authorization", bearer(user.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"   \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
+
+        mvc.perform(patch("/me").header("Authorization", bearer(user.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"1234567890123456789012345678901\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
     void shouldRejectSharedMomentWhenUserIsNotPaired() throws Exception {
         Login user = login("solo-user");
         mvc.perform(post("/moments").header("Authorization", bearer(user.accessToken()))
@@ -119,9 +148,62 @@ class ApiFlowIntegrationTest {
         String assetId = mapper.readTree(created).at("/data/asset_id").asText();
         mvc.perform(post("/upload-sessions/{id}/complete", sessionId).header("Authorization", bearer(user.accessToken()))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"etag\":\"test\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("UPLOADED"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("READY"));
         mvc.perform(get("/media-assets/{id}", assetId).header("Authorization", bearer(user.accessToken())))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.kind").value("IMAGE"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.kind").value("IMAGE"))
+                .andExpect(jsonPath("$.data.access_url", startsWith("local://")));
+
+        String moment = mvc.perform(post("/moments").header("Authorization", bearer(user.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                        .content(imageMoment(assetId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.data.media[0].id").value(assetId))
+                .andExpect(jsonPath("$.data.media[0].access_url", startsWith("local://")))
+                .andReturn().getResponse().getContentAsString();
+
+        String momentId = mapper.readTree(moment).at("/data/id").asText();
+        mvc.perform(get("/moments/{id}", momentId).header("Authorization", bearer(user.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.media[0].status").value("READY"));
+    }
+
+    @Test
+    void shouldPageTimelineWithoutDuplicates() throws Exception {
+        Login user = login("timeline-page-user");
+        for (int index = 0; index < 3; index++) {
+            mvc.perform(post("/moments").header("Authorization", bearer(user.accessToken()))
+                            .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                            .content(textMomentAt("PRIVATE", Instant.parse("2026-06-0" + (index + 1) + "T12:00:00Z"))))
+                    .andExpect(status().isCreated());
+        }
+
+        String first = mvc.perform(get("/timeline").header("Authorization", bearer(user.accessToken()))
+                        .param("from", "2026-06-01T00:00:00Z")
+                        .param("to", "2026-07-01T00:00:00Z")
+                        .param("limit", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(2)))
+                .andExpect(jsonPath("$.data.has_more").value(true))
+                .andExpect(jsonPath("$.data.next_cursor").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+
+        JsonNode firstData = mapper.readTree(first).path("data");
+        String cursor = firstData.path("next_cursor").asText();
+        String second = mvc.perform(get("/timeline").header("Authorization", bearer(user.accessToken()))
+                        .param("from", "2026-06-01T00:00:00Z")
+                        .param("to", "2026-07-01T00:00:00Z")
+                        .param("limit", "2")
+                        .param("cursor", cursor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.has_more").value(false))
+                .andReturn().getResponse().getContentAsString();
+
+        String lastFirstPageId = firstData.path("items").get(1).path("id").asText();
+        String firstSecondPageId = mapper.readTree(second).at("/data/items/0/id").asText();
+        Assertions.assertNotEquals(lastFirstPageId, firstSecondPageId);
     }
 
     @Test
@@ -161,13 +243,19 @@ class ApiFlowIntegrationTest {
 
         mvc.perform(patch("/moments/{id}", id).header("Authorization", bearer(owner.accessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"version\":0,\"title\":\"修改后\",\"body\":\"修改后的正文\",\"occurred_at\":\"" + Instant.now() + "\",\"visibility\":\"PRIVATE\"}"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.data.version").value(1));
+                        .content("{\"version\":0,\"title\":\"修改后\",\"body\":\"修改后的正文\",\"occurred_at\":\"" + Instant.now() + "\",\"visibility\":\"PRIVATE\",\"mood\":\"HEARTBEAT\",\"events\":[\"TRAVEL\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.version").value(1))
+                .andExpect(jsonPath("$.data.mood").value("HEARTBEAT"))
+                .andExpect(jsonPath("$.data.events[0]").value("TRAVEL"));
 
         mvc.perform(delete("/moments/{id}", id).param("version", "1").header("Authorization", bearer(owner.accessToken())))
                 .andExpect(status().isNoContent());
         mvc.perform(get("/moments/{id}", id).header("Authorization", bearer(owner.accessToken())))
                 .andExpect(status().isForbidden());
+        mvc.perform(get("/moments/trash").header("Authorization", bearer(owner.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(id));
         mvc.perform(post("/moments/{id}/restore", id).header("Authorization", bearer(owner.accessToken())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.visibility").value("PRIVATE"));
     }
@@ -193,7 +281,13 @@ class ApiFlowIntegrationTest {
     }
 
     private String textMoment(String visibility) {
-        return "{\"type\":\"TEXT\",\"title\":\"普通一天\",\"body\":\"值得记住的普通一天\",\"occurred_at\":\"" + Instant.now() + "\",\"visibility\":\"" + visibility + "\",\"mood\":\"CALM\",\"events\":[\"DAILY\"]}";
+        return textMomentAt(visibility, Instant.now());
+    }
+    private String textMomentAt(String visibility, Instant occurredAt) {
+        return "{\"type\":\"TEXT\",\"title\":\"普通一天\",\"body\":\"值得记住的普通一天\",\"occurred_at\":\"" + occurredAt + "\",\"visibility\":\"" + visibility + "\",\"mood\":\"CALM\",\"events\":[\"DAILY\"]}";
+    }
+    private String imageMoment(String assetId) {
+        return "{\"type\":\"IMAGE\",\"title\":\"一张照片\",\"body\":\"真实媒体记录\",\"occurred_at\":\"" + Instant.now() + "\",\"visibility\":\"PRIVATE\",\"mood\":\"CALM\",\"events\":[\"DAILY\"],\"asset_ids\":[\"" + assetId + "\"]}";
     }
     private String bearer(String token) { return "Bearer " + token; }
     private record Login(String userId, String accessToken, String refreshToken) {}

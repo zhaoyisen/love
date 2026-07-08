@@ -1,6 +1,8 @@
 import type { AppState, Draft, Moment, Visibility } from "./types";
+import { API_CONFIG } from "./api-config";
 
-const STORAGE_KEY = "love-notes:mvp-state:v1";
+const STORAGE_KEY = API_CONFIG.useRemoteApi ? "love-notes:remote-state:v1" : "love-notes:mock-state:v1";
+const LEGACY_STORAGE_KEY = "love-notes:mvp-state:v1";
 
 function nowIso() {
   return new Date().toISOString();
@@ -11,7 +13,7 @@ function createId(prefix: string) {
 }
 
 function initialState(): AppState {
-  return {
+  const state: AppState = {
     schemaVersion: 1,
     loggedIn: false,
     consented: false,
@@ -91,6 +93,14 @@ function initialState(): AppState {
     },
     preferences: { momentNotice: true, reactionNotice: true, petNotice: true, recapNotice: true }
   };
+  if (API_CONFIG.useRemoteApi) {
+    state.profile = { name: "微信用户", avatarText: "微", defaultVisibility: "PRIVATE" };
+    state.couple = { status: "UNPAIRED", partnerName: "TA", relationshipName: "我们的空间", anniversary: "" };
+    state.moments = [];
+    state.messages = [];
+    state.recap = { title: `我们的 ${new Date().getFullYear()}`, year: new Date().getFullYear(), selectedMomentIds: [], status: "DRAFT", version: 1 };
+  }
+  return state;
 }
 
 class LoveNotesStore {
@@ -98,8 +108,8 @@ class LoveNotesStore {
 
   initialize() {
     try {
-      const saved = wx.getStorageSync(STORAGE_KEY);
-      if (saved && saved.schemaVersion === 1) this.state = saved;
+      const saved = wx.getStorageSync(STORAGE_KEY) || (!API_CONFIG.useRemoteApi ? wx.getStorageSync(LEGACY_STORAGE_KEY) : undefined);
+      if (saved && saved.schemaVersion === 1) { this.state = saved; this.persist(); }
     } catch (_) {
       this.state = initialState();
     }
@@ -122,6 +132,60 @@ class LoveNotesStore {
     this.update((state) => {
       state.loggedIn = true;
       state.consented = true;
+    });
+  }
+
+  applyRemoteProfile(profile: { id: string; name: string }) {
+    this.update((state) => {
+      state.loggedIn = true;
+      state.consented = true;
+      state.profile.id = profile.id;
+      state.profile.name = profile.name || "微信用户";
+      state.profile.avatarText = (profile.name || "微").slice(0, 1);
+    });
+  }
+
+  applyRemoteCouple(couple: any | null) {
+    this.update((state) => {
+      if (!couple) {
+        state.couple = {
+          status: "UNPAIRED",
+          partnerName: "TA",
+          relationshipName: "我们的空间",
+          anniversary: ""
+        };
+        return;
+      }
+      state.couple.id = couple.id;
+      state.couple.version = couple.version;
+      state.couple.status = couple.status === "PAIRED" ? "PAIRED" : "ENDED";
+      state.couple.partnerName = "TA";
+      state.couple.relationshipName = couple.relationship_name || "我们的空间";
+      state.couple.anniversary = couple.anniversary || "";
+    });
+  }
+
+  replaceRemoteMoments(moments: Moment[]) {
+    this.update((state) => { state.moments = moments; });
+  }
+
+  appendRemoteMoments(moments: Moment[]) {
+    this.update((state) => {
+      const incoming = new Set(moments.map((item) => item.id));
+      state.moments = [...state.moments.filter((item) => !incoming.has(item.id)), ...moments];
+    });
+  }
+
+  upsertRemoteMoment(moment: Moment) {
+    this.update((state) => {
+      state.moments = [moment, ...state.moments.filter((item) => item.id !== moment.id)];
+    });
+  }
+
+  publishRemoteDraft(draftId: string, moment: Moment) {
+    this.update((state) => {
+      state.moments = [moment, ...state.moments.filter((item) => item.id !== moment.id)];
+      state.drafts = state.drafts.filter((item) => item.id !== draftId);
     });
   }
 
@@ -214,6 +278,14 @@ class LoveNotesStore {
     });
   }
 
+  editMoment(momentId: string, patch: Partial<Moment>) {
+    this.update((state) => {
+      const moment = state.moments.find((item) => item.id === momentId);
+      if (moment) Object.assign(moment, patch, { version: (moment.version || 0) + 1 });
+    });
+    return this.getMoment(momentId);
+  }
+
   restoreMoment(momentId: string) {
     this.update((state) => {
       const moment = state.moments.find((item) => item.id === momentId);
@@ -240,6 +312,13 @@ class LoveNotesStore {
 
   updatePreference(key: keyof AppState["preferences"], value: boolean) {
     this.update((state) => { state.preferences[key] = value; });
+  }
+
+  updateProfileName(nickname: string) {
+    this.update((state) => {
+      state.profile.name = nickname;
+      state.profile.avatarText = nickname.slice(0, 1) || "我";
+    });
   }
 
   updateDefaultVisibility(value: Visibility) {

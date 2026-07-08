@@ -4,9 +4,13 @@
   "private": true,
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "validate": "node scripts/validate-project.js"
+    "validate": "node scripts/validate-project.js && node scripts/validate-responsive.js",
+    "validate:responsive": "node scripts/validate-responsive.js"
   },
   "devDependencies": {
     "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "cos-wx-sdk-v5": "^1.8.0"
   }
 }

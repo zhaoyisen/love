@@ -4,18 +4,21 @@
     <text class="date-meta">{{display.month}}月 · {{display.time}}</text>
   </view>
   <view wx:if="{{display.mediaType !== 'TEXT'}}" class="media-cover tone-{{display.media[0].tone || 'paper'}}">
-    <image wx:if="{{display.media[0].path}}" class="media-image" src="{{display.media[0].path}}" mode="aspectFill"></image>
+    <image wx:if="{{(display.media[0].thumbnailPath || display.media[0].path) && display.mediaType === 'IMAGE'}}" class="media-image" src="{{display.media[0].thumbnailPath || display.media[0].path}}" mode="aspectFill"></image>
+    <video wx:elif="{{display.media[0].path && display.mediaType === 'VIDEO'}}" class="media-image" src="{{display.media[0].path}}" controls="{{false}}" object-fit="cover"></video>
     <view wx:else class="cover-art">
       <view class="cover-sun"></view>
       <view class="cover-line"></view>
       <text>{{display.mediaType === 'VIDEO' ? '▶ 片刻影像' : display.template || '原始照片'}}</text>
     </view>
+    <view wx:if="{{display.status === 'UPLOADING'}}" class="card-processing"><text>安全处理中</text><text>仅你可见</text></view>
   </view>
   <view class="moment-body">
     <view class="author-row">
       <text class="author-dot {{display.author === '我' ? 'mine' : 'partner'}}"></text>
       <text>{{display.author}}记录</text>
       <text wx:if="{{display.visibility === 'PRIVATE'}}" class="lock-label">仅自己</text>
+      <text wx:elif="{{display.status === 'UPLOADING'}}" class="lock-label">处理中</text>
     </view>
     <text class="moment-title">{{display.title}}</text>
     <text class="moment-copy">{{display.body}}</text>

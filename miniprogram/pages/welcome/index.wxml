@@ -15,7 +15,8 @@
     <view><text class="promise-no">03</text><text>任一方解绑后立即停止互访</text></view>
   </view>
   <view class="welcome-actions safe-bottom">
-    <button class="primary-button press" loading="{{loading}}" bindtap="login">微信登录并开始</button>
+    <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="login">重试</button></view>
+    <button class="primary-button press" loading="{{loading}}" disabled="{{loading}}" bindtap="login">{{loading ? '正在建立安全连接' : '微信登录并开始'}}</button>
     <view class="agreement" bindtap="toggleAgree">
       <view class="checkbox {{agreed ? 'checked' : ''}}">{{agreed ? '✓' : ''}}</view>
       <text>我已阅读并同意</text><text class="agreement-link" catchtap="openPrivacy">《用户协议》与《隐私政策》</text>

@@ -1,0 +1,45 @@
+<view class="page edit-profile-page">
+  <view class="edit-heading">
+    <text class="eyebrow">PROFILE</text>
+    <text class="display-title">让称呼更像你</text>
+    <text class="section-note">这个昵称会出现在“我的”、情侣空间和你发布的记录里。</text>
+  </view>
+
+  <view class="profile-preview card">
+    <view class="preview-avatar">{{initial}}</view>
+    <view class="preview-copy">
+      <text class="preview-name">{{displayName}}</text>
+      <text>{{isRemote ? '保存到你的账号' : '保存在当前设备'}}</text>
+    </view>
+  </view>
+
+  <view class="form-card card">
+    <view class="field-heading">
+      <text class="form-label">昵称</text>
+      <text class="character-count">还可输入 {{remaining}} 个字符</text>
+    </view>
+    <input
+      class="input nickname-input"
+      value="{{nickname}}"
+      maxlength="30"
+      focus="{{true}}"
+      confirm-type="done"
+      placeholder="请输入你的昵称"
+      bindinput="inputNickname"
+      bindconfirm="save"
+      aria-label="昵称"
+    />
+    <view wx:if="{{error}}" class="form-error" role="alert">{{error}}</view>
+    <text class="field-note">支持中文、英文、数字和常用符号，不要包含换行。</text>
+  </view>
+
+  <view class="avatar-note">
+    <text class="avatar-note-title">关于头像</text>
+    <text>当前会用昵称首字作为头像。头像上传会在对象存储安全链路完成后接入。</text>
+  </view>
+
+  <button class="primary-button press" disabled="{{submitting || !canSubmit}}" loading="{{submitting}}" bindtap="save">
+    {{submitting ? '正在保存' : '保存资料'}}
+  </button>
+  <button class="cancel-button press" disabled="{{submitting}}" bindtap="cancel">取消</button>
+</view>

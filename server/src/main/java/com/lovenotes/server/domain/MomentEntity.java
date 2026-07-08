@@ -58,8 +58,12 @@ public class MomentEntity {
     public DomainEnums.MomentStatus getStatus() { return status; }
     public int getVersion() { return version; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getDeletedAt() { return deletedAt; }
+    public void publish() { this.status = DomainEnums.MomentStatus.PUBLISHED; }
+    public void mediaFailed() { this.status = DomainEnums.MomentStatus.PARTIAL_FAILED; }
     public void trash() { this.status = DomainEnums.MomentStatus.TRASHED; this.deletedAt = Instant.now(); }
     public void restore(boolean keepShared) { this.status = DomainEnums.MomentStatus.PUBLISHED; this.deletedAt = null; if (!keepShared) { this.visibility = DomainEnums.Visibility.PRIVATE; this.coupleId = null; } }
+    public void purge() { this.status = DomainEnums.MomentStatus.PURGED; }
     public void update(String title, String body, Instant occurredAt, DomainEnums.Visibility visibility, UUID coupleId) {
         this.title = title; this.body = body; this.occurredAt = occurredAt; this.visibility = visibility; this.coupleId = coupleId;
     }

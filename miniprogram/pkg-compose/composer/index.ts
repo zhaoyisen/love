@@ -1,15 +1,23 @@
 import { store } from "../../core/store";
 import type { Draft, MediaType } from "../../core/types";
+import { appService } from "../../services/app-service";
 
 let saveTimer: any;
+
+function selectedFileSize(path: string, provided: any) {
+  if (Number(provided) > 0) return Number(provided);
+  try { return Number(wx.getFileSystemManager().statSync(path).size || 0); }
+  catch (_) { return 0; }
+}
 
 Page({
   data: {
     draftId: "", step: 1, draft: {} as Draft, paired: false, savedText: "已自动保存",
+    remoteUploadEnabled: appService.isRemote,
     mediaTypes: [
-      { key: "IMAGE", label: "照片", note: "1–9 张" },
-      { key: "VIDEO", label: "视频", note: "1 段" },
-      { key: "TEXT", label: "文字", note: "安静写下" }
+      { key: "IMAGE", label: "照片", note: "1–9 张", available: true },
+      { key: "VIDEO", label: "视频", note: "1 段", available: true },
+      { key: "TEXT", label: "文字", note: "安静写下", available: true }
     ],
     moods: ["开心","心动","平静","想念","委屈","生气","和好","其他"],
     eventOptions: ["日常","约会","旅行","纪念日","第一次","争执","和好","礼物","共同成长","其他"].map((value) => ({ value, active: value === "日常" })),
@@ -41,7 +49,23 @@ Page({
         if (wx.chooseMedia) wx.chooseMedia({ count: mediaType === "VIDEO" ? 1 : 9, mediaType: [mediaType === "VIDEO" ? "video" : "image"], sourceType: ["album", "camera"], success: resolve, fail: reject });
         else wx.chooseImage({ count: 9, success: (res: any) => resolve({ tempFiles: res.tempFilePaths.map((path: string) => ({ tempFilePath: path, fileType: "image" })) }), fail: reject });
       });
-      const media = result.tempFiles.map((file: any, index: number) => ({ id: `local_${Date.now()}_${index}`, type: mediaType, path: file.tempFilePath, progress: 100, status: "READY" }));
+      const media = result.tempFiles.map((file: any, index: number) => {
+        const path = file.tempFilePath || file.path;
+        const extension = String(path || "").split(".").pop()?.toLowerCase();
+        const mimeType = mediaType === "VIDEO"
+          ? (extension === "mov" ? "video/quicktime" : "video/mp4")
+          : (extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg");
+        return {
+          id: `local_${Date.now()}_${index}`,
+          type: mediaType,
+          path,
+          fileName: String(path || `memory_${index}`).split("/").pop() || `memory_${index}`,
+          mimeType,
+          size: selectedFileSize(path, file.size),
+          progress: 100,
+          status: "READY"
+        };
+      });
       this.patchDraft({ media });
     } catch (_) { /* user cancelled */ }
   },

@@ -1,1 +1,87 @@
-<view class="page mine-page"><text class="eyebrow">MY PRIVATE CORNER</text><view class="profile-card"><view class="profile-avatar">{{state.profile.avatarText}}</view><view><text>{{state.profile.name}}</text><text class="label">{{state.couple.status === 'PAIRED' ? '满屿之间 · 已配对' : state.couple.status === 'ENDED' ? '情侣空间已结束' : '独自记录中'}}</text></view><button>编辑</button></view><view class="setting-group"><text class="group-title">记录与隐私</text><button class="setting-row press" bindtap="privacy"><view><text>默认可见范围</text><text class="label">{{state.profile.defaultVisibility === 'PRIVATE' ? '仅自己可见' : '与另一半共同可见'}}</text></view><text>›</text></button><button class="setting-row press" bindtap="recycle"><view><text>回收站</text><text class="label">删除后保留 30 天</text></view><text>›</text></button><button class="setting-row press" bindtap="messages"><view><text>应用内信笺</text><text class="label">{{state.messages.length}} 条消息</text></view><text>›</text></button></view><view class="setting-group"><text class="group-title">提醒偏好</text><view class="switch-row"><text>新共享时刻</text><switch color="#557263" checked="{{state.preferences.momentNotice}}" data-key="momentNotice" bindchange="toggle" /></view><view class="switch-row"><text>回应与短评</text><switch color="#557263" checked="{{state.preferences.reactionNotice}}" data-key="reactionNotice" bindchange="toggle" /></view><view class="switch-row"><text>云宠物互动</text><switch color="#557263" checked="{{state.preferences.petNotice}}" data-key="petNotice" bindchange="toggle" /></view><view class="switch-row"><text>回顾生成完成</text><switch color="#557263" checked="{{state.preferences.recapNotice}}" data-key="recapNotice" bindchange="toggle" /></view></view><view class="setting-group"><text class="group-title">数据与关于</text><button class="setting-row press" bindtap="about"><view><text>关于恋爱笔记</text><text class="label">版本 0.1.0 · 客户端 MVP</text></view><text>›</text></button><button class="setting-row danger-row press" bindtap="reset"><view><text>重置演示数据</text><text class="label">清除当前设备上的所有本地状态</text></view><text>›</text></button></view><text class="mine-footer">PRIVATE BY DEFAULT · ORDINARY DAYS MATTER</text></view>
+<view class="page mine-page">
+  <view class="mine-heading">
+    <view>
+      <text class="eyebrow">MY PRIVATE CORNER</text>
+      <text class="display-title">我的</text>
+    </view>
+    <view class="service-state {{isRemote ? 'remote' : ''}}">
+      <view class="service-dot"></view>
+      <text>{{modeText}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="sync-status" aria-live="polite">
+    <view class="sync-dot"></view>
+    <text>正在同步个人资料</text>
+  </view>
+  <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
+    <text>{{error}}</text>
+    <button bindtap="retry">重试</button>
+  </view>
+
+  <view class="profile-card">
+    <view class="profile-avatar" aria-label="当前头像文字">{{state.profile.avatarText}}</view>
+    <view class="profile-copy">
+      <text class="profile-name">{{state.profile.name}}</text>
+      <text class="label">{{state.couple.status === 'PAIRED' ? state.couple.relationshipName + ' · 已配对' : state.couple.status === 'ENDED' ? '情侣空间已结束' : '独自记录中'}}</text>
+    </view>
+    <button class="edit-button press" bindtap="edit" aria-label="编辑个人资料">编辑</button>
+  </view>
+
+  <view class="privacy-promise">
+    <view class="promise-mark">私</view>
+    <view>
+      <text>默认私密，主动分享</text>
+      <text class="label">每次发布都能确认可见范围，旧记录不会自动共享。</text>
+    </view>
+  </view>
+
+  <view class="setting-group">
+    <text class="group-title">记录与隐私</text>
+    <view class="settings-panel">
+      <button class="setting-row press" bindtap="privacy">
+        <view><text>默认可见范围</text><text class="label">{{state.profile.defaultVisibility === 'PRIVATE' ? '仅自己可见' : '与另一半共同可见'}}</text></view>
+        <text class="row-arrow">›</text>
+      </button>
+      <button class="setting-row press" bindtap="recycle">
+        <view><text>回收站</text><text class="label">删除后保留 30 天</text></view>
+        <text class="row-arrow">›</text>
+      </button>
+      <button wx:if="{{!isRemote}}" class="setting-row press" bindtap="messages">
+        <view><text>应用内信笺</text><text class="label">{{state.messages.length}} 条消息</text></view>
+        <text class="row-arrow">›</text>
+      </button>
+      <button wx:if="{{!isRemote}}" class="setting-row press" bindtap="recap">
+        <view><text>年度回顾</text><text class="label">整理共同可见的时刻</text></view>
+        <text class="row-arrow">›</text>
+      </button>
+    </view>
+  </view>
+
+  <view class="setting-group">
+    <text class="group-title">本机提醒偏好</text>
+    <view class="settings-panel">
+      <view class="switch-row"><text>新共享时刻</text><switch color="#557263" checked="{{state.preferences.momentNotice}}" data-key="momentNotice" bindchange="toggle" /></view>
+      <view class="switch-row"><text>回应与短评</text><switch color="#557263" checked="{{state.preferences.reactionNotice}}" data-key="reactionNotice" bindchange="toggle" /></view>
+      <view class="switch-row"><text>云宠物互动</text><switch color="#557263" checked="{{state.preferences.petNotice}}" data-key="petNotice" bindchange="toggle" /></view>
+      <view class="switch-row"><text>回顾生成完成</text><switch color="#557263" checked="{{state.preferences.recapNotice}}" data-key="recapNotice" bindchange="toggle" /></view>
+    </view>
+    <text class="setting-help">这些开关目前只保存在这台设备上。</text>
+  </view>
+
+  <view class="setting-group">
+    <text class="group-title">数据与关于</text>
+    <view class="settings-panel">
+      <button class="setting-row press" bindtap="about">
+        <view><text>关于恋爱笔记</text><text class="label">客户端 {{clientVersion}}</text></view>
+        <text class="row-arrow">›</text>
+      </button>
+      <button wx:if="{{!isRemote}}" class="setting-row danger-row press" bindtap="reset">
+        <view><text>重置演示数据</text><text class="label">清除当前设备上的所有演示状态</text></view>
+        <text class="row-arrow">›</text>
+      </button>
+    </view>
+  </view>
+
+  <text class="mine-footer">PRIVATE BY DEFAULT · ORDINARY DAYS MATTER</text>
+</view>
