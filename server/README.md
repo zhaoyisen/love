@@ -92,10 +92,17 @@ java -jar target\love-notes-server-0.1.0-SNAPSHOT.jar
 
 仓库根目录提供 `docker-compose.yml`，镜像由 `server/Dockerfile` 构建。Compose 只运行 API，MySQL、Redis 和 COS 使用外部托管资源。
 
+`server/Dockerfile` 只负责把已经打好的 Spring Boot jar 放进 Java 21 运行镜像，不在镜像构建阶段重复执行 Maven。Jenkins 的 `Backend test` 阶段会先运行 `mvn clean verify` 生成 `server/target/love-notes-server-*.jar`，随后 `Build image` 阶段直接复制该 jar。
+
 在 Linux 部署服务器手动验证生产编排时，先复制示例配置并填写测试资源，禁止使用生产数据做开发测试：
 
-```powershell
-Copy-Item .env.example .env
+```bash
+cp .env.example .env
+docker run --rm \
+  --volume "$PWD:/workspace" \
+  --workdir /workspace \
+  maven:3.9-eclipse-temurin-21 \
+  mvn -B -ntp clean verify
 cd ..
 docker compose --env-file server/.env config --quiet
 docker compose --env-file server/.env build api

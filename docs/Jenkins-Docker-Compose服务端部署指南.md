@@ -37,12 +37,14 @@ Spring Boot API
 ```text
 Jenkinsfile                 Jenkins Pipeline
 docker-compose.yml          生产 API 编排
-server/Dockerfile           Java 21 多阶段镜像
+server/Dockerfile           Java 21 运行镜像，复制 Jenkins 已构建的 jar
 server/.dockerignore        镜像构建上下文排除规则
 server/.env.example         生产环境变量模板，不含真实密钥
 ```
 
 镜像以非 root 用户运行，根文件系统只读，仅 `/tmp` 可写；端口默认只绑定到宿主机 `127.0.0.1`。Compose 配置了健康检查、优雅停止、日志轮转、CPU/内存限制和禁止提权。
+
+`Backend test` 阶段负责执行 `mvn clean verify` 并生成 `server/target/love-notes-server-*.jar`。`Build image` 阶段只把该 jar 复制进运行镜像，不再在 Dockerfile 内重复执行 Maven；这样可以避免轻量服务器在同一次流水线里下载和编译两轮后端依赖。
 
 ## 3. 部署服务器前置条件
 
