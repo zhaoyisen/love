@@ -13,7 +13,7 @@ Page({
     const state = store.getState();
     this.setData({
       couple: state.couple, pet: state.pet,
-      unread: appService.isRemote ? 0 : state.messages.filter((item) => !item.read).length,
+      unread: state.messages.filter((item) => !item.read).length,
       sharedCount: state.moments.filter((item) => item.visibility === "SHARED" && item.status !== "DELETED").length,
       days: this.daysSince(state.couple.anniversary),
       myInitial: (state.profile.name || "我").slice(0, 1),
@@ -23,8 +23,8 @@ Page({
   retry() { this.onShow(); },
   daysSince(value: string) { if (!value) return 0; return Math.max(1, Math.floor((Date.now() - new Date(`${value}T00:00:00+08:00`).getTime()) / 86400000)); },
   invite() { wx.navigateTo({ url: "/pkg-couple/invite/index" }); },
-  messages() { if (!appService.isRemote) wx.navigateTo({ url: "/pkg-couple/messages/index" }); },
-  pet() { if (!appService.isRemote) wx.navigateTo({ url: "/pkg-pet/detail/index" }); },
+  messages() { wx.navigateTo({ url: "/pkg-couple/messages/index" }); },
+  pet() { wx.navigateTo({ url: "/pkg-pet/detail/index" }); },
   settings() { wx.switchTab({ url: "/pages-main/mine/index" }); },
   privacy() { wx.navigateTo({ url: "/pkg-couple/privacy/index" }); }
 });

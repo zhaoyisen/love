@@ -47,7 +47,7 @@
         <view><text>回收站</text><text class="label">删除后保留 30 天</text></view>
         <text class="row-arrow">›</text>
       </button>
-      <button wx:if="{{!isRemote}}" class="setting-row press" bindtap="messages">
+      <button class="setting-row press" bindtap="messages">
         <view><text>应用内信笺</text><text class="label">{{state.messages.length}} 条消息</text></view>
         <text class="row-arrow">›</text>
       </button>
@@ -74,6 +74,10 @@
     <view class="settings-panel">
       <button class="setting-row press" bindtap="about">
         <view><text>关于恋爱笔记</text><text class="label">客户端 {{clientVersion}}</text></view>
+        <text class="row-arrow">›</text>
+      </button>
+      <button class="setting-row danger-row press" bindtap="deleteAccount">
+        <view><text>账号注销</text><text class="label">冻结情侣空间、撤销本机登录，并生成处理进度</text></view>
         <text class="row-arrow">›</text>
       </button>
       <button wx:if="{{!isRemote}}" class="setting-row danger-row press" bindtap="reset">

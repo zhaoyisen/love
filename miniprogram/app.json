@@ -29,7 +29,7 @@
     },
     {
       "root": "pkg-profile",
-      "pages": ["edit/index"]
+      "pages": ["edit/index", "delete-account/index"]
     }
   ],
   "window": {

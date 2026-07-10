@@ -3,6 +3,7 @@ package com.lovenotes.server.media;
 import com.lovenotes.server.domain.DomainEnums;
 import com.lovenotes.server.domain.MediaAssetEntity;
 import com.lovenotes.server.domain.MomentEntity;
+import com.lovenotes.server.message.MessageService;
 import com.lovenotes.server.repository.MediaAssetRepository;
 import com.lovenotes.server.repository.MomentRepository;
 import com.lovenotes.server.storage.ObjectStorage;
@@ -23,7 +24,8 @@ class MediaProcessingServiceTest {
         MediaAssetRepository assets = mock(MediaAssetRepository.class);
         MomentRepository moments = mock(MomentRepository.class);
         ObjectStorage storage = mock(ObjectStorage.class);
-        MediaProcessingService service = new MediaProcessingService(assets, moments, storage);
+        MessageService messages = mock(MessageService.class);
+        MediaProcessingService service = new MediaProcessingService(assets, moments, storage, messages);
 
         UUID userId = UUID.randomUUID();
         MomentEntity moment = new MomentEntity(userId, null, DomainEnums.MomentType.IMAGE,
@@ -57,7 +59,8 @@ class MediaProcessingServiceTest {
         MediaAssetRepository assets = mock(MediaAssetRepository.class);
         MomentRepository moments = mock(MomentRepository.class);
         ObjectStorage storage = mock(ObjectStorage.class);
-        MediaProcessingService service = new MediaProcessingService(assets, moments, storage);
+        MessageService messages = mock(MessageService.class);
+        MediaProcessingService service = new MediaProcessingService(assets, moments, storage, messages);
 
         UUID userId = UUID.randomUUID();
         MomentEntity moment = new MomentEntity(userId, null, DomainEnums.MomentType.VIDEO,

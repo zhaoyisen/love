@@ -62,6 +62,16 @@ public class MomentEntity {
     public void publish() { this.status = DomainEnums.MomentStatus.PUBLISHED; }
     public void mediaFailed() { this.status = DomainEnums.MomentStatus.PARTIAL_FAILED; }
     public void trash() { this.status = DomainEnums.MomentStatus.TRASHED; this.deletedAt = Instant.now(); }
+    public void anonymizeForAccountDeletion() {
+        this.title = null;
+        this.body = "该记录已随账号注销删除";
+        this.visibility = DomainEnums.Visibility.PRIVATE;
+        this.coupleId = null;
+        if (this.status != DomainEnums.MomentStatus.PURGED) {
+            this.status = DomainEnums.MomentStatus.TRASHED;
+            if (this.deletedAt == null) this.deletedAt = Instant.now();
+        }
+    }
     public void restore(boolean keepShared) { this.status = DomainEnums.MomentStatus.PUBLISHED; this.deletedAt = null; if (!keepShared) { this.visibility = DomainEnums.Visibility.PRIVATE; this.coupleId = null; } }
     public void purge() { this.status = DomainEnums.MomentStatus.PURGED; }
     public void update(String title, String body, Instant occurredAt, DomainEnums.Visibility visibility, UUID coupleId) {

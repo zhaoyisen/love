@@ -4,7 +4,7 @@
       <text class="eyebrow">{{dateEyebrow}}</text>
       <text class="display-title">今天，也值得记下</text>
     </view>
-    <button wx:if="{{!isRemote}}" class="message-button press" bindtap="messages" aria-label="打开消息"><view class="message-icon"><view></view></view><text class="message-label">消息</text><text wx:if="{{unread}}" class="message-badge">{{unread}}</text></button>
+    <button class="message-button press" bindtap="messages" aria-label="打开消息"><view class="message-icon"><view></view></view><text class="message-label">消息</text><text wx:if="{{unread}}" class="message-badge">{{unread}}</text></button>
   </view>
 
   <view class="view-tabs">

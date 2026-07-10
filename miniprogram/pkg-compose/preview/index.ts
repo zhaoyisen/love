@@ -1,6 +1,6 @@
 import { store } from "../../core/store";
 import { visibleLabel, splitDate } from "../../core/format";
-import { appService, redirectExpiredSession, userError } from "../../services/app-service";
+import { appService, promptModerationAppeal, redirectExpiredSession, userError } from "../../services/app-service";
 
 Page({
   data: { draftId: "", draft: {} as any, date: {}, visibilityLabel: "", publishing: false, error: "", publishText: "确认发布" },
@@ -25,7 +25,10 @@ Page({
       setTimeout(() => wx.reLaunch({ url: "/pages-main/time/index" }), 700);
     } catch (error) {
       const current = store.getDraft(this.data.draftId);
-      if (!redirectExpiredSession()) this.setData({ draft: current || this.data.draft, error: userError(error, "发布没有完成，草稿仍保存在本机，可直接重试。") });
+      if (!redirectExpiredSession()) {
+        promptModerationAppeal(error, `发布记录被拦截：${(current || this.data.draft).title || ""} ${(current || this.data.draft).body || ""}`);
+        this.setData({ draft: current || this.data.draft, error: userError(error, "发布没有完成，草稿仍保存在本机，可直接重试。") });
+      }
     } finally {
       clearInterval(progressTimer);
       this.setData({ publishing: false, publishText: "重试发布" });

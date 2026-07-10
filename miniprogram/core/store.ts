@@ -98,6 +98,7 @@ function initialState(): AppState {
     state.couple = { status: "UNPAIRED", partnerName: "TA", relationshipName: "我们的空间", anniversary: "" };
     state.moments = [];
     state.messages = [];
+    state.pet = { name: "团子", kind: "云朵猫", level: 1, growth: 0, fedToday: false, playedToday: false, logs: [] };
     state.recap = { title: `我们的 ${new Date().getFullYear()}`, year: new Date().getFullYear(), selectedMomentIds: [], status: "DRAFT", version: 1 };
   }
   return state;
@@ -174,6 +175,18 @@ class LoveNotesStore {
       const incoming = new Set(moments.map((item) => item.id));
       state.moments = [...state.moments.filter((item) => !incoming.has(item.id)), ...moments];
     });
+  }
+
+  replaceRemoteMessages(messages: AppState["messages"]) {
+    this.update((state) => { state.messages = messages; });
+  }
+
+  applyRemotePet(pet: AppState["pet"]) {
+    this.update((state) => { state.pet = pet; });
+  }
+
+  applyRemoteRecap(recap: AppState["recap"]) {
+    this.update((state) => { state.recap = recap; });
   }
 
   upsertRemoteMoment(moment: Moment) {
@@ -308,6 +321,13 @@ class LoveNotesStore {
 
   markMessagesRead() {
     this.update((state) => state.messages.forEach((item) => item.read = true));
+  }
+
+  markMessageRead(id: string) {
+    this.update((state) => {
+      const message = state.messages.find((item) => item.id === id);
+      if (message) message.read = true;
+    });
   }
 
   updatePreference(key: keyof AppState["preferences"], value: boolean) {

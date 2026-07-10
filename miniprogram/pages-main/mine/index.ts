@@ -33,7 +33,8 @@ Page({
   edit() { wx.navigateTo({ url: "/pkg-profile/edit/index" }); },
   privacy() { wx.navigateTo({ url: "/pkg-couple/privacy/index" }); },
   recycle() { wx.navigateTo({ url: "/pkg-moment/recycle-bin/index" }); },
-  messages() { if (!appService.isRemote) wx.navigateTo({ url: "/pkg-couple/messages/index" }); },
+  messages() { wx.navigateTo({ url: "/pkg-couple/messages/index" }); },
+  deleteAccount() { wx.navigateTo({ url: "/pkg-profile/delete-account/index" }); },
   recap() { if (!appService.isRemote) wx.switchTab({ url: "/pages-main/recap/index" }); },
 
   toggle(event: any) {

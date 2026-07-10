@@ -124,8 +124,10 @@ COS_REGION=ap-chengdu
 COS_SECRET_ID=腾讯云API SecretId
 COS_SECRET_KEY=腾讯云API SecretKey
 TIMELINE_CURSOR_SECRET=至少32位随机字符串
+INTERNAL_OPERATION_TOKEN_HASH=内部运维口令的SHA-256哈希
 MEDIA_PROCESSING_POLL_MS=5000
 MEDIA_CLEANUP_POLL_MS=3600000
+ACCOUNT_DELETION_POLL_MS=600000
 MEDIA_TRASH_RETENTION_DAYS=30
 MEDIA_ORPHAN_RETENTION_HOURS=24
 ```
@@ -278,12 +280,12 @@ IMAGE_TAG=上一个提交短哈希 docker compose \
 
 ## 11. 发布前数据库和回滚边界
 
-每次 `main` 发布前执行 MySQL 快照或逻辑备份。Flyway 迁移发生在新容器启动阶段；如果 V3 已成功执行后回滚旧镜像，旧镜像通常会忽略新增的可空列，但数据库结构不会自动降级。不要删除 `display_storage_key`、`thumbnail_storage_key` 或相关索引。
+每次 `main` 发布前执行 MySQL 快照或逻辑备份。Flyway 迁移发生在新容器启动阶段；如果 V7 已成功执行后回滚旧镜像，数据库结构不会自动降级。不要删除 `display_storage_key`、`thumbnail_storage_key`、互动、信笺、宠物或年度回顾相关表和索引。
 
 回滚后仍需检查媒体处理 Worker；否则已上传对象可能长期停留在 `PROCESSING`。
 
 ## 12. 当前发布边界
 
-这套配置已经支持小程序静态检查、服务端自动测试、Linux 镜像构建、生产变量注入、Flyway V3、媒体审核/图片派生、清理任务、健康等待和按提交版本回滚。
+这套配置已经支持小程序静态检查、服务端自动测试、Linux 镜像构建、生产变量注入、Flyway V7、媒体审核/图片派生、清理任务、健康等待和按提交版本回滚。
 
-仍不能只凭 Jenkins 绿色就直接全量上线。生产 MySQL/Redis/COS/微信 AppID 联调、至少两台 iPhone 和两台 Android 真机测试、隐私与合法域名配置仍是人工发布门禁。回应、短评、消息、宠物和回顾尚未接入真实服务端；提审版本必须隐藏这些入口，或先完成对应 API。
+仍不能只凭 Jenkins 绿色就直接全量上线。生产 MySQL/Redis/COS/微信 AppID 联调、至少两台 iPhone 和两台 Android 真机测试、隐私与合法域名配置仍是人工发布门禁。回应、短评、消息、宠物和回顾已经接入真实服务端；提审前仍要人工验证双账号权限、解绑隔离、真实媒体审核、年度回顾长图保存和相册权限拒绝路径。

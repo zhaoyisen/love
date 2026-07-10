@@ -6,6 +6,9 @@ import java.time.Instant;
 public interface MediaAssetRepository extends JpaRepository<MediaAssetEntity, UUID> {
     List<MediaAssetEntity> findByIdIn(Collection<UUID> ids);
     List<MediaAssetEntity> findByMomentIdOrderByCreatedAtAsc(UUID momentId);
+    List<MediaAssetEntity> findByMomentIdInOrderByCreatedAtAsc(Collection<UUID> momentIds);
+    List<MediaAssetEntity> findByUploaderIdAndStatusNotOrderByCreatedAtAsc(
+            UUID uploaderId, com.lovenotes.server.domain.DomainEnums.MediaStatus status);
     List<MediaAssetEntity> findTop20ByStatusOrderByUpdatedAtAsc(com.lovenotes.server.domain.DomainEnums.MediaStatus status);
     List<MediaAssetEntity> findTop100ByMomentIdIsNullAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
             Collection<com.lovenotes.server.domain.DomainEnums.MediaStatus> statuses, Instant createdBefore);

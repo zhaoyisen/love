@@ -60,7 +60,7 @@ Page({
     const filtered = this.data.filterMood === "全部" ? ranged : ranged.filter((item) => item.mood === this.data.filterMood);
     this.setData({
       profile: state.profile, couple: state.couple, moments: filtered,
-      unread: appService.isRemote ? 0 : state.messages.filter((item) => !item.read).length,
+      unread: state.messages.filter((item) => !item.read).length,
       weekDays: this.buildWeek(now, moments), calendar: this.buildCalendar(now, moments), months: this.buildMonths(now, moments),
       dateEyebrow: `${now.getFullYear()} · ${now.getMonth() + 1}月`,
       currentDateLabel: `${now.getMonth() + 1} 月 ${now.getDate()} 日`, currentYear: now.getFullYear(),
@@ -98,5 +98,5 @@ Page({
   filterMood(event: any) { this.setData({ filterMood: event.currentTarget.dataset.value, showFilter: false }); this.render(); },
   openMoment(event: any) { wx.navigateTo({ url: `/pkg-moment/detail/index?id=${event.detail.id}` }); },
   compose() { wx.navigateTo({ url: "/pkg-compose/composer/index" }); },
-  messages() { if (!appService.isRemote) wx.navigateTo({ url: "/pkg-couple/messages/index" }); }
+  messages() { wx.navigateTo({ url: "/pkg-couple/messages/index" }); }
 });

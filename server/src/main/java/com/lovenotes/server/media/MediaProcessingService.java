@@ -3,6 +3,7 @@ package com.lovenotes.server.media;
 import com.lovenotes.server.domain.DomainEnums;
 import com.lovenotes.server.domain.MediaAssetEntity;
 import com.lovenotes.server.domain.MomentEntity;
+import com.lovenotes.server.message.MessageService;
 import com.lovenotes.server.repository.MediaAssetRepository;
 import com.lovenotes.server.repository.MomentRepository;
 import com.lovenotes.server.storage.ObjectStorage;
@@ -17,11 +18,13 @@ public class MediaProcessingService {
     private final MediaAssetRepository assets;
     private final MomentRepository moments;
     private final ObjectStorage storage;
+    private final MessageService messages;
 
-    public MediaProcessingService(MediaAssetRepository assets, MomentRepository moments, ObjectStorage storage) {
+    public MediaProcessingService(MediaAssetRepository assets, MomentRepository moments, ObjectStorage storage, MessageService messages) {
         this.assets = assets;
         this.moments = moments;
         this.storage = storage;
+        this.messages = messages;
     }
 
     @Transactional(readOnly = true)
@@ -56,7 +59,9 @@ public class MediaProcessingService {
             moment.mediaFailed();
         } else if (!momentAssets.isEmpty() && momentAssets.stream()
                 .allMatch(asset -> asset.getStatus() == DomainEnums.MediaStatus.READY)) {
+            boolean justPublished = moment.getStatus() != DomainEnums.MomentStatus.PUBLISHED;
             moment.publish();
+            if (justPublished) messages.notifySharedMoment(moment);
         }
     }
 }
