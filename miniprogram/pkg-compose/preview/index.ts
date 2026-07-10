@@ -6,7 +6,7 @@ Page({
   data: { draftId: "", draft: {} as any, date: {}, visibilityLabel: "", publishing: false, error: "", publishText: "确认发布" },
   onLoad(query: any) { const draft = store.getDraft(query.draftId); if (!draft) { wx.navigateBack(); return; } this.setData({ draftId: draft.id, draft, date: splitDate(draft.occurredAt), visibilityLabel: visibleLabel(draft.visibility) }); },
   edit() { wx.navigateBack(); },
-  async publish() {
+  async publish(skipTemplate = false) {
     if (this.data.publishing) return;
     this.setData({ publishing: true, error: "", publishText: this.data.draft.mediaType === "TEXT" ? "正在发布" : "准备安全上传" });
     const progressTimer = setInterval(() => {
@@ -19,13 +19,22 @@ Page({
       });
     }, 250);
     try {
-      const moment = await appService.publish(this.data.draftId);
+      const moment = await appService.publish(this.data.draftId, { skipTemplate });
       if (!moment) { this.setData({ error: "草稿已失效，请返回重新编辑。" }); return; }
       wx.showToast({ title: "这一刻已收好", icon: "success" });
       setTimeout(() => wx.reLaunch({ url: "/pages-main/time/index" }), 700);
     } catch (error) {
       const current = store.getDraft(this.data.draftId);
-      if (!redirectExpiredSession()) {
+      if (!redirectExpiredSession() && error && (error as any).code === "TEMPLATE_RENDER_FAILED" && !skipTemplate) {
+        wx.showModal({
+          title: "模板生成失败",
+          content: "原图已经安全上传。你可以重试，也可以直接发布原图，原图不会被覆盖。",
+          confirmText: "发布原图",
+          cancelText: "稍后重试",
+          success: (result: any) => { if (result.confirm) this.publish(true); }
+        });
+        this.setData({ error: userError(error, "模板生成失败，可直接发布原图。") });
+      } else if (!redirectExpiredSession()) {
         promptModerationAppeal(error, `发布记录被拦截：${(current || this.data.draft).title || ""} ${(current || this.data.draft).body || ""}`);
         this.setData({ draft: current || this.data.draft, error: userError(error, "发布没有完成，草稿仍保存在本机，可直接重试。") });
       }

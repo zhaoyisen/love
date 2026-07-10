@@ -11,4 +11,7 @@ public interface AppMessageRepository extends JpaRepository<AppMessageEntity, UU
     long countByRecipientIdAndReadAtIsNull(UUID recipientId);
     List<AppMessageEntity> findByRecipientIdAndReadAtIsNull(UUID recipientId);
     Optional<AppMessageEntity> findByRecipientIdAndId(UUID recipientId, UUID id);
+    Optional<AppMessageEntity> findByRecipientIdAndAggregateKey(UUID recipientId, String aggregateKey);
+    long deleteByMomentIdAndActorIdAndTypeAndSourceId(UUID momentId, UUID actorId,
+                                                       com.lovenotes.server.domain.DomainEnums.MessageType type, UUID sourceId);
 }

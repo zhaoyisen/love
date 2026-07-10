@@ -42,6 +42,7 @@ export const momentService = {
     idempotencyKey: idempotencyKey(),
     data: { body }
   }),
+  deleteComment: (id: string, commentId: string) => apiRequest<any>({ path: `/moments/${id}/comments/${commentId}`, method: "DELETE" }),
   trashList: () => apiRequest<any[]>({ path: "/moments/trash" }),
   timeline: (from: string, to: string, limit = 20, cursor?: string) => apiRequest<any>({ path: `/timeline?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}` })
 };

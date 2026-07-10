@@ -9,7 +9,13 @@
   <block wx:else>
     <view class="relation-card">
       <view class="relation-art"><view class="avatar mine">{{myInitial}}</view><view class="thread"></view><view class="avatar partner">{{partnerInitial}}</view></view>
-      <text class="relation-kicker">{{couple.relationshipName}}</text><text class="relation-days">{{days}}</text><text class="relation-unit">一起生活的日子</text><view class="anniversary"><text>纪念日</text><text>{{couple.anniversary}}</text></view>
+      <button class="relation-edit press" bindtap="openProfileEditor">编辑</button><text class="relation-kicker">{{couple.relationshipName}}</text><text class="relation-days">{{days}}</text><text class="relation-unit">一起生活的日子</text><view class="anniversary"><text>纪念日</text><text>{{couple.anniversary || '暂未设置'}}</text></view>
+    </view>
+    <view wx:if="{{editing}}" class="relation-editor" aria-label="编辑关系资料">
+      <view class="editor-head"><view><text>编辑你们的资料</text><text class="label">双方都可以修改，保存后会同步给对方</text></view><button class="text-button" bindtap="closeProfileEditor">取消</button></view>
+      <view class="editor-field"><text>关系昵称</text><input value="{{editName}}" maxlength="40" placeholder="例如：满屿之间" bindinput="nameInput" /></view>
+      <view class="editor-field"><text>纪念日 <text class="optional">可留空</text></text><picker mode="date" value="{{editAnniversary}}" bindchange="anniversaryChange"><view class="date-picker">{{editAnniversary || '选择一个值得纪念的日期'}}<text>›</text></view></picker></view>
+      <view class="editor-actions"><button class="secondary-button press" bindtap="clearAnniversary">清空日期</button><button class="primary-button press" loading="{{savingProfile}}" disabled="{{savingProfile}}" bindtap="saveProfile">保存资料</button></view>
     </view>
     <view class="quick-grid"><button class="quick-card press" bindtap="messages"><text>{{unread}}</text><text class="label">新的信笺</text><text class="small">回应与短评</text></button><button class="quick-card press"><text>{{sharedCount}}</text><text class="label">共同片段</text><text class="small">已共享记录</text></button></view>
     <button class="pet-card press" bindtap="pet"><view class="pet-scene"><view class="pet-body"><view class="decor"></view><view class="decor"></view><text>⌁</text></view><view class="pet-shadow"></view></view><view class="pet-copy"><text class="eyebrow">OUR LITTLE CLOUD</text><text class="pet-name">{{pet.name}} · Lv.{{pet.level}}</text><text class="label">{{pet.kind}}今天在等你们</text><view class="growth-track"><view class="decor" style="width: {{pet.growth}}%"></view></view><text class="small">成长值 {{pet.growth}} / 100</text></view><text class="pet-arrow">›</text></button>

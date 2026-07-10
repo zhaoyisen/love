@@ -1,1 +1,41 @@
-<view class="pet-page"><view class="pet-room"><view class="window"><view class="cloud"></view></view><view class="plant"><view class="decor"></view><view class="decor"></view><view class="decor"></view></view><view class="big-pet"><view class="ear left decor"></view><view class="ear right decor"></view><view class="eye left decor"></view><view class="eye right decor"></view><text>⌁</text></view><view class="floor-shadow"></view><text class="pet-speech">{{paired ? '今天也一起待一会儿吧' : '情侣空间已结束，团子在这里休息'}}</text></view><view class="pet-panel"><view wx:if="{{loading}}" class="sync-status"><view class="sync-dot"></view><text>正在同步团子</text></view><view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="refresh">重试</button></view><text class="eyebrow">OUR LITTLE CLOUD</text><view class="pet-title"><view><text>{{pet.name}}</text><text class="label">{{pet.kind}} · Lv.{{pet.level}}</text></view><text>{{pet.growth}} / 100</text></view><view class="pet-progress"><view class="decor" style="width: {{pet.growth}}%"></view></view><view class="pet-actions"><button class="press {{pet.fedToday ? 'done' : ''}}" data-action="feed" bindtap="action" disabled="{{!paired || acting}}"><text>小饼干</text><text class="label">{{pet.fedToday ? '今天喂过了' : '喂食 +8'}}</text></button><button class="press {{pet.playedToday ? 'done' : ''}}" data-action="play" bindtap="action" disabled="{{!paired || acting}}"><text>毛线球</text><text class="label">{{pet.playedToday ? '今天玩过了' : '玩耍 +8'}}</text></button></view><view class="pet-log"><text class="section-title">共同日志</text><view wx:for="{{pet.logs}}" wx:key="*this"><view class="decor"></view><text>{{item}}</text></view><view wx:if="{{!pet.logs.length}}" class="pet-log-empty"><view class="decor"></view><text>还没有共同日志，今天可以从一个小动作开始。</text></view></view><text class="pet-note">没有断签惩罚，也不会因为没来而生病。成长只是对共同投入的轻轻回应。</text></view></view>
+<view class="pet-page">
+  <view class="pet-room">
+    <view class="window"><view class="cloud"></view></view>
+    <view class="plant"><view class="decor"></view><view class="decor"></view><view class="decor"></view></view>
+    <view class="big-pet"><view class="ear left decor"></view><view class="ear right decor"></view><view class="eye left decor"></view><view class="eye right decor"></view><text>{{pet.adoptionState === 'ADOPTED' ? '⌄' : '?'}}</text></view>
+    <view class="floor-shadow"></view>
+    <text class="pet-speech">{{pet.adoptionState === 'ADOPTED' ? '今天也一起待一会儿吧' : '一起迎接一位新伙伴吧'}}</text>
+  </view>
+
+  <view class="pet-panel">
+    <view wx:if="{{loading}}" class="sync-status"><view class="sync-dot"></view><text>正在同步宠物状态</text></view>
+    <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="refresh">重试</button></view>
+
+    <block wx:if="{{pet.adoptionState !== 'ADOPTED'}}">
+      <text class="eyebrow">OUR NEW COMPANION</text>
+      <text class="adoption-title">{{pet.adoptionState === 'PENDING_CONFIRMATION' ? '等 TA 一起点头' : '领养一位小伙伴'}}</text>
+      <view wx:if="{{pet.adoptionState === 'PENDING_CONFIRMATION'}}" class="pending-card">
+        <text>{{pet.adoption.name}} · {{pet.adoption.kind}}</text>
+        <text class="label">{{pet.adoption.proposedByMe ? '你已提交领养提议，等待 TA 确认。' : 'TA 邀请你一起领养，确认后才会加入共同空间。'}}</text>
+        <button wx:if="{{!pet.adoption.proposedByMe}}" class="primary-button" loading="{{saving}}" disabled="{{saving}}" bindtap="confirmAdoption">确认一起领养</button>
+      </view>
+      <view wx:else class="adoption-card">
+        <text class="label">从三位基础伙伴中选一位；提交后需要 TA 确认才会正式领养。</text>
+        <view class="kind-options"><button wx:for="{{petKinds}}" wx:key="*this" data-kind="{{item}}" bindtap="selectKind" class="kind-option {{selectedKind === item ? 'selected' : ''}}">{{item}}</button></view>
+        <input class="pet-input" value="{{adoptionName}}" maxlength="30" placeholder="给它起个名字" bindinput="inputAdoptionName" />
+        <button class="primary-button" loading="{{saving}}" disabled="{{!paired || saving}}" bindtap="proposeAdoption">提交给 TA 确认</button>
+      </view>
+    </block>
+
+    <block wx:else>
+      <text class="eyebrow">OUR LITTLE CLOUD</text>
+      <view class="pet-title"><view><text>{{pet.name}}</text><text class="label">{{pet.kind}} · Lv.{{pet.level}}</text></view><text>{{pet.growth}} / 100</text></view>
+      <view class="pet-progress"><view class="decor" style="width: {{pet.growth}}%"></view></view>
+      <button class="rename-link" bindtap="openRename">改名字</button>
+      <view class="pet-actions"><button class="press {{pet.fedToday ? 'done' : ''}}" data-action="feed" bindtap="action" disabled="{{!paired || acting}}"><text>小饼干</text><text class="label">{{pet.fedToday ? '今天喂过了' : '喂食 +8'}}</text></button><button class="press {{pet.playedToday ? 'done' : ''}}" data-action="play" bindtap="action" disabled="{{!paired || acting}}"><text>毛线球</text><text class="label">{{pet.playedToday ? '今天玩过了' : '玩耍 +8'}}</text></button></view>
+      <view wx:if="{{renameOpen}}" class="rename-card"><text class="section-title">给 {{pet.name}} 换个名字</text><input class="pet-input" value="{{renameName}}" maxlength="30" bindinput="inputRenameName" /><view class="rename-actions"><button bindtap="closeRename">取消</button><button class="primary-button" loading="{{saving}}" bindtap="rename">保存</button></view><text class="label">每次改名后需等待 7 天才可再次修改。</text></view>
+      <view class="pet-log"><text class="section-title">共同日志</text><view wx:for="{{pet.logs}}" wx:key="*this"><view class="decor"></view><text>{{item}}</text></view><view wx:if="{{!pet.logs.length}}" class="pet-log-empty"><view class="decor"></view><text>还没有共同日志，今天可以从一个小动作开始。</text></view></view>
+      <text class="pet-note">没有断签惩罚，也不会因为没来而生病。成长只是对共同投入的轻轻回应。</text>
+    </block>
+  </view>
+</view>

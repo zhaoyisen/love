@@ -56,6 +56,14 @@ export interface Draft {
   occurredAt: string;
   visibility: Visibility;
   template: string;
+  templateOptions?: {
+    templateId: string;
+    templateVersion: number;
+    showDate: boolean;
+    showCopy: boolean;
+    sticker: "none" | "flower" | "heart" | "star";
+    cropScale: number;
+  };
   updatedAt: string;
 }
 
@@ -66,6 +74,7 @@ export interface MessageItem {
   summary: string;
   createdAt: string;
   read: boolean;
+  aggregateCount?: number;
   momentId?: string;
 }
 
@@ -94,6 +103,9 @@ export interface AppState {
     fedToday: boolean;
     playedToday: boolean;
     logs: string[];
+    adoptionState?: "NOT_STARTED" | "PENDING_CONFIRMATION" | "ADOPTED";
+    adoption?: { kind: string; name: string; proposedByMe: boolean };
+    renameAvailableAt?: string;
   };
   recap: {
     title: string;

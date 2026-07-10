@@ -52,6 +52,24 @@ Page({
       this.setData({ commentSending: false });
     }
   },
+  removeComment(event: any) {
+    const commentId = event.currentTarget.dataset.id;
+    if (!commentId) return;
+    wx.showModal({
+      title: "删除这条短评？", content: "删除后，对方的信笺中也不会再保留这条短评。",
+      confirmText: "删除", confirmColor: "#8F3F3F",
+      success: async (res: any) => {
+        if (!res.confirm) return;
+        try {
+          const moment = await appService.deleteComment(this.momentId, commentId);
+          if (moment) this.setData({ moment: decorateMoment(moment) });
+          wx.showToast({ title: "短评已删除", icon: "none" });
+        } catch (error) {
+          if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "短评删除失败，请刷新后重试。"), icon: "none" });
+        }
+      }
+    });
+  },
   menu() {
     const mine = this.data.moment.author === "我";
     wx.showActionSheet({ itemList: mine ? ["编辑记录", "移入回收站", "内容反馈"] : ["内容反馈", "隐私与关系设置"], success: (res: any) => {

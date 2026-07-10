@@ -29,14 +29,16 @@ public class PetStateEntity {
     private Instant createdAt;
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+    @Column(name = "last_renamed_at")
+    private Instant lastRenamedAt;
 
     protected PetStateEntity() {}
 
-    public PetStateEntity(UUID coupleId) {
+    public PetStateEntity(UUID coupleId, String kind, String name) {
         this.id = UuidV7.next();
         this.coupleId = coupleId;
-        this.name = "团子";
-        this.kind = "云朵猫";
+        this.name = name;
+        this.kind = kind;
         this.level = 1;
         this.growth = 0;
         this.createdAt = Instant.now();
@@ -52,6 +54,7 @@ public class PetStateEntity {
     public String getKind() { return kind; }
     public int getLevel() { return level; }
     public int getGrowth() { return growth; }
+    public Instant getLastRenamedAt() { return lastRenamedAt; }
 
     public void addGrowth(int delta) {
         int total = growth + delta;
@@ -60,5 +63,10 @@ public class PetStateEntity {
             total -= 100;
         }
         growth = Math.max(0, total);
+    }
+
+    public void rename(String name) {
+        this.name = name;
+        this.lastRenamedAt = Instant.now();
     }
 }

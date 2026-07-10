@@ -10,6 +10,8 @@ import { messageService } from "./message-service";
 import { momentService } from "./moment-service";
 import { petService } from "./pet-service";
 import { recapService } from "./recap-service";
+import { notificationPreferenceService } from "./notification-preference-service";
+import { templateName, templateRenderService } from "./template-render-service";
 import { clearTokens, hasSession } from "./request";
 
 const moodLabels: Record<string, string> = {
@@ -63,6 +65,7 @@ function remoteMoment(item: any, currentUserId: string): Moment {
       createdAt: shortDateTime(comment.created_at)
     })),
     status: item.status === "TRASHED" ? "DELETED" : item.status,
+    template: item.template?.template_id ? templateName(item.template.template_id) : undefined,
     version: item.version,
     deletedAt: item.deleted_at
   };
@@ -74,6 +77,7 @@ function remoteMessage(item: any): MessageItem {
     type: (item.type || "SYSTEM") as MessageItem["type"],
     title: item.title || "新的消息",
     summary: item.summary || "",
+    aggregateCount: Number(item.aggregate_count || 1),
     createdAt: shortDateTime(item.created_at),
     read: Boolean(item.read_at),
     momentId: item.moment_id
@@ -81,7 +85,7 @@ function remoteMessage(item: any): MessageItem {
 }
 
 function emptyPet(): AppState["pet"] {
-  return { name: "团子", kind: "云朵猫", level: 1, growth: 0, fedToday: false, playedToday: false, logs: [] };
+  return { name: "", kind: "", level: 0, growth: 0, fedToday: false, playedToday: false, logs: [], adoptionState: "NOT_STARTED" };
 }
 
 function remotePet(item: any): AppState["pet"] {
@@ -91,13 +95,20 @@ function remotePet(item: any): AppState["pet"] {
     return `${shortDateTime(log.created_at)} · ${actor}${action}`;
   });
   return {
-    name: item.name || "团子",
-    kind: item.kind || "云朵猫",
-    level: item.level || 1,
+    name: item.name || "",
+    kind: item.kind || "",
+    level: Number(item.level || 0),
     growth: item.growth || 0,
     fedToday: Boolean(item.fed_today),
     playedToday: Boolean(item.played_today),
-    logs
+    logs,
+    adoptionState: item.adoption_state || (item.id ? "ADOPTED" : "NOT_STARTED"),
+    adoption: item.adoption ? {
+      kind: item.adoption.kind,
+      name: item.adoption.name,
+      proposedByMe: Boolean(item.adoption.proposed_by_me)
+    } : undefined,
+    renameAvailableAt: item.rename_available_at
   };
 }
 
@@ -109,6 +120,15 @@ function remoteRecap(item: any): AppState["recap"] {
     selectedMomentIds: item.selected_moment_ids || [],
     status: item.status === "READY" ? "READY" : "DRAFT",
     version: item.version || 1
+  };
+}
+
+function remotePreferences(item: any): AppState["preferences"] {
+  return {
+    momentNotice: item?.moment_notice !== false,
+    reactionNotice: item?.reaction_notice !== false,
+    petNotice: item?.pet_notice !== false,
+    recapNotice: item?.recap_notice !== false
   };
 }
 
@@ -163,10 +183,11 @@ async function synchronizeRemoteState() {
   const now = new Date();
   const from = new Date("2000-01-01T00:00:00.000Z").toISOString();
   const to = new Date(now.getTime() + 5 * 60000).toISOString();
-  const [couple, timeline, messagePage] = await Promise.all([
+  const [couple, timeline, messagePage, preferences] = await Promise.all([
     coupleService.current(),
     momentService.timeline(from, to, 50),
-    messageService.list(50)
+    messageService.list(50),
+    notificationPreferenceService.current()
   ]);
   store.applyRemoteCouple(couple);
   const moments = (timeline.items || [])
@@ -174,6 +195,7 @@ async function synchronizeRemoteState() {
     .map((item: any) => remoteMoment(item, me.id));
   store.replaceRemoteMoments(moments);
   store.replaceRemoteMessages((messagePage.items || []).map(remoteMessage));
+  store.applyRemotePreferences(remotePreferences(preferences));
   if (couple && couple.status === "PAIRED") {
     store.applyRemotePet(remotePet(await petService.current()));
   } else {
@@ -249,16 +271,25 @@ export const appService = {
     store.applyRemoteProfile({ id: profile.id, name: profile.nickname });
   },
 
-  async publish(draftId: string) {
+  async publish(draftId: string, options: { skipTemplate?: boolean } = {}) {
     const draft = store.getDraft(draftId);
     if (!draft) return undefined;
     if (!API_CONFIG.useRemoteApi) return mockApi.publish(draftId);
     const assetIds = draft.mediaType === "TEXT" ? [] : await uploadDraftMedia(draftId);
+    let templateOutput: { renderedAssetId: string; localPath: string; templateName: string } | undefined;
+    if (!options.skipTemplate && draft.mediaType === "IMAGE" && draft.template !== "原始照片") {
+      templateOutput = await templateRenderService.renderAndRegister(draft, assetIds);
+      assetIds.push(templateOutput.renderedAssetId);
+    }
     const latestDraft = store.getDraft(draftId) || draft;
     const result = await momentService.create(latestDraft, assetIds);
     const profileId = store.getState().profile.id || result.author_id;
     const moment = remoteMoment(result, profileId);
-    moment.media = moment.media.map((item, index) => ({ ...item, path: item.path || latestDraft.media[index]?.path }));
+    moment.media = moment.media.map((item, index) => {
+      const localFallback = templateOutput && index === 0 ? templateOutput.localPath : latestDraft.media[index]?.path;
+      return { ...item, path: !item.path || String(item.path).startsWith("local://") ? localFallback : item.path };
+    });
+    if (templateOutput) moment.template = templateOutput.templateName;
     store.publishRemoteDraft(draftId, moment);
     return moment;
   },
@@ -316,6 +347,14 @@ export const appService = {
       return store.getMoment(momentId);
     }
     const result = await momentService.comment(momentId, body);
+    const moment = remoteMoment(result, store.getState().profile.id || result.author_id);
+    store.upsertRemoteMoment(moment);
+    return moment;
+  },
+
+  async deleteComment(momentId: string, commentId: string) {
+    if (!API_CONFIG.useRemoteApi) return store.deleteComment(momentId, commentId);
+    const result = await momentService.deleteComment(momentId, commentId);
     const moment = remoteMoment(result, store.getState().profile.id || result.author_id);
     store.upsertRemoteMoment(moment);
     return moment;
@@ -381,6 +420,27 @@ export const appService = {
     return { changed: Boolean(result.changed), growthDelta: result.growth_delta || 0, pet };
   },
 
+  async proposePetAdoption(kind: string, name: string) {
+    const result = await petService.proposeAdoption(kind, name);
+    const pet = remotePet(result);
+    store.applyRemotePet(pet);
+    return pet;
+  },
+
+  async confirmPetAdoption() {
+    const result = await petService.confirmAdoption();
+    const pet = remotePet(result);
+    store.applyRemotePet(pet);
+    return pet;
+  },
+
+  async renamePet(name: string) {
+    const result = await petService.rename(name);
+    const pet = remotePet(result);
+    store.applyRemotePet(pet);
+    return pet;
+  },
+
   async recap(year = new Date().getFullYear()) {
     if (!API_CONFIG.useRemoteApi) return { recap: store.getState().recap, selectedMoments: [], candidateCount: 0, excludedCount: 0 };
     const result = await recapService.current(year);
@@ -439,6 +499,37 @@ export const appService = {
     clearTokens();
     store.reset();
     return result;
+  },
+
+  async updateCoupleProfile(relationshipName: string, anniversary: string | null) {
+    const normalized = relationshipName.trim();
+    if (!normalized) throw new Error("请填写你们的关系昵称。");
+    if (!API_CONFIG.useRemoteApi) {
+      store.update((state) => { state.couple.relationshipName = normalized; state.couple.anniversary = anniversary || ""; });
+      return store.getState().couple;
+    }
+    const couple = store.getState().couple;
+    if (couple.version === undefined) throw new Error("情侣空间状态尚未同步，请返回刷新后重试。");
+    const result = await coupleService.update(couple.version, normalized, anniversary);
+    store.applyRemoteCouple(result);
+    return store.getState().couple;
+  },
+
+  async updateNotificationPreference(key: keyof AppState["preferences"], value: boolean) {
+    if (!API_CONFIG.useRemoteApi) {
+      store.updatePreference(key, value);
+      return store.getState().preferences;
+    }
+    const next = { ...store.getState().preferences, [key]: value };
+    const result = await notificationPreferenceService.update({
+      moment_notice: next.momentNotice,
+      reaction_notice: next.reactionNotice,
+      pet_notice: next.petNotice,
+      recap_notice: next.recapNotice
+    });
+    const preferences = remotePreferences(result);
+    store.applyRemotePreferences(preferences);
+    return preferences;
   },
 
   async deletionStatus(id: string, token: string) {

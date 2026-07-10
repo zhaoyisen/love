@@ -59,14 +59,14 @@
   </view>
 
   <view class="setting-group">
-    <text class="group-title">本机提醒偏好</text>
+    <text class="group-title">提醒偏好</text>
     <view class="settings-panel">
       <view class="switch-row"><text>新共享时刻</text><switch color="#557263" checked="{{state.preferences.momentNotice}}" data-key="momentNotice" bindchange="toggle" /></view>
       <view class="switch-row"><text>回应与短评</text><switch color="#557263" checked="{{state.preferences.reactionNotice}}" data-key="reactionNotice" bindchange="toggle" /></view>
       <view class="switch-row"><text>云宠物互动</text><switch color="#557263" checked="{{state.preferences.petNotice}}" data-key="petNotice" bindchange="toggle" /></view>
       <view class="switch-row"><text>回顾生成完成</text><switch color="#557263" checked="{{state.preferences.recapNotice}}" data-key="recapNotice" bindchange="toggle" /></view>
     </view>
-    <text class="setting-help">这些开关目前只保存在这台设备上。</text>
+    <text class="setting-help">{{isRemote ? '偏好已保存到服务端，会在其他登录设备同步。订阅消息仍需你主动授权。' : '演示模式下，这些开关只保存在当前设备。'}}</text>
   </view>
 
   <view class="setting-group">

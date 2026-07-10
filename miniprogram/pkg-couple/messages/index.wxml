@@ -10,7 +10,7 @@
   <view wx:if="{{messages.length}}" class="message-list">
     <view wx:for="{{messages}}" wx:key="id" class="message-item {{!item.read ? 'unread' : ''}}" hover-class="message-item--pressed" hover-stay-time="120" role="button" data-message-id="{{item.id}}" data-moment-id="{{item.momentId}}" bindtap="open">
       <view class="message-mark">{{item.type === 'REACTION' ? '♥' : item.type === 'PET' ? '☁' : item.type === 'COMMENT' ? '“' : '•'}}</view>
-      <view class="message-copy"><view class="message-title-row"><text class="message-title">{{item.title}}</text><text class="time">{{item.createdAt}}</text></view><text class="message-summary">{{item.summary}}</text></view>
+      <view class="message-copy"><view class="message-title-row"><text class="message-title">{{item.title}}{{item.aggregateCount > 1 ? ' · ' + item.aggregateCount : ''}}</text><text class="time">{{item.createdAt}}</text></view><text class="message-summary">{{item.summary}}</text></view>
       <view wx:if="{{!item.read}}" class="unread-dot"></view><text wx:else class="message-arrow">›</text>
     </view>
   </view>

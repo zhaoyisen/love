@@ -5,6 +5,7 @@ import com.lovenotes.server.domain.MediaAssetEntity;
 import com.lovenotes.server.domain.MomentEntity;
 import com.lovenotes.server.message.MessageService;
 import com.lovenotes.server.repository.MediaAssetRepository;
+import com.lovenotes.server.repository.DerivedAssetRepository;
 import com.lovenotes.server.repository.MomentRepository;
 import com.lovenotes.server.storage.ObjectStorage;
 import org.junit.jupiter.api.Test;
@@ -22,10 +23,11 @@ class MediaProcessingServiceTest {
     @Test
     void shouldPublishMomentOnlyAfterAllMediaPassSafetyProcessing() {
         MediaAssetRepository assets = mock(MediaAssetRepository.class);
+        DerivedAssetRepository derivedAssets = mock(DerivedAssetRepository.class);
         MomentRepository moments = mock(MomentRepository.class);
         ObjectStorage storage = mock(ObjectStorage.class);
         MessageService messages = mock(MessageService.class);
-        MediaProcessingService service = new MediaProcessingService(assets, moments, storage, messages);
+        MediaProcessingService service = new MediaProcessingService(assets, derivedAssets, moments, storage, messages);
 
         UUID userId = UUID.randomUUID();
         MomentEntity moment = new MomentEntity(userId, null, DomainEnums.MomentType.IMAGE,
@@ -37,6 +39,8 @@ class MediaProcessingServiceTest {
 
         when(assets.findById(asset.getId())).thenReturn(Optional.of(asset));
         when(assets.findByMomentIdOrderByCreatedAtAsc(moment.getId())).thenReturn(List.of(asset));
+        when(derivedAssets.findByRenderedMediaAssetId(asset.getId())).thenReturn(Optional.empty());
+        when(derivedAssets.findByRenderedMediaAssetIdIn(List.of(asset.getId()))).thenReturn(List.of());
         when(moments.findById(moment.getId())).thenReturn(Optional.of(moment));
         when(storage.process(DomainEnums.MediaKind.IMAGE, "original/test.jpg", null))
                 .thenReturn(new ObjectStorage.ProcessingResult(
@@ -57,10 +61,11 @@ class MediaProcessingServiceTest {
     @Test
     void shouldKeepBlockedMediaOutOfPublishedTimeline() {
         MediaAssetRepository assets = mock(MediaAssetRepository.class);
+        DerivedAssetRepository derivedAssets = mock(DerivedAssetRepository.class);
         MomentRepository moments = mock(MomentRepository.class);
         ObjectStorage storage = mock(ObjectStorage.class);
         MessageService messages = mock(MessageService.class);
-        MediaProcessingService service = new MediaProcessingService(assets, moments, storage, messages);
+        MediaProcessingService service = new MediaProcessingService(assets, derivedAssets, moments, storage, messages);
 
         UUID userId = UUID.randomUUID();
         MomentEntity moment = new MomentEntity(userId, null, DomainEnums.MomentType.VIDEO,
@@ -72,6 +77,8 @@ class MediaProcessingServiceTest {
 
         when(assets.findById(asset.getId())).thenReturn(Optional.of(asset));
         when(assets.findByMomentIdOrderByCreatedAtAsc(moment.getId())).thenReturn(List.of(asset));
+        when(derivedAssets.findByRenderedMediaAssetId(asset.getId())).thenReturn(Optional.empty());
+        when(derivedAssets.findByRenderedMediaAssetIdIn(List.of(asset.getId()))).thenReturn(List.of());
         when(moments.findById(moment.getId())).thenReturn(Optional.of(moment));
         when(storage.process(DomainEnums.MediaKind.VIDEO, "original/test.mp4", null))
                 .thenReturn(new ObjectStorage.ProcessingResult(

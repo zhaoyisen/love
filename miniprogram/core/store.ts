@@ -189,6 +189,10 @@ class LoveNotesStore {
     this.update((state) => { state.recap = recap; });
   }
 
+  applyRemotePreferences(preferences: AppState["preferences"]) {
+    this.update((state) => { state.preferences = preferences; });
+  }
+
   upsertRemoteMoment(moment: Moment) {
     this.update((state) => {
       state.moments = [moment, ...state.moments.filter((item) => item.id !== moment.id)];
@@ -230,7 +234,9 @@ class LoveNotesStore {
       id: createId("draft"), step: 1, mediaType, media: [], title: "", body: "",
       mood: "开心", events: ["日常"], occurredAt: nowIso(),
       visibility: this.state.couple.status === "PAIRED" ? this.state.profile.defaultVisibility : "PRIVATE",
-      template: "奶油胶片", updatedAt: nowIso()
+      template: "奶油胶片",
+      templateOptions: { templateId: "cream-film", templateVersion: 1, showDate: true, showCopy: true, sticker: "flower", cropScale: 1 },
+      updatedAt: nowIso()
     };
     this.update((state) => state.drafts.unshift(draft));
     return draft;
@@ -262,6 +268,17 @@ class LoveNotesStore {
       state.moments.unshift(result);
       state.drafts = state.drafts.filter((item) => item.id !== id);
       if (state.couple.status === "PAIRED") state.pet.growth = Math.min(99, state.pet.growth + 6);
+    });
+    return result;
+  }
+
+  deleteComment(momentId: string, commentId: string): Moment | undefined {
+    let result: Moment | undefined;
+    this.update((state) => {
+      const moment = state.moments.find((item) => item.id === momentId);
+      if (!moment) return;
+      moment.comments = moment.comments.filter((item) => !(item.id === commentId && item.author === "我"));
+      result = moment;
     });
     return result;
   }

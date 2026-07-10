@@ -14,10 +14,12 @@ import java.util.*;
 @Service
 public class MessageService {
     private final AppMessageRepository messages;
+    private final AppMessageSourceRepository messageSources;
     private final ActiveCoupleMemberRepository members;
 
-    public MessageService(AppMessageRepository messages, ActiveCoupleMemberRepository members) {
+    public MessageService(AppMessageRepository messages, AppMessageSourceRepository messageSources, ActiveCoupleMemberRepository members) {
         this.messages = messages;
+        this.messageSources = messageSources;
         this.members = members;
     }
 
@@ -60,10 +62,23 @@ public class MessageService {
     }
 
     @Transactional
-    public void notifyComment(MomentEntity moment, UUID actorId, String body) {
+    public void notifyComment(MomentEntity moment, MomentCommentEntity comment) {
         if (moment.getCoupleId() == null) return;
-        createForCoupleExcept(moment.getCoupleId(), actorId, moment.getId(), DomainEnums.MessageType.COMMENT,
-                "TA 留下了一条短评", truncate(body, 72));
+        createForCoupleExcept(moment.getCoupleId(), comment.getAuthorId(), moment.getId(), DomainEnums.MessageType.COMMENT,
+                "TA 留下了一条短评", truncate(comment.getBody(), 72), comment.getId());
+    }
+
+    @Transactional
+    public long retractCommentNotifications(MomentCommentEntity comment) {
+        long removed = 0;
+        for (AppMessageSourceEntity source : messageSources.findBySourceId(comment.getId())) {
+            AppMessageEntity message = messages.findById(source.getMessageId()).orElse(null);
+            messageSources.deleteByMessageIdAndSourceId(source.getMessageId(), comment.getId());
+            if (message == null) continue;
+            if (messageSources.existsByMessageId(message.getId())) message.decrementAggregate();
+            else { messages.delete(message); removed++; }
+        }
+        return removed;
     }
 
     @Transactional
@@ -82,10 +97,38 @@ public class MessageService {
 
     private void createForCoupleExcept(UUID coupleId, UUID actorId, UUID momentId, DomainEnums.MessageType type,
                                        String title, String summary) {
+        createForCoupleExcept(coupleId, actorId, momentId, type, title, summary, null);
+    }
+
+    private void createForCoupleExcept(UUID coupleId, UUID actorId, UUID momentId, DomainEnums.MessageType type,
+                                       String title, String summary, UUID sourceId) {
         members.findByCoupleId(coupleId).stream()
                 .map(ActiveCoupleMemberEntity::getUserId)
                 .filter(userId -> !userId.equals(actorId))
-                .forEach(recipient -> messages.save(new AppMessageEntity(recipient, actorId, coupleId, momentId, type, title, summary)));
+                .forEach(recipient -> upsert(recipient, actorId, coupleId, momentId, type, title, summary, sourceId));
+    }
+
+    private void upsert(UUID recipient, UUID actorId, UUID coupleId, UUID momentId, DomainEnums.MessageType type,
+                        String title, String summary, UUID sourceId) {
+        String aggregateKey = type.name() + ":" + (momentId == null ? coupleId : momentId);
+        AppMessageEntity message = messages.findByRecipientIdAndAggregateKey(recipient, aggregateKey).orElse(null);
+        if (message == null) {
+            message = new AppMessageEntity(recipient, actorId, coupleId, momentId, sourceId, type, title, summary);
+            message.aggregateKey(aggregateKey);
+            messages.save(message);
+        } else {
+            message.aggregate(summaryForCount(type, summary, message.getAggregateCount() + 1));
+        }
+        if (sourceId != null) {
+            UUID messageId = message.getId();
+            boolean exists = messageSources.findBySourceId(sourceId).stream().anyMatch(source -> source.getMessageId().equals(messageId));
+            if (!exists) messageSources.save(new AppMessageSourceEntity(messageId, sourceId));
+        }
+    }
+
+    private String summaryForCount(DomainEnums.MessageType type, String summary, int count) {
+        if (count <= 1) return summary;
+        return switch (type) { case COMMENT -> "TA 留下了 " + count + " 条短评"; case REACTION -> "TA 更新了 " + count + " 次回应"; default -> summary; };
     }
 
     private String momentTitle(MomentEntity moment) {
@@ -109,10 +152,10 @@ public class MessageService {
 
     public record MessagePage(List<MessageView> items, long unreadCount) {}
     public record MessageView(UUID id, DomainEnums.MessageType type, String title, String summary, UUID actorId,
-                              UUID momentId, Instant readAt, Instant createdAt) {
+                              UUID momentId, int aggregateCount, Instant readAt, Instant createdAt) {
         static MessageView from(AppMessageEntity message) {
             return new MessageView(message.getId(), message.getType(), message.getTitle(), message.getSummary(),
-                    message.getActorId(), message.getMomentId(), message.getReadAt(), message.getCreatedAt());
+                    message.getActorId(), message.getMomentId(), message.getAggregateCount(), message.getReadAt(), message.getCreatedAt());
         }
     }
     public record MarkAllReadResult(long readCount) {}

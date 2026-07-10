@@ -34,13 +34,16 @@ class ApiFlowIntegrationTest {
     @Autowired MomentReactionRepository reactions;
     @Autowired MomentCommentRepository comments;
     @Autowired AppMessageRepository appMessages;
+    @Autowired AppMessageSourceRepository appMessageSources;
     @Autowired PetActionLogRepository petActionLogs;
     @Autowired PetStateRepository petStates;
+    @Autowired PetAdoptionProposalRepository petAdoptionProposals;
     @Autowired AnnualRecapMomentRepository annualRecapMoments;
     @Autowired AnnualRecapRepository annualRecaps;
     @Autowired ContentFeedbackRepository contentFeedback;
     @Autowired DeletionRequestRepository deletionRequests;
     @Autowired DerivedAssetRepository derivedAssets;
+    @Autowired NotificationPreferenceRepository notificationPreferences;
     @Autowired AuditLogRepository auditLogs;
     @Autowired AccountDeletionProcessingService accountDeletionProcessor;
     @Autowired MomentRepository moments;
@@ -51,8 +54,8 @@ class ApiFlowIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
-        auditLogs.deleteAll(); contentFeedback.deleteAll(); deletionRequests.deleteAll(); derivedAssets.deleteAll();
-        appMessages.deleteAll(); petActionLogs.deleteAll(); petStates.deleteAll(); annualRecapMoments.deleteAll(); annualRecaps.deleteAll(); comments.deleteAll(); reactions.deleteAll(); tags.deleteAll(); uploads.deleteAll(); assets.deleteAll(); moments.deleteAll();
+        auditLogs.deleteAll(); contentFeedback.deleteAll(); deletionRequests.deleteAll(); derivedAssets.deleteAll(); notificationPreferences.deleteAll();
+        appMessageSources.deleteAll(); appMessages.deleteAll(); petActionLogs.deleteAll(); petStates.deleteAll(); petAdoptionProposals.deleteAll(); annualRecapMoments.deleteAll(); annualRecaps.deleteAll(); comments.deleteAll(); reactions.deleteAll(); tags.deleteAll(); uploads.deleteAll(); assets.deleteAll(); moments.deleteAll();
         members.deleteAll(); invitations.deleteAll(); couples.deleteAll(); users.deleteAll();
     }
 
@@ -90,6 +93,33 @@ class ApiFlowIntegrationTest {
                         .content("{\"nickname\":\"1234567890123456789012345678901\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void shouldPersistNotificationPreferencesForTheCurrentAccount() throws Exception {
+        Login user = login("preference-user");
+
+        mvc.perform(get("/me/notification-preferences").header("Authorization", bearer(user.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.moment_notice").value(true))
+                .andExpect(jsonPath("$.data.reaction_notice").value(true))
+                .andExpect(jsonPath("$.data.pet_notice").value(true))
+                .andExpect(jsonPath("$.data.recap_notice").value(true));
+
+        mvc.perform(patch("/me/notification-preferences").header("Authorization", bearer(user.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"moment_notice\":false,\"reaction_notice\":true,\"pet_notice\":false,\"recap_notice\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.moment_notice").value(false))
+                .andExpect(jsonPath("$.data.reaction_notice").value(true))
+                .andExpect(jsonPath("$.data.pet_notice").value(false))
+                .andExpect(jsonPath("$.data.recap_notice").value(false));
+
+        mvc.perform(get("/me/notification-preferences").header("Authorization", bearer(user.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.moment_notice").value(false));
+        Assertions.assertEquals(1, notificationPreferences.count());
+        Assertions.assertEquals(1, auditLogs.countByAction("NOTIFICATION_PREFERENCE_UPDATE"));
     }
 
     @Test
@@ -411,13 +441,15 @@ class ApiFlowIntegrationTest {
                 .andExpect(jsonPath("$.data.reactions", hasSize(1)));
 
         String commentKey = UUID.randomUUID().toString();
-        mvc.perform(post("/moments/{id}/comments", momentId).header("Authorization", bearer(beta.accessToken()))
+        String comment = mvc.perform(post("/moments/{id}/comments", momentId).header("Authorization", bearer(beta.accessToken()))
                         .header("Idempotency-Key", commentKey)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"我也记得这天。\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.comments", hasSize(1)))
                 .andExpect(jsonPath("$.data.comments[0].author_id").value(beta.userId()))
-                .andExpect(jsonPath("$.data.comments[0].body").value("我也记得这天。"));
+                .andExpect(jsonPath("$.data.comments[0].body").value("我也记得这天。"))
+                .andReturn().getResponse().getContentAsString();
+        String commentId = mapper.readTree(comment).at("/data/comments/0/id").asText();
         mvc.perform(post("/moments/{id}/comments", momentId).header("Authorization", bearer(beta.accessToken()))
                         .header("Idempotency-Key", commentKey)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"我也记得这天。\"}"))
@@ -429,6 +461,22 @@ class ApiFlowIntegrationTest {
                 .andExpect(jsonPath("$.data.my_reaction").doesNotExist())
                 .andExpect(jsonPath("$.data.reactions[0].value").value("懂你"))
                 .andExpect(jsonPath("$.data.comments[0].author_id").value(beta.userId()));
+
+        mvc.perform(delete("/moments/{id}/comments/{commentId}", momentId, commentId)
+                        .header("Authorization", bearer(alpha.accessToken())))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("RESOURCE_FORBIDDEN"));
+        mvc.perform(delete("/moments/{id}/comments/{commentId}", momentId, commentId)
+                        .header("Authorization", bearer(beta.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.comments", hasSize(0)));
+        Assertions.assertTrue(comments.findByMomentIdOrderByCreatedAtAsc(UUID.fromString(momentId)).isEmpty());
+        Assertions.assertEquals(1, auditLogs.countByAction("MOMENT_COMMENT_DELETE"));
+        mvc.perform(get("/messages").header("Authorization", bearer(alpha.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items", hasSize(1)))
+                .andExpect(jsonPath("$.data.items[0].type").value("REACTION"))
+                .andExpect(jsonPath("$.data.items[0].aggregate_count").value(2));
 
         String privateMoment = mvc.perform(post("/moments").header("Authorization", bearer(alpha.accessToken()))
                         .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON).content(textMoment("PRIVATE")))
@@ -534,7 +582,22 @@ class ApiFlowIntegrationTest {
 
         mvc.perform(get("/pet/current").header("Authorization", bearer(alpha.accessToken())))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.adoption_state").value("NOT_STARTED"));
+
+        mvc.perform(post("/pet/adoption-proposals").header("Authorization", bearer(alpha.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"kind\":\"云朵猫\",\"name\":\"团子\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.adoption_state").value("PENDING_CONFIRMATION"))
+                .andExpect(jsonPath("$.data.adoption.name").value("团子"))
+                .andExpect(jsonPath("$.data.adoption.proposed_by_me").value(true));
+        mvc.perform(post("/pet/adoption-proposals/confirm").header("Authorization", bearer(alpha.accessToken())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("ADOPTION_SELF_CONFIRM_NOT_ALLOWED"));
+        mvc.perform(post("/pet/adoption-proposals/confirm").header("Authorization", bearer(beta.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.adoption_state").value("ADOPTED"))
                 .andExpect(jsonPath("$.data.name").value("团子"))
+                .andExpect(jsonPath("$.data.kind").value("云朵猫"))
                 .andExpect(jsonPath("$.data.level").value(1))
                 .andExpect(jsonPath("$.data.growth").value(0))
                 .andExpect(jsonPath("$.data.fed_today").value(false))
@@ -703,6 +766,54 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
+    void shouldRegisterTemplateRenderAndPreferRenderedImageWhenPublishingMoment() throws Exception {
+        Login owner = login("template-owner");
+        Login stranger = login("template-stranger");
+        String sourceAssetId = uploadImage(owner, "source.jpg");
+        String renderedAssetId = uploadImage(owner, "template-output.jpg");
+
+        mvc.perform(post("/template-renders").header("Authorization", bearer(stranger.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source_asset_ids\":[\"" + sourceAssetId + "\"],\"rendered_asset_id\":\"" + renderedAssetId
+                                + "\",\"template_id\":\"cream-film\",\"template_version\":1,\"render_config\":\"{\\\"showDate\\\":true}\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("RESOURCE_FORBIDDEN"));
+
+        mvc.perform(post("/template-renders").header("Authorization", bearer(owner.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source_asset_ids\":[\"" + sourceAssetId + "\"],\"rendered_asset_id\":\"" + renderedAssetId
+                                + "\",\"template_id\":\"cream-film\",\"template_version\":1,\"render_config\":\"{\\\"showDate\\\":true,\\\"sticker\\\":\\\"flower\\\"}\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.template_id").value("cream-film"))
+                .andExpect(jsonPath("$.data.template_version").value(1))
+                .andExpect(jsonPath("$.data.source_asset_ids[0]").value(sourceAssetId))
+                .andExpect(jsonPath("$.data.rendered_asset_id").value(renderedAssetId));
+
+        String moment = mvc.perform(post("/moments").header("Authorization", bearer(owner.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                        .content(imageMoment(sourceAssetId, renderedAssetId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.data.media", hasSize(1)))
+                .andExpect(jsonPath("$.data.media[0].id").value(renderedAssetId))
+                .andExpect(jsonPath("$.data.template.template_id").value("cream-film"))
+                .andReturn().getResponse().getContentAsString();
+
+        String momentId = mapper.readTree(moment).at("/data/id").asText();
+        var render = derivedAssets.findByRenderedMediaAssetId(UUID.fromString(renderedAssetId)).orElseThrow();
+        Assertions.assertEquals(UUID.fromString(owner.userId()), render.getOwnerId());
+        Assertions.assertEquals(UUID.fromString(sourceAssetId), render.getSourceAssetIds().getFirst());
+        Assertions.assertEquals("cream-film", render.getTemplateId());
+        Assertions.assertEquals(1, render.getTemplateVersion());
+        Assertions.assertEquals(1, auditLogs.countByAction("TEMPLATE_RENDER_REGISTER"));
+
+        mvc.perform(get("/moments/{id}", momentId).header("Authorization", bearer(owner.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.media", hasSize(1)))
+                .andExpect(jsonPath("$.data.media[0].id").value(renderedAssetId));
+    }
+
+    @Test
     void shouldPageTimelineWithoutDuplicates() throws Exception {
         Login user = login("timeline-page-user");
         for (int index = 0; index < 3; index++) {
@@ -831,6 +942,22 @@ class ApiFlowIntegrationTest {
     }
     private String imageMoment(String assetId) {
         return "{\"type\":\"IMAGE\",\"title\":\"一张照片\",\"body\":\"真实媒体记录\",\"occurred_at\":\"" + Instant.now() + "\",\"visibility\":\"PRIVATE\",\"mood\":\"CALM\",\"events\":[\"DAILY\"],\"asset_ids\":[\"" + assetId + "\"]}";
+    }
+    private String imageMoment(String sourceAssetId, String renderedAssetId) {
+        return "{\"type\":\"IMAGE\",\"title\":\"一张模板照片\",\"body\":\"真实模板媒体记录\",\"occurred_at\":\"" + Instant.now() + "\",\"visibility\":\"PRIVATE\",\"mood\":\"CALM\",\"events\":[\"DAILY\"],\"asset_ids\":[\"" + sourceAssetId + "\",\"" + renderedAssetId + "\"]}";
+    }
+    private String uploadImage(Login user, String fileName) throws Exception {
+        String created = mvc.perform(post("/upload-sessions").header("Authorization", bearer(user.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"file_name\":\"" + fileName + "\",\"mime_type\":\"image/jpeg\",\"size\":1024}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String sessionId = mapper.readTree(created).at("/data/upload_session_id").asText();
+        String assetId = mapper.readTree(created).at("/data/asset_id").asText();
+        mvc.perform(post("/upload-sessions/{id}/complete", sessionId).header("Authorization", bearer(user.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"etag\":\"test\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("READY"));
+        return assetId;
     }
     private String recapMoment(String visibility, String mood, String event, String title) {
         return "{\"type\":\"TEXT\",\"title\":\"" + title + "\",\"body\":\"适合放进年度回顾的一天\",\"occurred_at\":\"2026-06-20T12:00:00Z\",\"visibility\":\"" + visibility + "\",\"mood\":\"" + mood + "\",\"events\":[\"" + event + "\"]}";

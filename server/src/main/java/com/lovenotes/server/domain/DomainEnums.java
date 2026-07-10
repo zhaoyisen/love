@@ -11,7 +11,7 @@ public final class DomainEnums {
     public enum MomentStatus { DRAFT, UPLOADING, PUBLISHED, PARTIAL_FAILED, TRASHED, PURGED }
     public enum MediaKind { IMAGE, VIDEO }
     public enum MediaStatus { CREATED, UPLOADED, PROCESSING, READY, BLOCKED, FAILED, DELETED }
-    public enum DerivedAssetStatus { READY, DELETED, FAILED }
+    public enum DerivedAssetStatus { PENDING, READY, DELETED, FAILED }
     public enum UploadStatus { CREATED, COMPLETED, EXPIRED }
     public enum TagType { MOOD, EVENT }
     public enum MessageType { MOMENT, REACTION, COMMENT, PET, SYSTEM }

@@ -16,5 +16,6 @@
     </view>
   </view>
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text></view>
+  <canvas id="templateRenderCanvas" type="2d" class="template-render-canvas"></canvas>
   <view class="button-row"><button class="secondary-button press" disabled="{{publishing}}" bindtap="edit">返回修改</button><button class="primary-button press" disabled="{{publishing}}" loading="{{publishing}}" bindtap="publish">{{publishing ? publishText : '确认发布'}}</button></view>
 </view>

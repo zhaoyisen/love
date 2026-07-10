@@ -37,9 +37,20 @@ Page({
   deleteAccount() { wx.navigateTo({ url: "/pkg-profile/delete-account/index" }); },
   recap() { if (!appService.isRemote) wx.switchTab({ url: "/pages-main/recap/index" }); },
 
-  toggle(event: any) {
-    store.updatePreference(event.currentTarget.dataset.key, event.detail.value);
+  async toggle(event: any) {
+    const key = event.currentTarget.dataset.key as keyof ReturnType<typeof store.getState>["preferences"];
+    const value = Boolean(event.detail.value);
+    const previous = store.getState().preferences[key];
+    store.updatePreference(key, value);
     this.render();
+    try {
+      await appService.updateNotificationPreference(key, value);
+      this.render();
+    } catch (error) {
+      store.updatePreference(key, previous);
+      this.render();
+      if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "提醒偏好保存失败，请稍后重试。"), icon: "none" });
+    }
   },
 
   reset() {
