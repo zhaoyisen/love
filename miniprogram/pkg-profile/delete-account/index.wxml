@@ -1,0 +1,43 @@
+<view class="page delete-account-page">
+  <text class="eyebrow danger">ACCOUNT DELETION</text>
+  <text class="display-title">注销账号</text>
+  <text class="lead">这是上线合规要求里的敏感操作。请先确认影响，再输入固定文案提交。</text>
+
+  <view wx:if="{{request}}" class="status-card">
+    <view class="status-head">
+      <text>处理进度</text>
+      <text class="status-pill">{{request.status === 'PENDING' ? '待处理' : request.status === 'PROCESSING' ? '处理中' : request.status === 'COMPLETED' ? '已完成' : request.status}}</text>
+    </view>
+    <text class="label">申请编号：{{request.id}}</text>
+    <text class="label">申请时间：{{request.requested_at || request.requestedAt}}</text>
+    <view class="progress-grid">
+      <view><text>{{request.processed_moments || request.processedMoments || 0}}</text><text>记录下架</text></view>
+      <view><text>{{request.processed_media_assets || request.processedMediaAssets || 0}}</text><text>媒体删除</text></view>
+      <view><text>{{request.processed_comments || request.processedComments || 0}}</text><text>评论删除</text></view>
+      <view><text>{{request.processed_reactions || request.processedReactions || 0}}</text><text>回应删除</text></view>
+      <view><text>{{request.processed_derived_assets || request.processedDerivedAssets || 0}}</text><text>派生清理</text></view>
+    </view>
+    <text wx:if="{{request.failure_reason || request.failureReason}}" class="label danger-text">失败原因：{{request.failure_reason || request.failureReason}}</text>
+    <button class="secondary-button press" loading="{{refreshing}}" disabled="{{refreshing}}" bindtap="refresh">刷新处理进度</button>
+    <button class="plain-button press" bindtap="goHome">回到首页</button>
+  </view>
+
+  <view class="impact-card">
+    <text class="section-title">提交后会发生</text>
+    <view><text>立即停止互访</text><text class="label">如果存在情侣空间，会冻结关系并移除双方 active membership。</text></view>
+    <view><text>撤销本机登录</text><text class="label">提交成功后本机 token 会被清除，服务端 sessionVersion 会失效。</text></view>
+    <view><text>进入删除处理</text><text class="label">服务端生成注销申请和审计日志；物理删除/匿名化由后续后台任务处理。</text></view>
+  </view>
+
+  <view wx:if="{{!request}}" class="form-card">
+    <text class="form-label">注销原因（可选，最多 200 字）</text>
+    <textarea class="textarea" maxlength="200" value="{{reason}}" placeholder="可以简单说明原因，便于后续改进" bindinput="inputReason"></textarea>
+    <text class="form-label confirm-label">输入“确认注销”继续</text>
+    <input class="input" value="{{phrase}}" placeholder="确认注销" bindinput="inputPhrase" />
+    <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text></view>
+    <button class="danger-button press {{!canSubmit ? 'disabled' : ''}}" loading="{{submitting}}" disabled="{{!canSubmit || submitting}}" bindtap="submit">提交注销申请</button>
+  </view>
+
+  <view wx:if="{{request && error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text></view>
+  <text class="audit-note">该操作会记录申请人、时间、请求 ID 和影响范围，用于隐私审计和处理追踪。</text>
+</view>

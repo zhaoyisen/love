@@ -13,6 +13,10 @@ Spring Boot 3 / Java 21 后端基础版，按详细设计提供统一 `/api/v1` 
 - 一人一个有效情侣空间、关系资料乐观锁、单方解绑即时撤权；
 - 文字/图片/视频时刻校验、PRIVATE/SHARED 服务端权限；
 - 时刻详情、标签编辑、回收站、恢复和 HMAC 稳定游标分页；
+- 共同可见时刻的真实回应与单层短评；回应每人每条保留一个，短评支持幂等防重复提交；
+- 应用内信笺：共享记录、回应和短评自动生成消息，支持列表、单条已读和全部已读；
+- 云宠物：配对后自动创建宠物，喂食/玩耍按用户每日幂等，成长值和共同日志服务端持久化；
+- 年度回顾：共同可见记录候选、敏感片段排除、草稿选择、生成状态和解绑隔离；小程序端负责 Canvas 长图保存；
 - 媒体上传会话、时刻媒体绑定和短期访问地址；开发环境模拟上传，生产环境签发腾讯云 COS STS 单对象临时凭证；
 - 生产媒体处理 Worker：图片同步审核、视频异步审核轮询；审核通过前仅作者看到处理状态，敏感或疑似内容不会发布；
 - 图片审核通过后生成去除 EXIF 的 `display/` 展示 WebP 和 `thumbnail/` 缩略 WebP；
@@ -78,7 +82,9 @@ $env:COS_REGION='ap-shanghai'
 $env:COS_SECRET_ID='...'
 $env:COS_SECRET_KEY='...'
 $env:TIMELINE_CURSOR_SECRET='至少32位随机字符串'
+$env:INTERNAL_OPERATION_TOKEN_HASH='内部运维口令的SHA-256哈希'
 $env:MEDIA_CLEANUP_POLL_MS='3600000'
+$env:ACCOUNT_DELETION_POLL_MS='600000'
 $env:MEDIA_TRASH_RETENTION_DAYS='30'
 $env:MEDIA_ORPHAN_RETENTION_HOURS='24'
 java -jar target\love-notes-server-0.1.0-SNAPSHOT.jar
@@ -124,7 +130,7 @@ docs/Jenkins-Docker-Compose服务端部署指南.md
 
 应用启动时由 Flyway 自动执行 `src/main/resources/db/migration`。生产账号需要目标 schema 的建表/变更权限；稳定运行后可将迁移身份和应用运行身份拆分。
 
-当前迁移版本为 V3。不要手工修改已在共享环境执行过的迁移文件，应新增更高版本迁移。
+当前迁移版本为 V7。不要手工修改已在共享环境执行过的迁移文件，应新增更高版本迁移。
 
 ## 测试
 
@@ -132,7 +138,7 @@ docs/Jenkins-Docker-Compose服务端部署指南.md
 mvn test
 ```
 
-覆盖：鉴权拒绝、未配对共享拦截、邀请幂等、双账号配对、共享访问、解绑隔离、真实记录闭环、上传会话、媒体处理、派生文件、过期媒体清理以及 UUIDv7。
+覆盖：鉴权拒绝、未配对共享拦截、邀请幂等、双账号配对、共享访问、解绑隔离、真实记录闭环、真实回应与短评、应用内信笺、云宠物、年度回顾、上传会话、媒体处理、派生文件、过期媒体清理以及 UUIDv7。
 
 JaCoCo 报告生成在：
 
@@ -162,6 +168,8 @@ STS 策略仅允许对该随机 Key 执行简单上传或分块上传所需操�
 ```dotenv
 MEDIA_PROCESSING_POLL_MS=5000
 MEDIA_CLEANUP_POLL_MS=3600000
+ACCOUNT_DELETION_POLL_MS=600000
+INTERNAL_OPERATION_TOKEN_HASH=replace_with_sha256_of_internal_operation_token
 MEDIA_TRASH_RETENTION_DAYS=30
 MEDIA_ORPHAN_RETENTION_HOURS=24
 ```
@@ -170,9 +178,8 @@ MEDIA_ORPHAN_RETENTION_HOURS=24
 
 - Outbox 和消息队列；
 - 视频封面和转码；
-- 回应、短评、消息、宠物和回顾 API；
 - 周/月/年时间线摘要；
 - 审计日志、注销和通知任务；
 - OpenAPI 生成小程序 DTO。
 
-回应、短评、消息、宠物和回顾页面仍使用本地 store。正式版本若要开放这些入口，必须先实现真实 API；否则应在提审版本隐藏入口，不能把本地模拟数据当作生产功能。
+年度回顾的状态和内容已接入真实 API，长图由小程序端根据当前回顾内容临时绘制并保存到用户相册，不上传 COS。回应、短评、应用内信笺、云宠物和年度回顾均已接入真实 API；互动只在共同可见且当前仍配对的记录中开放。

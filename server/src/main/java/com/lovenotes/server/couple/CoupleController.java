@@ -30,7 +30,7 @@ public class CoupleController {
     @PatchMapping("/couples/current")
     ApiResponse<CoupleResponse> update(@RequestAttribute(AuthFilter.ACTOR_ATTRIBUTE) Actor actor,@Valid @RequestBody UpdateCoupleRequest body,HttpServletRequest request){return ApiResponse.ok(CoupleResponse.from(service.update(actor.userId(),body.version(),body.relationshipName(),body.anniversary())),RequestContext.requestId(request));}
     @PostMapping("/couples/current/unbind")
-    ApiResponse<CoupleResponse> unbind(@RequestAttribute(AuthFilter.ACTOR_ATTRIBUTE) Actor actor,@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody UnbindRequest body,HttpServletRequest request){return ApiResponse.ok(CoupleResponse.from(service.unbind(actor.userId(),body.version(),body.confirmText(),key)),RequestContext.requestId(request));}
+    ApiResponse<CoupleResponse> unbind(@RequestAttribute(AuthFilter.ACTOR_ATTRIBUTE) Actor actor,@RequestHeader("Idempotency-Key") String key,@Valid @RequestBody UnbindRequest body,HttpServletRequest request){String requestId=RequestContext.requestId(request);return ApiResponse.ok(CoupleResponse.from(service.unbind(actor.userId(),body.version(),body.confirmText(),key,requestId)),requestId);}
 
     public record InvitationCreated(UUID invitationId,String token,Instant expiresAt){}
     public record AcceptRequest(@AssertTrue boolean rulesConfirmed){}

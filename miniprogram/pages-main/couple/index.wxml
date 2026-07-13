@@ -1,18 +1,28 @@
-<view class="page couple-page">
-  <view class="couple-heading"><view><text class="eyebrow">BETWEEN US</text><text class="display-title">我们</text></view><view class="heading-actions"><button wx:if="{{!isRemote}}" class="mail-button press" bindtap="messages">消息<text wx:if="{{unread}}">{{unread}}</text></button><button class="settings-button press" bindtap="settings">设置</button></view></view>
+<view class="page us-page">
+  <view class="us-heading"><view><text class="us-kicker">ONLY FOR US</text><text class="us-title">只属于我们</text></view><view class="heading-actions"><button class="settings-button press" bindtap="settings">设置</button></view></view>
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="retry">重试</button></view>
   <view wx:if="{{loading && !loaded}}" class="couple-skeleton"><view></view><view></view><text>正在确认你们的空间</text></view>
-  <view wx:elif="{{couple.status === 'UNPAIRED'}}" class="unpaired-card">
-    <view class="two-orbits"><view></view><view></view><text>＋</text></view><text class="unpaired-title">先把自己的日子记下来，&#10;也可以邀请 TA 一起。</text><text class="unpaired-note">配对后，只有你主动设为“共同可见”的记录才会出现在这里。旧记录不会自动共享。</text><button class="primary-button press" bindtap="invite">邀请另一半</button><button class="secondary-button press" bindtap="privacy">先了解共享规则</button>
+  <view wx:elif="{{couple.status === 'UNPAIRED'}}" class="invite-stage">
+    <view class="invite-film"><view class="invite-photo mine">{{myInitial}}</view><view class="invite-photo waiting">TA</view><text>01 / 02</text></view>
+    <view class="unpaired-title"><text>邀请 TA，</text><text>一起写下甜蜜日常。</text></view><text class="unpaired-note">配对后，你们可以分享心动瞬间、回应彼此，再把它们做成只属于两个人的回顾。</text><button class="primary-button press" bindtap="invite">邀请我的另一半</button><button class="secondary-button press" bindtap="privacy">了解共享方式</button>
   </view>
   <view wx:elif="{{couple.status === 'ENDED'}}" class="ended-card card"><text class="ended-mark">⌁</text><text class="section-title">情侣空间已停止访问</text><text class="section-note">你仍可在“时光”中查看自己创建的记录。对方上传的内容和原情侣回顾已隐藏。</text><button class="secondary-button press" bindtap="privacy">查看隐私设置</button></view>
   <block wx:else>
-    <view class="relation-card">
-      <view class="relation-art"><view class="avatar mine">{{myInitial}}</view><view class="thread"></view><view class="avatar partner">{{partnerInitial}}</view></view>
-      <text class="relation-kicker">{{couple.relationshipName}}</text><text class="relation-days">{{days}}</text><text class="relation-unit">一起生活的日子</text><view class="anniversary"><text>纪念日</text><text>{{couple.anniversary}}</text></view>
+    <view class="relation-sunset">
+      <view class="relation-light"></view><button class="relation-edit press" bindtap="openProfileEditor">编辑资料</button>
+      <view class="relation-avatars"><view class="avatar mine">{{myInitial}}</view><view class="relation-heart">＋</view><view class="avatar partner">{{partnerInitial}}</view></view>
+      <text class="relation-kicker">{{couple.relationshipName}}</text><view wx:if="{{days}}" class="together-line"><text>在一起</text><text class="relation-days">{{days}}</text><text>天</text></view><button wx:else class="set-anniversary press" bindtap="openProfileEditor">还没设置在一起的日期 · 现在设置</button><text class="anniversary-copy">纪念日 · {{couple.anniversary || '等你们一起定下'}}</text>
     </view>
-    <view class="quick-grid"><button wx:if="{{!isRemote}}" class="quick-card press" bindtap="messages"><text>{{unread}}</text><text class="label">新的信笺</text><text class="small">回应与短评</text></button><button class="quick-card press"><text>{{sharedCount}}</text><text class="label">共同片段</text><text class="small">已共享记录</text></button></view>
-    <button wx:if="{{!isRemote}}" class="pet-card press" bindtap="pet"><view class="pet-scene"><view class="pet-body"><view class="decor"></view><view class="decor"></view><text>⌁</text></view><view class="pet-shadow"></view></view><view class="pet-copy"><text class="eyebrow">OUR LITTLE CLOUD</text><text class="pet-name">{{pet.name}} · Lv.{{pet.level}}</text><text class="label">{{pet.kind}}今天在等你们</text><view class="growth-track"><view class="decor" style="width: {{pet.growth}}%"></view></view><text class="small">成长值 {{pet.growth}} / 100</text></view><text class="pet-arrow">›</text></button>
-    <view wx:if="{{!isRemote}}" class="memory-prompt"><text>今日轻任务</text><text class="label">记录一件让你想起 TA 的小事</text><button bindtap="messages">稍后看看</button></view>
+    <view wx:if="{{editing}}" class="relation-editor" aria-label="编辑关系资料">
+      <view class="editor-head"><view><text>编辑你们的资料</text><text class="label">双方都可以修改，保存后会同步给对方</text></view><button class="text-button" bindtap="closeProfileEditor">取消</button></view>
+      <view class="editor-field"><text>关系昵称</text><input value="{{editName}}" maxlength="40" placeholder="例如：满屿之间" bindinput="nameInput" /></view>
+      <view class="editor-field"><text>纪念日 <text class="optional">可留空</text></text><picker mode="date" value="{{editAnniversary}}" bindchange="anniversaryChange"><view class="date-picker">{{editAnniversary || '选择一个值得纪念的日期'}}<text>›</text></view></picker></view>
+      <view class="editor-actions"><button class="secondary-button press" bindtap="clearAnniversary">清空日期</button><button class="primary-button press" loading="{{savingProfile}}" disabled="{{savingProfile}}" bindtap="saveProfile">保存资料</button></view>
+    </view>
+    <view class="us-section-title"><text>TA 最近的回应</text><text>每一次回应，都让回忆更完整</text></view>
+    <button class="love-letter-row press" bindtap="messages"><view class="letter-mark">{{unread || '✓'}}</view><view><text>{{unread ? '有新的心意等你看' : '今天的信笺已经读完'}}</text><text>{{unread ? 'TA 的回应和悄悄话都在这里' : '下一次回应会出现在这里'}}</text></view><text>›</text></button>
+    <view class="shared-memory-row"><view><text>{{sharedCount}}</text><text>个共同瞬间</text></view><text>你们一起留下的甜蜜日常</text></view>
+    <button class="pet-card romantic-pet press" bindtap="pet"><view class="pet-scene"><view class="pet-body"><view class="decor"></view><view class="decor"></view><text>⌁</text></view><view class="pet-shadow"></view></view><view class="pet-copy"><text class="pet-kicker">共同养成</text><text class="pet-name">{{pet.name}} · Lv.{{pet.level}}</text><text class="label">{{pet.kind}}也在收藏你们的陪伴</text><view class="growth-track"><view class="decor" style="width: {{pet.growth}}%"></view></view></view><text class="pet-arrow">›</text></button>
+    <view class="date-prompt"><text>今天也可以很值得纪念</text><text>拍下一张照片，告诉 TA 你正在想什么。</text></view>
   </block>
 </view>

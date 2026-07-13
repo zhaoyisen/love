@@ -1,13 +1,13 @@
-<view class="page preview-page">
-  <view class="preview-heading"><text class="eyebrow">BEFORE PUBLISHING</text><text class="display-title">再看一眼，&#10;这就是你想留下的吗？</text></view>
-  <view class="preview-card">
+<view class="page heart-preview-page">
+  <view class="preview-heading"><text class="preview-kicker">READY TO DEVELOP</text><view class="display-title"><text>准备好，把这份心动</text><text>留进你们的故事。</text></view><text class="preview-note">发布后仍可修改内容和可见范围。</text></view>
+  <view class="heart-preview-card">
     <view wx:if="{{draft.mediaType !== 'TEXT'}}" class="preview-media">
-      <image wx:if="{{draft.media[0].path}}" src="{{draft.media[0].path}}" mode="aspectFill"></image><view wx:else class="preview-art"></view>
-      <text>{{draft.template}}</text>
+      <video wx:if="{{draft.mediaType === 'VIDEO' && draft.media[0].path}}" src="{{draft.media[0].path}}" controls="{{false}}" object-fit="cover"></video><image wx:elif="{{draft.media[0].path}}" src="{{draft.media[0].path}}" mode="aspectFill"></image><view wx:else class="preview-art"></view>
+      <view class="preview-film-label"><text>{{draft.template}}</text><text>{{date.date}}</text></view>
     </view>
     <view class="preview-content"><text class="preview-date">{{date.date}} · {{date.time}}</text><text class="preview-title">{{draft.title || '一个普通却想记住的时刻'}}</text><text class="preview-copy">{{draft.body}}</text><view class="preview-tags"><text class="tag">{{draft.mood}}</text><text wx:for="{{draft.events}}" wx:key="*this" class="tag">{{item}}</text></view></view>
   </view>
-  <view class="disclosure-card"><view><text class="disclosure-icon">◉</text><view><text>可见范围</text><text class="label">{{visibilityLabel}}</text></view></view><view><text class="disclosure-icon">⌁</text><view><text>原始内容</text><text class="label">原图不会被模板覆盖</text></view></view><view><text class="disclosure-icon">⌇</text><view><text>发生日期</text><text class="label">将按 {{date.date}} 排入时间线</text></view></view></view>
+  <view class="publish-check"><view><text>分享给谁</text><text>{{visibilityLabel}}</text></view><view><text>发生日期</text><text>{{date.date}}</text></view><view><text>照片版本</text><text>原图保留，模板可撤销</text></view></view>
   <view wx:if="{{draft.media.length}}" class="upload-panel">
     <view class="upload-heading"><text>媒体上传</text><text>{{draft.media.length}} 项</text></view>
     <view wx:for="{{draft.media}}" wx:key="id" class="upload-row">
@@ -16,5 +16,6 @@
     </view>
   </view>
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text></view>
-  <view class="button-row"><button class="secondary-button press" disabled="{{publishing}}" bindtap="edit">返回修改</button><button class="primary-button press" disabled="{{publishing}}" loading="{{publishing}}" bindtap="publish">{{publishing ? publishText : '确认发布'}}</button></view>
+  <canvas id="templateRenderCanvas" type="2d" class="template-render-canvas"></canvas>
+  <view class="button-row preview-actions"><button class="secondary-button press" disabled="{{publishing}}" bindtap="edit">再改一下</button><button class="primary-button press" disabled="{{publishing}}" loading="{{publishing}}" bindtap="publish">{{publishing ? publishText : (draft.visibility === 'SHARED' ? '分享给 TA' : '保存这一刻')}}</button></view>
 </view>

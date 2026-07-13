@@ -1,1 +1,20 @@
-<view class="page recap-page"><text class="eyebrow">STORIES WE KEEP</text><text class="display-title">把散落的日子，&#10;装订成一章</text><view class="year-cover {{recap.status === 'READY' ? 'ready' : ''}}"><view class="cover-top"><text>LOVE NOTES</text><text>VOL. {{recap.version}}</text></view><text class="cover-year">{{recap.year}}</text><view class="cover-orbit"><view class="decor"></view><view class="decor"></view></view><text class="cover-title">{{recap.title}}</text><text class="cover-meta">{{count}} 段共同可见时刻 · {{recap.status === 'READY' ? '已生成' : '草稿'}}</text><button class="cover-action press" bindtap="openCover">{{recap.status === 'READY' ? '打开回顾' : '继续编辑'}} ›</button></view><view class="recap-section"><view><text class="section-title">制作新的回顾</text><text class="section-note">私密内容永不进入双人回顾；争执和低落片段默认排除。</text></view><button class="new-recap press" bindtap="create"><text>＋</text><view><text>2026 年度回顾</text><text class="label">{{paired ? (count < 3 ? '素材不多，也可以亲手选择' : '从候选时刻开始') : '配对后可用'}}</text></view></button></view><view class="recap-principles"><text>候选筛选</text><view><view class="decor">1</view><text class="label">只使用共同可见记录</text></view><view><view class="decor">2</view><text class="label">敏感片段默认排除</text></view><view><view class="decor">3</view><text class="label">分享前逐项检查披露内容</text></view></view></view>
+<view class="page memory-room-page">
+  <text class="memory-kicker">OUR LOVE FILM</text>
+  <view class="memory-title"><text>把每一次心动，</text><text>剪成只属于你们的电影。</text></view>
+  <text class="memory-note">从共同胶片里挑选片段，写下旁白，再保存成一份周年或年度回忆。</text>
+  <view wx:if="{{loading}}" class="sync-status"><view class="sync-dot"></view><text>正在整理你们的胶片</text></view>
+  <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="onShow">重试</button></view>
+  <view class="love-film-cover {{recap.status === 'READY' ? 'ready' : ''}}">
+    <view class="film-holes"><text wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this"></text></view>
+    <view class="cover-top"><text>LOVE NOTES</text><text>ROLL {{recap.version}}</text></view>
+    <text class="cover-year">{{recap.year}}</text><view class="cover-sunset"></view>
+    <text class="cover-title">{{recap.title}}</text>
+    <text class="cover-meta">{{count}} 格共同胶片 · {{recap.status === 'READY' ? '已经上映' : '正在剪辑'}}</text>
+    <button class="cover-action press" bindtap="openCover">{{recap.status === 'READY' ? '一起重温' : '继续剪辑'}} ›</button>
+  </view>
+  <view class="recap-section">
+    <view><text class="section-title">制作一部新的回忆</text><text class="section-note">你决定哪些片段进入故事，私密记录不会被自动加入。</text></view>
+    <button class="new-recap press" bindtap="create"><text>＋</text><view><text>{{recap.year}} 心动回顾</text><text class="label">{{paired ? (count < 3 ? '胶片不多，也可以亲手选择' : '从你们的共同瞬间开始') : '邀请 TA 后一起制作'}}</text></view></button>
+  </view>
+  <view class="recap-principles"><text>故事由你们决定</text><view><view class="decor">1</view><text class="label">只从共同可见瞬间中挑选</text></view><view><view class="decor">2</view><text class="label">不开心的片段默认不打扰</text></view><view><view class="decor">3</view><text class="label">保存或分享前再一起确认</text></view></view>
+</view>

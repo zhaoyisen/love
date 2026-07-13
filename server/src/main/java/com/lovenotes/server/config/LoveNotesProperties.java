@@ -11,7 +11,8 @@ public record LoveNotesProperties(
         Media media,
         Timeline timeline,
         Wechat wechat,
-        Storage storage
+        Storage storage,
+        Operations operations
 ) {
     public record Session(Duration accessTtl, Duration refreshTtl) {}
     public record Invitation(Duration ttl) {}
@@ -25,4 +26,5 @@ public record LoveNotesProperties(
     public record Timeline(String cursorSecret) {}
     public record Wechat(String appId, String appSecret, String sessionUrl) {}
     public record Storage(String provider, String bucket, String region, String secretId, String secretKey) {}
+    public record Operations(String internalTokenHash) {}
 }

@@ -1,9 +1,12 @@
 package com.lovenotes.server.media;
 
 import com.lovenotes.server.domain.DomainEnums;
+import com.lovenotes.server.domain.DerivedAssetEntity;
 import com.lovenotes.server.domain.MediaAssetEntity;
 import com.lovenotes.server.domain.MomentEntity;
+import com.lovenotes.server.message.MessageService;
 import com.lovenotes.server.repository.MediaAssetRepository;
+import com.lovenotes.server.repository.DerivedAssetRepository;
 import com.lovenotes.server.repository.MomentRepository;
 import com.lovenotes.server.storage.ObjectStorage;
 import org.springframework.stereotype.Service;
@@ -15,13 +18,17 @@ import java.util.UUID;
 @Service
 public class MediaProcessingService {
     private final MediaAssetRepository assets;
+    private final DerivedAssetRepository derivedAssets;
     private final MomentRepository moments;
     private final ObjectStorage storage;
+    private final MessageService messages;
 
-    public MediaProcessingService(MediaAssetRepository assets, MomentRepository moments, ObjectStorage storage) {
+    public MediaProcessingService(MediaAssetRepository assets, DerivedAssetRepository derivedAssets, MomentRepository moments, ObjectStorage storage, MessageService messages) {
         this.assets = assets;
+        this.derivedAssets = derivedAssets;
         this.moments = moments;
         this.storage = storage;
+        this.messages = messages;
     }
 
     @Transactional(readOnly = true)
@@ -43,6 +50,10 @@ public class MediaProcessingService {
             case FAILED -> asset.markFailed();
             case PENDING -> { return; }
         }
+        derivedAssets.findByRenderedMediaAssetId(asset.getId()).ifPresent(render -> {
+            if (result.outcome() == ObjectStorage.ProcessingOutcome.READY) render.markReady();
+            else render.markFailed(result.outcome().name());
+        });
         updateMoment(asset);
     }
 
@@ -51,12 +62,17 @@ public class MediaProcessingService {
         MomentEntity moment = moments.findById(changed.getMomentId()).orElse(null);
         if (moment == null) return;
         List<MediaAssetEntity> momentAssets = assets.findByMomentIdOrderByCreatedAtAsc(moment.getId());
-        if (momentAssets.stream().anyMatch(asset -> asset.getStatus() == DomainEnums.MediaStatus.BLOCKED
+        var renderedIds = derivedAssets.findByRenderedMediaAssetIdIn(momentAssets.stream().map(MediaAssetEntity::getId).toList())
+                .stream().map(DerivedAssetEntity::getRenderedMediaAssetId).collect(java.util.stream.Collectors.toSet());
+        List<MediaAssetEntity> sourceAssets = momentAssets.stream().filter(asset -> !renderedIds.contains(asset.getId())).toList();
+        if (sourceAssets.stream().anyMatch(asset -> asset.getStatus() == DomainEnums.MediaStatus.BLOCKED
                 || asset.getStatus() == DomainEnums.MediaStatus.FAILED)) {
             moment.mediaFailed();
-        } else if (!momentAssets.isEmpty() && momentAssets.stream()
+        } else if (!sourceAssets.isEmpty() && sourceAssets.stream()
                 .allMatch(asset -> asset.getStatus() == DomainEnums.MediaStatus.READY)) {
+            boolean justPublished = moment.getStatus() != DomainEnums.MomentStatus.PUBLISHED;
             moment.publish();
+            if (justPublished) messages.notifySharedMoment(moment);
         }
     }
 }

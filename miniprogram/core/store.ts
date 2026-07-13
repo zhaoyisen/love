@@ -98,6 +98,7 @@ function initialState(): AppState {
     state.couple = { status: "UNPAIRED", partnerName: "TA", relationshipName: "我们的空间", anniversary: "" };
     state.moments = [];
     state.messages = [];
+    state.pet = { name: "团子", kind: "云朵猫", level: 1, growth: 0, fedToday: false, playedToday: false, logs: [] };
     state.recap = { title: `我们的 ${new Date().getFullYear()}`, year: new Date().getFullYear(), selectedMomentIds: [], status: "DRAFT", version: 1 };
   }
   return state;
@@ -176,6 +177,22 @@ class LoveNotesStore {
     });
   }
 
+  replaceRemoteMessages(messages: AppState["messages"]) {
+    this.update((state) => { state.messages = messages; });
+  }
+
+  applyRemotePet(pet: AppState["pet"]) {
+    this.update((state) => { state.pet = pet; });
+  }
+
+  applyRemoteRecap(recap: AppState["recap"]) {
+    this.update((state) => { state.recap = recap; });
+  }
+
+  applyRemotePreferences(preferences: AppState["preferences"]) {
+    this.update((state) => { state.preferences = preferences; });
+  }
+
   upsertRemoteMoment(moment: Moment) {
     this.update((state) => {
       state.moments = [moment, ...state.moments.filter((item) => item.id !== moment.id)];
@@ -217,7 +234,9 @@ class LoveNotesStore {
       id: createId("draft"), step: 1, mediaType, media: [], title: "", body: "",
       mood: "开心", events: ["日常"], occurredAt: nowIso(),
       visibility: this.state.couple.status === "PAIRED" ? this.state.profile.defaultVisibility : "PRIVATE",
-      template: "奶油胶片", updatedAt: nowIso()
+      template: "奶油胶片",
+      templateOptions: { templateId: "cream-film", templateVersion: 1, showDate: true, showCopy: true, sticker: "flower", cropScale: 1 },
+      updatedAt: nowIso()
     };
     this.update((state) => state.drafts.unshift(draft));
     return draft;
@@ -249,6 +268,17 @@ class LoveNotesStore {
       state.moments.unshift(result);
       state.drafts = state.drafts.filter((item) => item.id !== id);
       if (state.couple.status === "PAIRED") state.pet.growth = Math.min(99, state.pet.growth + 6);
+    });
+    return result;
+  }
+
+  deleteComment(momentId: string, commentId: string): Moment | undefined {
+    let result: Moment | undefined;
+    this.update((state) => {
+      const moment = state.moments.find((item) => item.id === momentId);
+      if (!moment) return;
+      moment.comments = moment.comments.filter((item) => !(item.id === commentId && item.author === "我"));
+      result = moment;
     });
     return result;
   }
@@ -308,6 +338,13 @@ class LoveNotesStore {
 
   markMessagesRead() {
     this.update((state) => state.messages.forEach((item) => item.read = true));
+  }
+
+  markMessageRead(id: string) {
+    this.update((state) => {
+      const message = state.messages.find((item) => item.id === id);
+      if (message) message.read = true;
+    });
   }
 
   updatePreference(key: keyof AppState["preferences"], value: boolean) {

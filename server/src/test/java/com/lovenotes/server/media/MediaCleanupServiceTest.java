@@ -81,6 +81,7 @@ class MediaCleanupServiceTest {
                 new LoveNotesProperties.Media(20, 200, 1800, 30, 24),
                 new LoveNotesProperties.Timeline("test-secret"),
                 new LoveNotesProperties.Wechat("", "", ""),
-                new LoveNotesProperties.Storage("local", "bucket", "local", "", ""));
+                new LoveNotesProperties.Storage("local", "bucket", "local", "", ""),
+                new LoveNotesProperties.Operations(""));
     }
 }

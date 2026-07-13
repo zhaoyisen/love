@@ -69,3 +69,5 @@ love-notes:
     cursor-secret: ${TIMELINE_CURSOR_SECRET:dev-only-change-me}
   wechat:
     session-url: https://api.weixin.qq.com/sns/jscode2session
+  operations:
+    internal-token-hash: ${INTERNAL_OPERATION_TOKEN_HASH:}

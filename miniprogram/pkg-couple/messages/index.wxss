@@ -1,27 +1,237 @@
-.messages-page { padding-top: 42rpx; background: #F7F1E8; }
-.messages-head { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; }
-.messages-head > view { flex: 1; min-width: 0; }
-.messages-head .display-title { display: block; margin-top: 8rpx; font-size: 48rpx; }
-.read-button { flex: 0 0 auto; width: 154rpx; min-width: 154rpx; max-width: 154rpx; height: 62rpx; padding: 0 18rpx; border: 2rpx solid #D5C8BB; border-radius: 18rpx; color: #A94444; background: #FCF9F3; font: 600 22rpx/1.2 "PingFang SC",sans-serif; white-space: nowrap; }
-.read-button[disabled] { color: #9A9188; background: #EEE7DE; opacity: 1; }
-.message-list { width: 100%; margin-top: 30rpx; border-top: 2rpx solid #D8CCBE; }
-.message-item { position: relative; width: 100%; min-height: 118rpx; display: flex; align-items: center; gap: 20rpx; padding: 22rpx 4rpx; border-bottom: 2rpx solid #E2D8CC; text-align: left; box-sizing: border-box; animation: message-in 220ms cubic-bezier(.22,1,.36,1) both; transition: background-color 160ms ease,transform 160ms cubic-bezier(.22,1,.36,1); }
-.message-item.unread { background: #F6E8E4; }
-.message-item--pressed { background: #EDE4DA; transform: scale(.985); }
-.message-mark { flex: 0 0 68rpx; display: flex; align-items: center; justify-content: center; width: 68rpx; height: 68rpx; border-radius: 20rpx; color: #A94444; background: #F2DCD7; font: 28rpx/1 Georgia,serif; }
-.message-copy { flex: 1; min-width: 0; }
-.message-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14rpx; }
-.message-title { overflow: hidden; color: #2B2825; font: 600 27rpx/1.35 "PingFang SC",sans-serif; text-overflow: ellipsis; white-space: nowrap; }
-.time { flex: 0 0 auto; color: #9A9087; font: 19rpx/1 sans-serif; }
-.message-summary { display: -webkit-box; margin-top: 8rpx; overflow: hidden; color: #756D65; font: 22rpx/1.5 "PingFang SC",sans-serif; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.unread-dot { flex: 0 0 12rpx; width: 12rpx; height: 12rpx; border-radius: 50%; background: #A94444; box-shadow: 0 0 0 7rpx rgba(169,68,68,.09); }
-.message-arrow { flex: 0 0 20rpx; color: #9B9188; font: 34rpx/1 sans-serif; }
-.message-empty { min-height: 620rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.message-empty > text:first-of-type { margin-top: 26rpx; font-size: 30rpx; font-weight: 600; }
-.message-empty > text:last-child { margin-top: 12rpx; color: #817970; font-size: 23rpx; }
-.empty-icon { position: relative; width: 84rpx; height: 62rpx; border: 3rpx solid #9A8E82; border-radius: 10rpx; }
-.empty-icon::before,.empty-icon::after { content: ""; position: absolute; top: 18rpx; width: 49rpx; height: 3rpx; background: #9A8E82; }
-.empty-icon::before { left: 0; transform: rotate(34deg); }
-.empty-icon::after { right: 0; transform: rotate(-34deg); }
-@keyframes message-in { from { opacity: 0; transform: translateY(10rpx); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .message-item { animation: none; transition: none; } }
+.messages-page {
+  padding-top: 42rpx;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(183, 70, 72, .07), transparent 34%),
+    #F7F1E8;
+}
+
+.messages-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22rpx;
+}
+
+.messages-head > view {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.messages-head .display-title {
+  margin-top: 8rpx;
+  font-size: 50rpx;
+  line-height: 1.18;
+}
+
+.read-button {
+  flex: 0 0 auto;
+  min-width: 146rpx;
+  max-width: 184rpx;
+  height: 64rpx;
+  padding: 0 18rpx;
+  border: 2rpx solid #D5C8BB;
+  border-radius: 20rpx;
+  color: #A94444;
+  background: rgba(255, 253, 248, .92);
+  box-shadow: 0 8rpx 18rpx rgba(66, 50, 37, .06);
+  font: 700 22rpx/1.2 "PingFang SC", sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.read-button[disabled] {
+  color: #9A9188;
+  background: rgba(238, 231, 222, .82);
+  opacity: 1;
+}
+
+.message-list {
+  width: 100%;
+  margin-top: 30rpx;
+  overflow: hidden;
+  border: 2rpx solid #DED4C8;
+  border-radius: 28rpx;
+  background: rgba(255, 253, 248, .84);
+  box-shadow: 0 14rpx 30rpx rgba(70, 53, 40, .06);
+}
+
+.message-item {
+  position: relative;
+  width: 100%;
+  min-height: 124rpx;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 24rpx 22rpx;
+  border-bottom: 2rpx solid #E8DED2;
+  text-align: left;
+  background: transparent;
+  animation: message-in 220ms cubic-bezier(.22, 1, .36, 1) both;
+  transition:
+    background-color 160ms ease,
+    transform 160ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.message-list .message-item:last-child {
+  border-bottom: 0;
+}
+
+.message-item.unread {
+  background: linear-gradient(90deg, rgba(246, 232, 228, .92), rgba(255, 253, 248, .78));
+}
+
+.message-item--pressed {
+  background: #EDE4DA;
+  transform: scale(.985);
+}
+
+.message-mark {
+  flex: 0 0 68rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 22rpx;
+  color: #A94444;
+  background: #F2DCD7;
+  font: 700 28rpx/1 Georgia, serif;
+}
+
+.message-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.message-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14rpx;
+}
+
+.message-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: #2B2825;
+  font: 700 27rpx/1.35 "PingFang SC", sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time {
+  flex: 0 0 auto;
+  color: #9A9087;
+  font: 19rpx/1 "PingFang SC", sans-serif;
+}
+
+.message-summary {
+  display: -webkit-box;
+  margin-top: 9rpx;
+  overflow: hidden;
+  color: #756D65;
+  font: 23rpx/1.5 "PingFang SC", sans-serif;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.unread-dot {
+  flex: 0 0 12rpx;
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #A94444;
+  box-shadow: 0 0 0 7rpx rgba(169, 68, 68, .09);
+}
+
+.message-arrow {
+  flex: 0 0 20rpx;
+  color: #9B9188;
+  font: 34rpx/1 sans-serif;
+}
+
+.message-empty {
+  min-height: 620rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.message-empty > text:first-of-type {
+  margin-top: 26rpx;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.message-empty > text:last-child {
+  margin-top: 12rpx;
+  color: #817970;
+  font-size: 23rpx;
+}
+
+.empty-icon {
+  position: relative;
+  width: 84rpx;
+  height: 62rpx;
+  border: 3rpx solid #9A8E82;
+  border-radius: 10rpx;
+}
+
+.empty-icon::before,
+.empty-icon::after {
+  content: "";
+  position: absolute;
+  top: 18rpx;
+  width: 49rpx;
+  height: 3rpx;
+  background: #9A8E82;
+}
+
+.empty-icon::before {
+  left: 0;
+  transform: rotate(34deg);
+}
+
+.empty-icon::after {
+  right: 0;
+  transform: rotate(-34deg);
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 18rpx;
+  color: #6E766F;
+  font: 22rpx/1 "PingFang SC", sans-serif;
+}
+
+.sync-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #557263;
+  animation: sync-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes message-in {
+  from { opacity: 0; transform: translateY(12rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sync-pulse {
+  0%, 100% { opacity: .35; transform: scale(.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-item,
+  .sync-dot {
+    animation: none;
+    transition: none;
+  }
+}

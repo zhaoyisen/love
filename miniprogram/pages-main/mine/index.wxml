@@ -1,8 +1,9 @@
 <view class="page mine-page">
   <view class="mine-heading">
     <view>
-      <text class="eyebrow">MY PRIVATE CORNER</text>
+      <text class="eyebrow">FOR THIS LOVE</text>
       <text class="display-title">我的</text>
+      <text class="mine-intro">资料、隐私与提醒，都由你决定</text>
     </view>
     <view class="service-state {{isRemote ? 'remote' : ''}}">
       <view class="service-dot"></view>
@@ -31,8 +32,8 @@
   <view class="privacy-promise">
     <view class="promise-mark">私</view>
     <view>
-      <text>默认私密，主动分享</text>
-      <text class="label">每次发布都能确认可见范围，旧记录不会自动共享。</text>
+      <text>分享由你决定</text>
+      <text class="label">每次记录都能确认可见范围，旧内容不会自动共享。</text>
     </view>
   </view>
 
@@ -47,7 +48,7 @@
         <view><text>回收站</text><text class="label">删除后保留 30 天</text></view>
         <text class="row-arrow">›</text>
       </button>
-      <button wx:if="{{!isRemote}}" class="setting-row press" bindtap="messages">
+      <button class="setting-row press" bindtap="messages">
         <view><text>应用内信笺</text><text class="label">{{state.messages.length}} 条消息</text></view>
         <text class="row-arrow">›</text>
       </button>
@@ -59,14 +60,14 @@
   </view>
 
   <view class="setting-group">
-    <text class="group-title">本机提醒偏好</text>
+    <text class="group-title">提醒偏好</text>
     <view class="settings-panel">
       <view class="switch-row"><text>新共享时刻</text><switch color="#557263" checked="{{state.preferences.momentNotice}}" data-key="momentNotice" bindchange="toggle" /></view>
       <view class="switch-row"><text>回应与短评</text><switch color="#557263" checked="{{state.preferences.reactionNotice}}" data-key="reactionNotice" bindchange="toggle" /></view>
       <view class="switch-row"><text>云宠物互动</text><switch color="#557263" checked="{{state.preferences.petNotice}}" data-key="petNotice" bindchange="toggle" /></view>
       <view class="switch-row"><text>回顾生成完成</text><switch color="#557263" checked="{{state.preferences.recapNotice}}" data-key="recapNotice" bindchange="toggle" /></view>
     </view>
-    <text class="setting-help">这些开关目前只保存在这台设备上。</text>
+    <text class="setting-help">{{isRemote ? '偏好已保存到服务端，会在其他登录设备同步。订阅消息仍需你主动授权。' : '演示模式下，这些开关只保存在当前设备。'}}</text>
   </view>
 
   <view class="setting-group">
@@ -74,6 +75,10 @@
     <view class="settings-panel">
       <button class="setting-row press" bindtap="about">
         <view><text>关于恋爱笔记</text><text class="label">客户端 {{clientVersion}}</text></view>
+        <text class="row-arrow">›</text>
+      </button>
+      <button class="setting-row danger-row press" bindtap="deleteAccount">
+        <view><text>账号注销</text><text class="label">冻结情侣空间、撤销本机登录，并生成处理进度</text></view>
         <text class="row-arrow">›</text>
       </button>
       <button wx:if="{{!isRemote}}" class="setting-row danger-row press" bindtap="reset">

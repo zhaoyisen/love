@@ -1,5 +1,5 @@
 import { store } from "../../core/store";
-import { appService, redirectExpiredSession, userError } from "../../services/app-service";
+import { appService, promptModerationAppeal, redirectExpiredSession, userError } from "../../services/app-service";
 
 const moods = ["开心","心动","平静","想念","委屈","生气","和好","其他"];
 const eventValues = ["日常","约会","旅行","纪念日","第一次","争执","和好","礼物","共同成长","其他"];
@@ -63,7 +63,10 @@ Page({
       wx.showToast({ title: "修改已保存", icon: "success" });
       setTimeout(() => wx.navigateBack(), 400);
     } catch (error) {
-      if (!redirectExpiredSession()) this.setData({ error: userError(error, "保存失败，请刷新后重试。") });
+      if (!redirectExpiredSession()) {
+        promptModerationAppeal(error, `编辑记录被拦截：${this.data.title || ""} ${this.data.body || ""}`, "MOMENT", this.data.id);
+        this.setData({ error: userError(error, "保存失败，请刷新后重试。") });
+      }
     } finally { this.setData({ saving: false }); }
   }
 });

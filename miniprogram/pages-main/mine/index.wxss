@@ -1,10 +1,10 @@
 .mine-page {
-  background-image: linear-gradient(rgba(176, 149, 120, .06) 1rpx, transparent 1rpx);
-  background-size: 100% 48rpx;
+  padding-top: 30rpx;
 }
 
 .mine-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24rpx; }
 .mine-heading .display-title { display: block; font-size: 50rpx; }
+.mine-intro { display: block; margin-top: 10rpx; color: #7D6C69; font-size: 21rpx; line-height: 1.4; }
 .service-state {
   display: flex; align-items: center; gap: 10rpx; min-height: 52rpx; padding: 0 18rpx;
   border: 2rpx solid #D8CCBE; border-radius: 28rpx; color: #756B62;
@@ -14,7 +14,7 @@
 .service-state.remote .service-dot { background: #557263; }
 
 .profile-card {
-  display: flex; align-items: center; gap: 20rpx; margin-top: 30rpx; padding: 30rpx;
+  display: flex; align-items: center; gap: 20rpx; margin-top: 24rpx; padding: 26rpx;
   border: 2rpx solid #D8CCBE; border-radius: 30rpx; background: #FFFDF8;
   box-shadow: 0 16rpx 36rpx rgba(70, 53, 40, .07);
 }
@@ -30,28 +30,28 @@
 .profile-copy .label { margin-top: 10rpx; color: #817970; font: 21rpx/1.3 sans-serif; }
 .edit-button {
   display: flex; flex: 0 0 auto; align-items: center; justify-content: center;
-  min-width: 112rpx; min-height: 88rpx; border: 2rpx solid #B8C9BF; border-radius: 44rpx;
+  width: 124rpx !important; min-width: 124rpx !important; max-width: 124rpx !important; min-height: 72rpx; padding: 0; border: 2rpx solid #B8C9BF; border-radius: 22rpx;
   color: #486455; background: #F5F8F3; font: 600 23rpx/1 sans-serif;
 }
 
 .privacy-promise {
-  display: flex; align-items: center; gap: 18rpx; margin-top: 22rpx; padding: 24rpx 26rpx;
-  border: 2rpx solid #D1DCCF; border-radius: 22rpx; background: rgba(238, 243, 237, .84);
+  display: flex; align-items: center; gap: 16rpx; margin-top: 20rpx; padding: 18rpx 4rpx 20rpx;
+  border-bottom: 2rpx solid #DECFC4;
 }
 .promise-mark {
   display: flex; flex: 0 0 auto; align-items: center; justify-content: center;
-  width: 54rpx; height: 54rpx; border-radius: 50%; color: #FFF; background: #557263;
-  font: 600 24rpx/1 serif;
+  width: 50rpx; height: 50rpx; border-radius: 50%; color: #FFF8F1; background: #6F7B62;
+  font: 600 21rpx/1 serif;
 }
 .privacy-promise text { display: block; font-size: 25rpx; font-weight: 600; }
 .privacy-promise .label { margin-top: 8rpx; color: #66746A; font: 20rpx/1.5 sans-serif; }
 
-.setting-group { margin-top: 40rpx; }
+.setting-group { margin-top: 32rpx; }
 .group-title { display: block; margin: 0 4rpx 14rpx; color: #817970; font: 600 20rpx/1 sans-serif; letter-spacing: 3rpx; }
 .settings-panel { overflow: hidden; border: 2rpx solid #DED4C8; border-radius: 24rpx; background: rgba(255, 253, 248, .85); }
 .setting-row, .switch-row {
-  display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 104rpx;
-  padding: 18rpx 24rpx; border-bottom: 2rpx solid #E8DFD4; text-align: left; background: transparent;
+  display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 92rpx;
+  padding: 15rpx 22rpx; border-bottom: 2rpx solid #E8DFD4; text-align: left; background: transparent;
 }
 .settings-panel > .setting-row:last-child,
 .settings-panel > .switch-row:last-child { border-bottom: 0; }
@@ -59,6 +59,7 @@
 .setting-row view text, .setting-row view .label { display: block; }
 .setting-row view text, .switch-row > text { font: 26rpx/1.3 sans-serif; }
 .setting-row view .label { margin-top: 9rpx; color: #817970; font: 20rpx/1.35 sans-serif; }
+.switch-row switch { flex: 0 0 auto; margin-right: -8rpx; transform: scale(.84); transform-origin: right center; }
 .row-arrow { flex: 0 0 auto; padding-left: 20rpx; color: #A09387; font-size: 36rpx; }
 .danger-row view text:first-child { color: #8F3F3F; }
 .setting-help { display: block; margin: 14rpx 6rpx 0; color: #92877D; font: 20rpx/1.5 sans-serif; }

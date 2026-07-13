@@ -28,6 +28,7 @@ public class AuthService {
         var subject=sessions.resolveRefresh(refreshToken);
         if(subject==null) throw new ApiException(HttpStatus.UNAUTHORIZED,"SESSION_EXPIRED","登录状态已失效，请重新登录。");
         UserEntity user=users.findById(subject.userId()).orElseThrow(()->new ApiException(HttpStatus.UNAUTHORIZED,"SESSION_EXPIRED","登录状态已失效，请重新登录。"));
+        if(user.getStatus()!= DomainEnums.UserStatus.ACTIVE) throw new ApiException(HttpStatus.UNAUTHORIZED,"SESSION_EXPIRED","登录状态已失效，请重新登录。");
         var tokens=sessions.rotate(refreshToken,user);
         if(tokens==null) throw new ApiException(HttpStatus.UNAUTHORIZED,"SESSION_EXPIRED","登录状态已失效，请重新登录。");
         return new LoginResult(user,tokens);

@@ -12,20 +12,28 @@ function requirePattern(relativePath, pattern, message) {
   if (!pattern.test(read(relativePath))) failures.push(`${relativePath}: ${message}`);
 }
 
-requirePattern("custom-tab-bar/index.wxss", /\.tab-list\s*\{[^}]*display:\s*flex/s, "主导航必须使用 Flex，避免安卓 Grid 溢出");
-requirePattern("custom-tab-bar/index.wxss", /\.tab-item\s*\{[^}]*flex:\s*1 1 0[^}]*width:\s*0[^}]*min-width:\s*0/s, "主导航项必须等分且允许收缩");
-requirePattern("pages-main/time/index.wxss", /\.view-tabs-inner\s*\{[^}]*display:\s*flex/s, "时间视图切换必须使用 Flex");
-requirePattern("pages-main/time/index.wxss", /\.view-tab\s*\{[^}]*flex:\s*1 1 0[^}]*width:\s*0[^}]*min-width:\s*0/s, "时间视图按钮必须等宽并允许收缩");
+requirePattern("custom-tab-bar/index.wxss", /\.tab-list\s*\{[^}]*display:\s*flex/s, "五槽主导航必须使用稳定的 Flex 容器");
+requirePattern("custom-tab-bar/index.wxss", /\.tab-item\s*\{[^}]*flex:\s*1 1 0[^}]*width:\s*0/s, "页面入口必须等宽且允许在五槽中收缩");
+requirePattern("custom-tab-bar/index.wxss", /\.compose-slot\s*\{[^}]*flex:\s*1 1 0[^}]*width:\s*0/s, "中央记录入口必须占据独立的第三槽");
+requirePattern("custom-tab-bar/index.wxss", /\.compose-button\s*\{[^}]*top:\s*10rpx[^}]*width:\s*92rpx[^}]*height:\s*92rpx/s, "中央记录按钮必须限制在第三槽内，不能覆盖相邻导航");
+requirePattern("pages-main/time/index.wxss", /\.memory-tabs-inner\s*\{[^}]*display:\s*inline-flex/s, "甜蜜动态的时间切换必须使用可横向滚动 Flex");
 requirePattern("pkg-compose/composer/index.wxss", /\.media-type-grid\s*\{[^}]*display:\s*flex/s, "媒体类型必须使用 Flex");
-requirePattern("pkg-compose/composer/index.wxss", /\.media-type\s*\{[^}]*flex:\s*1 1 0[^}]*width:\s*0[^}]*min-width:\s*0/s, "媒体类型按钮必须等宽并允许收缩");
+requirePattern("pkg-compose/composer/index.wxss", /\.capture-type\s*\{[^}]*flex:\s*1 1 0[^}]*width:\s*0[^}]*min-width:\s*0/s, "单页记录器的媒体按钮必须等宽并允许收缩");
 requirePattern("pkg-compose/composer/index.wxss", /\.media-grid\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/s, "媒体列表必须使用可换行 Flex");
+requirePattern("pkg-compose/composer/index.wxss", /\.compose-close\s*\{[^}]*width:\s*72rpx\s*!important[^}]*min-width:\s*72rpx\s*!important[^}]*max-width:\s*72rpx\s*!important/s, "记录页关闭按钮必须锁定宽度，避免真机被原生按钮样式拉伸");
+requirePattern("pkg-compose/composer/index.wxss", /\.media-grid\.is-empty \.add-media\s*\{[^}]*width:\s*100%[^}]*height:\s*142rpx/s, "未选择媒体时必须使用紧凑的全宽添加入口");
+requirePattern("pkg-compose/composer/index.wxss", /\.preview-heart\s*\{[^}]*position:\s*fixed[^}]*left:\s*32rpx[^}]*right:\s*32rpx/s, "记录页的预览操作必须在长表单中持续可见");
+requirePattern("pages-main/mine/index.wxss", /\.edit-button\s*\{[^}]*width:\s*124rpx\s*!important[^}]*max-width:\s*124rpx\s*!important/s, "个人资料编辑按钮必须锁定宽度，避免挤压昵称");
 
 const composerTemplate = read("pkg-compose/composer/index.wxml");
-const stepNumbers = composerTemplate.match(/class="step-number"/g) || [];
-if (stepNumbers.length !== 3) failures.push("pkg-compose/composer/index.wxml: 三个流程编号必须独立使用 step-number 样式");
+if (!/class="moment-editor"/.test(composerTemplate) || !/class="preview-heart press"/.test(composerTemplate)) {
+  failures.push("pkg-compose/composer/index.wxml: 单页记录器必须同时包含内容编辑区和发布预览入口");
+}
 
 const tabTemplate = read("custom-tab-bar/index.wxml");
-if (/compose-space/.test(tabTemplate)) failures.push("custom-tab-bar/index.wxml: 三项导航不应保留额外占位列");
+if ((tabTemplate.match(/class="tab-item/g) || []).length !== 4 || !/class="compose-slot"/.test(tabTemplate)) {
+  failures.push("custom-tab-bar/index.wxml: 主导航必须包含四个页面热区和一个中央记录槽");
+}
 
 for (const file of fs.readdirSync(root, { recursive: true }).filter((item) => item.endsWith(".wxss"))) {
   const source = read(file);

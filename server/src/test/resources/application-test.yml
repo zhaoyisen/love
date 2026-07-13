@@ -11,6 +11,8 @@ spring:
     clean-disabled: false
 
 love-notes:
+  operations:
+    internal-token-hash: e9c1b9ed27f7555d706c135195fad66ddbd5f6f97c6fc1ec03da1cf5204df568
   storage:
     provider: local
     bucket: test-bucket

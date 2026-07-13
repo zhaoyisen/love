@@ -1,0 +1,199 @@
+.delete-account-page {
+  background-image: radial-gradient(circle at 88% 8%, rgba(143, 63, 63, .12), transparent 30%);
+}
+
+.delete-account-page .display-title {
+  display: block;
+  margin-top: 12rpx;
+  color: #2B2825;
+  font-size: 52rpx;
+}
+
+.lead {
+  display: block;
+  margin-top: 18rpx;
+  color: #6F665E;
+  font: 24rpx/1.7 "PingFang SC", sans-serif;
+}
+
+.status-card,
+.impact-card,
+.form-card {
+  margin-top: 30rpx;
+  padding: 28rpx;
+  border: 2rpx solid #DED4C8;
+  border-radius: 28rpx;
+  background: rgba(255, 253, 248, .9);
+  box-shadow: 0 14rpx 34rpx rgba(70, 53, 40, .06);
+}
+
+.status-card {
+  border-color: #B8C9BF;
+  background: #F1F6F1;
+}
+
+.status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 18rpx;
+}
+
+.status-head > text:first-child {
+  font-size: 30rpx;
+  font-weight: 700;
+}
+
+.status-pill {
+  flex: 0 0 auto;
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  color: #4E6658;
+  background: #DDEBDD;
+  font: 22rpx/1 "PingFang SC", sans-serif;
+}
+
+.status-card .label {
+  display: block;
+  margin-top: 10rpx;
+  color: #6F7A70;
+  font: 21rpx/1.45 sans-serif;
+  word-break: break-all;
+}
+
+.progress-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+  margin-top: 22rpx;
+}
+
+.progress-grid view {
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, .7);
+}
+
+.progress-grid text {
+  display: block;
+  text-align: center;
+}
+
+.progress-grid text:first-child {
+  color: #3F5D4F;
+  font: 700 34rpx/1.1 sans-serif;
+}
+
+.progress-grid text:last-child {
+  margin-top: 8rpx;
+  color: #728075;
+  font: 20rpx/1.2 sans-serif;
+}
+
+.danger-text {
+  color: #8F3F3F !important;
+}
+
+.impact-card {
+  border-color: #E1C6BE;
+  background: #FBF0ED;
+}
+
+.impact-card .section-title {
+  display: block;
+  margin-bottom: 12rpx;
+  color: #8F3F3F;
+}
+
+.impact-card view {
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid rgba(143, 63, 63, .12);
+}
+
+.impact-card view:last-child {
+  border-bottom: 0;
+}
+
+.impact-card view text,
+.impact-card view .label {
+  display: block;
+}
+
+.impact-card view text:first-child {
+  color: #4B403C;
+  font: 600 25rpx/1.3 sans-serif;
+}
+
+.impact-card view .label {
+  margin-top: 8rpx;
+  color: #80665F;
+  font: 21rpx/1.55 sans-serif;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 12rpx;
+  color: #4B403C;
+  font: 600 23rpx/1.3 sans-serif;
+}
+
+.confirm-label {
+  margin-top: 26rpx;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 170rpx;
+  padding: 20rpx;
+  border: 2rpx solid #D8CCBE;
+  border-radius: 20rpx;
+  background: #FFFDF8;
+  box-sizing: border-box;
+  font: 25rpx/1.55 sans-serif;
+}
+
+.input {
+  min-height: 90rpx;
+}
+
+.danger-button {
+  width: 100%;
+  min-height: 92rpx;
+  margin-top: 28rpx;
+  border-radius: 46rpx;
+  color: #FFF;
+  background: #8F3F3F;
+  font: 600 27rpx/1 sans-serif;
+}
+
+.danger-button.disabled,
+.danger-button[disabled] {
+  opacity: .45;
+}
+
+.secondary-button,
+.plain-button {
+  width: 100%;
+  min-height: 82rpx;
+  margin-top: 22rpx;
+  border-radius: 41rpx;
+  font: 600 25rpx/1 sans-serif;
+}
+
+.secondary-button {
+  color: #FFF;
+  background: #557263;
+}
+
+.plain-button {
+  color: #756B62;
+  background: transparent;
+}
+
+.audit-note {
+  display: block;
+  margin: 26rpx 6rpx 0;
+  color: #92877D;
+  font: 20rpx/1.55 sans-serif;
+}

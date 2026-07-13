@@ -29,25 +29,25 @@
     },
     {
       "root": "pkg-profile",
-      "pages": ["edit/index"]
+      "pages": ["edit/index", "delete-account/index"]
     }
   ],
   "window": {
     "navigationBarTitleText": "恋爱笔记",
-    "navigationBarBackgroundColor": "#F7F1E8",
+    "navigationBarBackgroundColor": "#F7EDE2",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#F7F1E8",
+    "backgroundColor": "#F7EDE2",
     "backgroundTextStyle": "dark"
   },
   "tabBar": {
     "custom": true,
-    "color": "#8A8178",
-    "selectedColor": "#BD4E4E",
-    "backgroundColor": "#FFFDF8",
+    "color": "#8B7976",
+    "selectedColor": "#A84454",
+    "backgroundColor": "#FFF9F2",
     "list": [
-      { "pagePath": "pages-main/time/index", "text": "时光" },
+      { "pagePath": "pages-main/time/index", "text": "甜蜜" },
       { "pagePath": "pages-main/couple/index", "text": "我们" },
-      { "pagePath": "pages-main/recap/index", "text": "回顾" },
+      { "pagePath": "pages-main/recap/index", "text": "回忆" },
       { "pagePath": "pages-main/mine/index", "text": "我的" }
     ]
   },
