@@ -1,8 +1,9 @@
 <view class="page mine-page">
   <view class="mine-heading">
     <view>
-      <text class="eyebrow">MY PRIVATE CORNER</text>
+      <text class="eyebrow">FOR THIS LOVE</text>
       <text class="display-title">我的</text>
+      <text class="mine-intro">资料、隐私与提醒，都由你决定</text>
     </view>
     <view class="service-state {{isRemote ? 'remote' : ''}}">
       <view class="service-dot"></view>
@@ -31,8 +32,8 @@
   <view class="privacy-promise">
     <view class="promise-mark">私</view>
     <view>
-      <text>默认私密，主动分享</text>
-      <text class="label">每次发布都能确认可见范围，旧记录不会自动共享。</text>
+      <text>分享由你决定</text>
+      <text class="label">每次记录都能确认可见范围，旧内容不会自动共享。</text>
     </view>
   </view>
 

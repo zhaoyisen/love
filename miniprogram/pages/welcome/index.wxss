@@ -16,3 +16,38 @@
 .checkbox.checked { color: #FFF; border-color: #557263; background: #557263; }
 .agreement-link { color: #BD4E4E; }
 .welcome-actions .status-banner { margin-bottom: 16rpx; text-align: left; }
+
+/* Warm sunset welcome */
+.sunset-welcome { position: relative; min-height: 100vh; padding: 52rpx 34rpx calc(38rpx + env(safe-area-inset-bottom)); overflow: hidden; color: #2D2425; background: linear-gradient(180deg,#6B5261 0%,#A85861 27%,#E08B69 51%,#F6E8DA 72%,#FFF8EF 100%); }
+.welcome-aurora { position: absolute; right: -150rpx; top: 90rpx; width: 520rpx; height: 520rpx; border-radius: 50%; background: radial-gradient(circle,rgba(255,226,179,.82),rgba(255,188,128,.12) 58%,transparent 70%); }
+.welcome-brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 16rpx; color: #FFF8F1; }
+.brand-roll { display: flex; align-items: center; justify-content: center; width: 58rpx; height: 58rpx; border: 2rpx solid rgba(255,248,241,.7); border-radius: 50%; font-size: 18rpx; font-weight: 900; letter-spacing: 1rpx; }
+.welcome-brand view text { display: block; font-size: 28rpx; font-weight: 800; letter-spacing: 2rpx; }
+.welcome-brand view text:last-child { margin-top: 4rpx; color: rgba(255,248,241,.66); font-size: 15rpx; letter-spacing: 2rpx; }
+.welcome-film { position: relative; z-index: 1; margin-top: 42rpx; padding: 26rpx 18rpx; border-radius: 18rpx; background: #382E34; box-shadow: 0 24rpx 50rpx rgba(67,36,47,.28); transform: rotate(-1.3deg); }
+.film-perforations { display: none; }
+.film-perforations.top { top: 8rpx; }
+.film-perforations.bottom { bottom: 8rpx; }
+.film-perforations text { width: 24rpx; height: 9rpx; border-radius: 3rpx; background: #F4CFAF; opacity: .62; }
+.welcome-scene { position: relative; height: 316rpx; overflow: hidden; border-radius: 8rpx; background: linear-gradient(180deg,#75566B 0%,#C5686D 43%,#F2A16F 73%,#F8D39B 100%); }
+.welcome-sun { position: absolute; right: 70rpx; top: 40rpx; width: 126rpx; height: 126rpx; border-radius: 50%; background: rgba(255,224,172,.72); box-shadow: 0 0 70rpx rgba(255,211,157,.52); }
+.scene-horizon { position: absolute; left: -30rpx; right: -30rpx; bottom: -70rpx; height: 180rpx; border-radius: 50% 50% 0 0; background: #5A4755; opacity: .74; }
+.two-shadows { position: absolute; left: 50%; bottom: 42rpx; display: flex; align-items: flex-end; gap: 14rpx; transform: translateX(-50%); }
+.two-shadows view { width: 62rpx; height: 116rpx; border-radius: 34rpx 34rpx 16rpx 16rpx; background: #41333D; }
+.two-shadows view:last-child { height: 132rpx; }
+.welcome-scene>text { position: absolute; left: 22rpx; bottom: 18rpx; z-index: 2; color: rgba(255,248,241,.90); font-size: 18rpx; letter-spacing: 1rpx; }
+.sunset-welcome .welcome-copy { position: relative; z-index: 1; margin-top: 36rpx; }
+.welcome-kicker { display: block; color: #954351; font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
+.sunset-welcome .welcome-title { display: block; margin-top: 15rpx; color: #2D2425; font-size: 52rpx; font-weight: 900; line-height: 1.25; letter-spacing: -1rpx; }
+.sunset-welcome .welcome-title text { display: block; color: inherit; }
+.sunset-welcome .welcome-note { display: block; margin-top: 18rpx; color: #705F5C; font-size: 25rpx; line-height: 1.68; }
+.welcome-features { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 24rpx; }
+.welcome-features text { padding: 10rpx 16rpx; border: 2rpx solid #E0C3B5; border-radius: 18rpx; color: #8E4A55; background: rgba(255,249,242,.72); font-size: 19rpx; }
+.sunset-welcome .welcome-actions { position: relative; z-index: 1; margin-top: 30rpx; }
+.welcome-primary { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 94rpx; border-radius: 26rpx; color: #FFF8F1; background: linear-gradient(135deg,#C95F62,#A84454 58%,#76505E); box-shadow: 0 18rpx 36rpx rgba(143,55,70,.25); font-size: 27rpx; font-weight: 800; }
+.sunset-welcome .agreement { margin-top: 20rpx; color: #786563; font-size: 22rpx; }
+.sunset-welcome .checkbox.checked { border-color: #B94E5A; background: #B94E5A; }
+.sunset-welcome .agreement-link { color: #A84454; }
+.welcome-privacy { display: block; margin-top: 13rpx; color: #806D6A; font-size: 22rpx; line-height: 1.5; text-align: center; }
+@media (prefers-reduced-motion: no-preference) { .welcome-film,.welcome-copy,.welcome-actions { animation: welcome-in 300ms cubic-bezier(.22,1,.36,1) both; } }
+@keyframes welcome-in { from { opacity: 0; transform: translateY(14rpx); } to { opacity: 1; transform: translateY(0); } }

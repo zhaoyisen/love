@@ -1,15 +1,27 @@
 <view class="tab-shell">
   <view class="tab-rule"></view>
   <view class="tab-list">
-    <block wx:for="{{tabs}}" wx:key="page">
-      <button class="tab-item {{selected === index ? 'is-selected' : ''}} press" data-index="{{index}}" bindtap="switchTab">
-        <view class="tab-glyph glyph-{{item.icon}}"></view>
-        <text>{{item.label}}</text>
+    <button class="tab-item {{selected === 0 ? 'is-selected' : ''}} press" data-index="0" data-page="/pages-main/time/index" bindtap="switchTab" aria-label="甜蜜">
+      <view class="tab-glyph glyph-time"></view>
+      <text>甜蜜</text>
+    </button>
+    <button class="tab-item {{selected === 1 ? 'is-selected' : ''}} press" data-index="1" data-page="/pages-main/couple/index" bindtap="switchTab" aria-label="我们">
+      <view class="tab-glyph glyph-couple"></view>
+      <text>我们</text>
+    </button>
+    <view class="compose-slot">
+      <button class="compose-button press" bindtap="compose" aria-label="记录一个时刻">
+        <text class="compose-plus">＋</text>
+        <text class="compose-label">这一刻</text>
       </button>
-    </block>
+    </view>
+    <button class="tab-item {{selected === 2 ? 'is-selected' : ''}} press" data-index="2" data-page="/pages-main/recap/index" bindtap="switchTab" aria-label="回忆">
+      <view class="tab-glyph glyph-recap"></view>
+      <text>回忆</text>
+    </button>
+    <button class="tab-item {{selected === 3 ? 'is-selected' : ''}} press" data-index="3" data-page="/pages-main/mine/index" bindtap="switchTab" aria-label="我的">
+      <view class="tab-glyph glyph-mine"></view>
+      <text>我的</text>
+    </button>
   </view>
-  <button class="compose-button press" bindtap="compose" aria-label="记录一个时刻">
-    <text class="compose-plus">+</text>
-    <text class="compose-label">记录</text>
-  </button>
 </view>

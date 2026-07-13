@@ -1,39 +1,34 @@
-<view class="page compose-page">
-  <view class="compose-head">
-    <view><text class="eyebrow">NEW MOMENT</text><text class="display-title">留住此刻</text></view>
-    <button class="draft-status press" bindtap="exit">{{savedText}} · 退出</button>
-  </view>
-  <view class="stepper"><view class="step {{step >= 1 ? 'active' : ''}}"><text class="step-number">1</text><text class="label">选择形式</text></view><view class="decor"></view><view class="step {{step >= 2 ? 'active' : ''}}"><text class="step-number">2</text><text class="label">写下感受</text></view><view class="decor"></view><view class="step"><text class="step-number">3</text><text class="label">预览发布</text></view></view>
+<view class="page sweet-compose-page">
+  <view class="compose-top"><button class="compose-close press" bindtap="exit">×</button><view><text>记录这一刻</text><text>{{savedText}}</text></view><view class="compose-roll">LOVE · {{draft.media.length || 1}}</view></view>
+  <view class="compose-intro"><text>此刻最想和 TA 分享什么？</text><text>一张照片、一小段视频，或者一句突然想说的话。</text></view>
 
-  <view wx:if="{{step === 1}}" class="compose-section">
-    <text class="section-title">今天想用什么留下？</text><text class="section-note">照片最多 9 张；单条记录不混合照片与视频。</text>
-    <view wx:if="{{remoteUploadEnabled}}" class="status-banner"><text>媒体会使用短期凭证直传私有存储桶，永久密钥不会进入小程序。</text></view>
+  <view class="capture-panel">
     <view class="media-type-grid">
-      <button wx:for="{{mediaTypes}}" wx:key="key" class="media-type {{draft.mediaType === item.key ? 'active' : ''}} press" disabled="{{!item.available}}" data-type="{{item.key}}" bindtap="selectType"><text class="type-icon">{{item.key === 'IMAGE' ? '▧' : item.key === 'VIDEO' ? '▷' : 'Aa'}}</text><text>{{item.label}}</text><text class="label">{{item.note}}</text></button>
+      <button wx:for="{{mediaTypes}}" wx:key="key" class="capture-type {{draft.mediaType === item.key ? 'active' : ''}} press" disabled="{{!item.available}}" data-type="{{item.key}}" bindtap="selectType"><text>{{item.key === 'IMAGE' ? '照片' : item.key === 'VIDEO' ? '视频' : '一句话'}}</text><text>{{item.key === 'IMAGE' ? '最多 9 张' : item.key === 'VIDEO' ? '留住声音与动作' : '只写给这一刻'}}</text></button>
     </view>
+    <view wx:if="{{remoteUploadEnabled}}" class="status-banner"><text>媒体会使用短期凭证直传私有存储桶，永久密钥不会进入小程序。</text></view>
     <view wx:if="{{draft.mediaType !== 'TEXT'}}" class="media-picker">
-      <view class="media-grid">
+      <view class="media-grid {{draft.media.length ? 'has-media' : 'is-empty'}}">
         <view wx:for="{{draft.media}}" wx:key="id" class="media-item">
           <image wx:if="{{item.path && item.type === 'IMAGE'}}" src="{{item.path}}" mode="aspectFill"></image><video wx:elif="{{item.path && item.type === 'VIDEO'}}" src="{{item.path}}" controls="{{false}}" object-fit="cover"></video><view wx:else class="mock-media"></view>
           <view wx:if="{{item.status === 'UPLOADING' || item.status === 'PROCESSING' || item.status === 'FAILED'}}" class="media-state"><text>{{item.status === 'UPLOADING' ? item.progress + '%' : item.status === 'PROCESSING' ? '安全处理中' : '上传失败'}}</text></view>
           <button data-index="{{index}}" catchtap="removeMedia">×</button>
         </view>
-        <button class="add-media press" bindtap="chooseMedia"><text>＋</text><text class="label">{{draft.mediaType === 'VIDEO' ? '选择视频' : '选择照片'}}</text></button>
+        <button class="add-media press" bindtap="chooseMedia"><text>＋</text><text class="label">{{draft.mediaType === 'VIDEO' ? '添加视频' : '添加照片'}}</text></button>
       </view>
-      <text class="media-tip">媒体仅在你主动选择时读取；发布前会移除展示版本中的位置等敏感信息。</text>
+      <text class="media-tip">只在你主动选择时读取媒体，原图不会被模板覆盖。</text>
     </view>
-    <view wx:else class="text-mode-card"><text>“</text><text class="label">没有图片也没关系。&#10;有些话，只适合安静地写下来。</text></view>
-    <button class="primary-button press next-button" bindtap="next">继续写下感受</button>
+    <view wx:else class="text-film-prompt"><text>“</text><text>有些心动，刚好只需要一句话。</text></view>
   </view>
 
-  <view wx:else class="compose-section form-section">
-    <view class="form-field"><view class="label-row"><text class="form-label">标题 · 可选</text><text>{{titleLeft}}</text></view><input class="input" value="{{draft.title}}" maxlength="30" placeholder="给这一刻一个名字" bindinput="titleInput" /></view>
-    <view class="form-field"><view class="label-row"><text class="form-label">此刻想说</text><text>{{bodyLeft}}</text></view><textarea class="textarea" value="{{draft.body}}" maxlength="1000" auto-height placeholder="不必完整，写下真实的感受就好…" bindinput="bodyInput"></textarea></view>
+  <view class="moment-editor">
+    <view class="form-field"><view class="label-row"><text class="form-label">给这一刻一个名字</text><text>可选 · {{titleLeft}}</text></view><input class="input" value="{{draft.title}}" maxlength="30" placeholder="例如：晚风和你" bindinput="titleInput" /></view>
+    <view class="form-field"><view class="label-row"><text class="form-label">想对 TA 说</text><text>{{bodyLeft}}</text></view><textarea class="textarea love-textarea" value="{{draft.body}}" maxlength="1000" placeholder="写下当时的心动、好笑的小事，或者一句想说的话…" bindinput="bodyInput"></textarea></view>
     <view class="form-field"><text class="form-label">心情 · 单选</text><view class="chip-list"><button wx:for="{{moods}}" wx:key="*this" class="chip {{draft.mood === item ? 'chip--active' : ''}}" data-value="{{item}}" bindtap="selectMood">{{item}}</button></view></view>
     <view class="form-field"><view class="label-row"><text class="form-label">事件 · 最多 3 个</text><text>{{draft.events.length}} / 3</text></view><view class="chip-list"><button wx:for="{{eventOptions}}" wx:key="value" class="chip {{item.active ? 'chip--active' : ''}}" data-value="{{item.value}}" bindtap="toggleEvent">{{item.value}}</button></view></view>
     <view class="form-field"><text class="form-label">发生日期</text><picker mode="date" value="{{selectedDate}}" end="{{today}}" bindchange="dateChange"><view class="picker-row"><text>{{selectedDate}}</text><text>修改 ›</text></view></picker><text wx:if="{{selectedDate !== today}}" class="backfill-note">将记录在 {{selectedDate}}</text></view>
-    <view class="form-field"><text class="form-label">谁可以看见</text><button class="visibility-option {{draft.visibility === 'PRIVATE' ? 'active' : ''}}" data-value="PRIVATE" bindtap="visibility"><view><text>仅自己可见</text><text class="label">适合先收好自己的感受</text></view><text>{{draft.visibility === 'PRIVATE' ? '●' : '○'}}</text></button><button class="visibility-option {{draft.visibility === 'SHARED' ? 'active' : ''}} {{!paired ? 'disabled' : ''}}" data-value="SHARED" bindtap="visibility"><view><text>与另一半共同可见</text><text class="label">{{paired ? '发布后 TA 可以回应和短评' : '完成配对后才可选择'}}</text></view><text>{{draft.visibility === 'SHARED' ? '●' : '○'}}</text></button></view>
+    <view class="form-field"><text class="form-label">把这一刻留给谁</text><button class="visibility-option shared-first {{draft.visibility === 'SHARED' ? 'active' : ''}} {{!paired ? 'disabled' : ''}}" data-value="SHARED" bindtap="visibility"><view><text>分享给 TA</text><text class="label">{{paired ? 'TA 会在甜蜜动态里看见并回应' : '邀请 TA 后就能共同收藏'}}</text></view><text>{{draft.visibility === 'SHARED' ? '●' : '○'}}</text></button><button class="visibility-option {{draft.visibility === 'PRIVATE' ? 'active' : ''}}" data-value="PRIVATE" bindtap="visibility"><view><text>先留给自己</text><text class="label">以后想分享时还能再修改</text></view><text>{{draft.visibility === 'PRIVATE' ? '●' : '○'}}</text></button></view>
     <button wx:if="{{draft.mediaType === 'IMAGE' && draft.media.length}}" class="beautify-entry press" bindtap="beautify"><view class="template-mini"></view><view><text>甜蜜图片模板</text><text class="label">当前 · {{draft.template}}，可跳过</text></view><text>去美化 ›</text></button>
-    <view class="button-row compose-actions"><button class="secondary-button press" bindtap="previous">上一步</button><button class="primary-button press" bindtap="preview">预览记录</button></view>
+    <button class="preview-heart press" bindtap="preview"><text>预览这一刻</text><text>{{draft.visibility === 'SHARED' && paired ? '下一步，确认分享给 TA' : '下一步，确认保存'}}</text></button>
   </view>
 </view>

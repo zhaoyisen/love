@@ -14,7 +14,7 @@ Page({
 
   async onShow() {
     const tab = this.getTabBar && this.getTabBar();
-    if (tab) tab.setData({ selected: -1 });
+    if (tab) tab.setData({ selected: 3 });
     this.setData({ loading: appService.isRemote, error: "" });
     try {
       await appService.refresh();

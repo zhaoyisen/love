@@ -3,7 +3,7 @@ import { appService, redirectExpiredSession, userError } from "../../services/ap
 Page({
   data: { recap: {} as any, count: 0, paired: false, loading: false, error: "" },
   async onShow() {
-    const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: -1 });
+    const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 2 });
     this.setData({ loading: appService.isRemote, error: "" });
     try {
       if (appService.isRemote) {

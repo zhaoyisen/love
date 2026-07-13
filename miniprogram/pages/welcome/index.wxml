@@ -1,25 +1,24 @@
-<view class="welcome-page">
-  <view class="grain"></view>
-  <view class="brand-mark">
-    <view class="orbit orbit-a"></view><view class="orbit orbit-b"></view>
-    <text>两个人的日子</text>
+<view class="sunset-welcome">
+  <view class="welcome-aurora"></view>
+  <view class="welcome-brand"><view class="brand-roll">LN</view><view><text>恋爱笔记</text><text>LOVE ROLL · FOR TWO</text></view></view>
+  <view class="welcome-film">
+    <view class="film-perforations top"><text wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this"></text></view>
+    <view class="welcome-scene"><view class="welcome-sun"></view><view class="scene-horizon"></view><view class="two-shadows"><view></view><view></view></view><text>今晚的风，也想和你一起记住</text></view>
+    <view class="film-perforations bottom"><text wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this"></text></view>
   </view>
   <view class="welcome-copy">
-    <text class="eyebrow">LOVE NOTES · PRIVATE BY DEFAULT</text>
-    <text class="welcome-title">把普通日子，&#10;<text>慢慢写成我们。</text></text>
-    <text class="welcome-note">记录照片、心情和片刻回应。可以先独自使用，也可以邀请另一半建立只属于你们的空间。</text>
+    <text class="welcome-kicker">只属于两个人的心动胶片</text>
+    <view class="welcome-title"><text>把每一次心动，</text><text>留给以后一起看。</text></view>
+    <text class="welcome-note">记录合照、约会和想对 TA 说的话。每一次回应，都会成为这段回忆的一部分。</text>
   </view>
-  <view class="privacy-promise">
-    <view><text class="promise-no">01</text><text>记录默认仅自己可见</text></view>
-    <view><text class="promise-no">02</text><text>旧记录不会因配对自动共享</text></view>
-    <view><text class="promise-no">03</text><text>任一方解绑后立即停止互访</text></view>
-  </view>
+  <view class="welcome-features"><text>合照与视频</text><text>一句想说的话</text><text>TA 的回应</text></view>
   <view class="welcome-actions safe-bottom">
     <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="login">重试</button></view>
-    <button class="primary-button press" loading="{{loading}}" disabled="{{loading}}" bindtap="login">{{loading ? '正在建立安全连接' : '微信登录并开始'}}</button>
+    <button class="welcome-primary press" loading="{{loading}}" disabled="{{loading}}" bindtap="login">{{loading ? '正在打开你们的胶片' : '开始记录我们的心动'}}</button>
     <view class="agreement" bindtap="toggleAgree">
       <view class="checkbox {{agreed ? 'checked' : ''}}">{{agreed ? '✓' : ''}}</view>
       <text>我已阅读并同意</text><text class="agreement-link" catchtap="openPrivacy">《用户协议》与《隐私政策》</text>
     </view>
+    <text class="welcome-privacy">记录由你决定是否分享给 TA，旧记录不会自动公开。</text>
   </view>
 </view>

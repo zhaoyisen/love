@@ -2,7 +2,7 @@ import { store } from "../../core/store";
 import type { ViewType } from "../../core/types";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
 
-const labels: Record<ViewType, string> = { day: "天", week: "周", month: "月", year: "年", custom: "自定义" };
+const labels: Record<ViewType, string> = { day: "最新", week: "本周", month: "本月", year: "今年", custom: "自定义" };
 
 Page({
   data: {
@@ -11,7 +11,7 @@ Page({
     weekDays: [], calendar: [], months: [], showFilter: false, filterMood: "全部", unread: 0,
     loading: false, loadingMore: false, loaded: false, error: "", dateEyebrow: "", currentDateLabel: "", currentYear: 0, currentMonthTitle: "",
     nextCursor: "", hasMore: false, timelineFrom: "", timelineTo: "",
-    customStart: "", customEnd: "", isRemote: appService.isRemote
+    customStart: "", customEnd: "", isRemote: appService.isRemote, partnerInitial: "TA"
   },
   onShow() {
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 0 });
@@ -54,9 +54,24 @@ Page({
     const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(now.getDate() - 30);
     const customStart = this.data.customStart || this.dateValue(thirtyDaysAgo);
     const customEnd = this.data.customEnd || this.dateValue(now);
-    const ranged = this.data.viewType === "custom"
-      ? moments.filter((item) => { const date = this.dateValue(new Date(item.occurredAt)); return date >= customStart && date <= customEnd; })
-      : moments;
+    const rangeStart = new Date(now);
+    const rangeEnd = new Date(now);
+    if (this.data.viewType === "day") {
+      rangeStart.setHours(0, 0, 0, 0); rangeEnd.setHours(23, 59, 59, 999);
+    } else if (this.data.viewType === "week") {
+      rangeStart.setHours(0, 0, 0, 0); rangeStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      rangeEnd.setTime(rangeStart.getTime()); rangeEnd.setDate(rangeStart.getDate() + 6); rangeEnd.setHours(23, 59, 59, 999);
+    } else if (this.data.viewType === "month") {
+      rangeStart.setFullYear(now.getFullYear(), now.getMonth(), 1); rangeStart.setHours(0, 0, 0, 0);
+      rangeEnd.setFullYear(now.getFullYear(), now.getMonth() + 1, 0); rangeEnd.setHours(23, 59, 59, 999);
+    } else if (this.data.viewType === "year") {
+      rangeStart.setFullYear(now.getFullYear(), 0, 1); rangeStart.setHours(0, 0, 0, 0);
+      rangeEnd.setFullYear(now.getFullYear(), 11, 31); rangeEnd.setHours(23, 59, 59, 999);
+    } else {
+      rangeStart.setTime(new Date(`${customStart}T00:00:00`).getTime());
+      rangeEnd.setTime(new Date(`${customEnd}T23:59:59.999`).getTime());
+    }
+    const ranged = this.data.viewType === "day" ? moments : moments.filter((item) => { const occurredAt = new Date(item.occurredAt).getTime(); return occurredAt >= rangeStart.getTime() && occurredAt <= rangeEnd.getTime(); });
     const filtered = this.data.filterMood === "全部" ? ranged : ranged.filter((item) => item.mood === this.data.filterMood);
     this.setData({
       profile: state.profile, couple: state.couple, moments: filtered,
@@ -64,7 +79,8 @@ Page({
       weekDays: this.buildWeek(now, moments), calendar: this.buildCalendar(now, moments), months: this.buildMonths(now, moments),
       dateEyebrow: `${now.getFullYear()} · ${now.getMonth() + 1}月`,
       currentDateLabel: `${now.getMonth() + 1} 月 ${now.getDate()} 日`, currentYear: now.getFullYear(),
-      currentMonthTitle: `${now.getFullYear()} 年 ${now.getMonth() + 1} 月`, customStart, customEnd
+      currentMonthTitle: `${now.getFullYear()} 年 ${now.getMonth() + 1} 月`, customStart, customEnd,
+      partnerInitial: (state.couple.partnerName || "TA").slice(0, 1)
     });
   },
   dateValue(date: Date) { const month = `${date.getMonth() + 1}`.padStart(2, "0"); const day = `${date.getDate()}`.padStart(2, "0"); return `${date.getFullYear()}-${month}-${day}`; },
