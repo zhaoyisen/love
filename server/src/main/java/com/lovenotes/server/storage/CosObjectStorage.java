@@ -101,8 +101,15 @@ public class CosObjectStorage implements ObjectStorage {
                 request.setBucketName(properties.storage().bucket());request.setObjectKey(key);request.setLargeImageDetect("1");
                 ImageAuditingResponse response=cos.imageAuditing(request);
                 if(!"0".equals(response.getResult()))return new ProcessingResult(ProcessingOutcome.BLOCKED,response.getJobId(),null,null);
-                String[] derivatives=createImageDerivatives(key);
-                return new ProcessingResult(ProcessingOutcome.READY,response.getJobId(),derivatives[0],derivatives[1]);
+                try{
+                    String[] derivatives=createImageDerivatives(key);
+                    return new ProcessingResult(ProcessingOutcome.READY,response.getJobId(),derivatives[0],derivatives[1]);
+                }catch(Exception derivativeFailure){
+                    // Derivatives are an optimization, not a moderation boundary. Once the
+                    // original image passed auditing, publish it instead of retrying forever.
+                    logProviderFailure("image derivative",kind,key,response.getJobId(),derivativeFailure);
+                    return new ProcessingResult(ProcessingOutcome.READY,response.getJobId(),null,null);
+                }
             }
             VideoAuditingRequest request=new VideoAuditingRequest();request.setBucketName(properties.storage().bucket());
             VideoAuditingResponse response;
@@ -120,7 +127,17 @@ public class CosObjectStorage implements ObjectStorage {
                     :new ProcessingResult(ProcessingOutcome.BLOCKED,currentJob,null,null);
             if("Failed".equalsIgnoreCase(detail.getState()))return new ProcessingResult(ProcessingOutcome.FAILED,currentJob,null,null);
             return new ProcessingResult(ProcessingOutcome.PENDING,currentJob,null,null);
-        }catch(Exception exception){throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"PROVIDER_UNAVAILABLE","媒体安全处理服务暂时不可用，请稍后重试。");}
+        }catch(Exception exception){
+            logProviderFailure("media audit",kind,key,jobId,exception);
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"PROVIDER_UNAVAILABLE","媒体安全处理服务暂时不可用，请稍后重试。");
+        }
+    }
+    private void logProviderFailure(String operation,DomainEnums.MediaKind kind,String key,String jobId,Exception exception){
+        CosProviderFailure.Diagnostic diagnostic=CosProviderFailure.inspect(exception);
+        log.error("COS {} failed: kind={}, key={}, jobId={}, category={}, status={}, errorCode={}, requestId={}, exceptionType={}, bucket={}, region={}",
+                operation,kind,key,jobId,diagnostic.category(),diagnostic.status(),diagnostic.errorCode(),diagnostic.requestId(),
+                diagnostic.exceptionType(),properties.storage().bucket(),properties.storage().region());
+        log.debug("COS "+operation+" exception",exception);
     }
     private String[] createImageDerivatives(String sourceKey){
         String suffix=sourceKey.startsWith("original/")?sourceKey.substring("original/".length()):sourceKey;

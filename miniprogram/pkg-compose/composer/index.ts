@@ -61,8 +61,8 @@ Page({
     try {
       const result = await new Promise<any>((resolve, reject) => {
         const remaining = limit - this.data.draft.media.length;
-        if (wx.chooseMedia) wx.chooseMedia({ count: remaining, mediaType: [mediaType === "VIDEO" ? "video" : "image"], sourceType: ["album", "camera"], success: resolve, fail: reject });
-        else if (mediaType === "VIDEO") wx.chooseVideo({ sourceType: ["album", "camera"], success: (res: any) => resolve({ tempFiles: [{ tempFilePath: res.tempFilePath, fileType: "video", size: res.size }] }), fail: reject });
+        if (mediaType === "VIDEO" && wx.chooseVideo) wx.chooseVideo({ sourceType: ["album", "camera"], compressed: true, success: (res: any) => resolve({ tempFiles: [{ tempFilePath: res.tempFilePath, fileType: "video", size: res.size }] }), fail: reject });
+        else if (wx.chooseMedia) wx.chooseMedia({ count: remaining, mediaType: ["image"], sourceType: ["album", "camera"], success: resolve, fail: reject });
         else wx.chooseImage({ count: remaining, success: (res: any) => resolve({ tempFiles: res.tempFilePaths.map((path: string) => ({ tempFilePath: path, fileType: "image" })) }), fail: reject });
       });
       const media = result.tempFiles.map((file: any, index: number) => {
