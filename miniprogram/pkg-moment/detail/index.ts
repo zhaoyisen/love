@@ -10,6 +10,11 @@ Page({
   onUnload() { clearTimeout(this.pollTimer); },
   momentId: "",
   pollTimer: null as any,
+  imageError(event: any) {
+    const detail = event && event.detail ? event.detail : {};
+    console.error("Moment image failed", { errMsg: detail.errMsg, statusCode: detail.statusCode });
+    wx.showToast({ title: "照片加载失败，请刷新后重试", icon: "none" });
+  },
   videoError(event: any) {
     const detail = event && event.detail ? event.detail : {};
     console.error("Video playback failed", { errMsg: detail.errMsg, errCode: detail.errCode });

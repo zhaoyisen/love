@@ -58,8 +58,8 @@ public class MediaService {
     public String accessUrl(UUID actorId,UUID assetId){MediaAssetEntity asset=getAuthorized(actorId,assetId);if(asset.getStatus()!=DomainEnums.MediaStatus.READY)throw new ApiException(HttpStatus.CONFLICT,"MEDIA_NOT_READY","媒体仍在安全处理中，请稍后刷新。");return storage.signedGetUrl(displayKey(asset),Duration.ofMinutes(15),displayContentType(asset));}
     public String accessUrlIfReady(UUID actorId,MediaAssetEntity asset){return asset.getStatus()==DomainEnums.MediaStatus.READY&&canRead(actorId,asset)?storage.signedGetUrl(displayKey(asset),Duration.ofMinutes(15),displayContentType(asset)):null;}
     public String thumbnailUrlIfReady(UUID actorId,MediaAssetEntity asset){return asset.getStatus()==DomainEnums.MediaStatus.READY&&asset.getThumbnailStorageKey()!=null&&canRead(actorId,asset)?storage.signedGetUrl(asset.getThumbnailStorageKey(),Duration.ofMinutes(15),"image/webp"):null;}
-    private String displayKey(MediaAssetEntity asset){return asset.getDisplayStorageKey()==null?asset.getStorageKey():asset.getDisplayStorageKey();}
-    private String displayContentType(MediaAssetEntity asset){return asset.getDisplayStorageKey()==null?asset.getMimeType():"image/webp";}
+    private String displayKey(MediaAssetEntity asset){return asset.getStorageKey();}
+    private String displayContentType(MediaAssetEntity asset){return asset.getMimeType();}
     private boolean canRead(UUID actorId,MediaAssetEntity asset){
         if(asset.getUploaderId().equals(actorId))return true;
         if(asset.getStatus()!=DomainEnums.MediaStatus.READY||asset.getMomentId()==null)return false;

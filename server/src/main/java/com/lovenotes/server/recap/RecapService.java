@@ -166,10 +166,8 @@ public class RecapService {
                 .map(tag -> tag.getId().getTagValue()).toList();
         List<MediaView> media = assets.findByMomentIdOrderByCreatedAtAsc(moment.getId()).stream().map(asset -> {
             boolean ready = asset.getStatus() == DomainEnums.MediaStatus.READY;
-            String displayKey = asset.getDisplayStorageKey() == null ? asset.getStorageKey() : asset.getDisplayStorageKey();
-            String displayContentType = asset.getDisplayStorageKey() == null ? asset.getMimeType() : "image/webp";
             return new MediaView(asset.getId(), asset.getKind(), asset.getStatus(),
-                    ready ? storage.signedGetUrl(displayKey, Duration.ofMinutes(15), displayContentType) : null,
+                    ready ? storage.signedGetUrl(asset.getStorageKey(), Duration.ofMinutes(15), asset.getMimeType()) : null,
                     ready && asset.getThumbnailStorageKey() != null ? storage.signedGetUrl(asset.getThumbnailStorageKey(), Duration.ofMinutes(15), "image/webp") : null);
         }).toList();
         return new MomentSummaryView(moment.getId(), moment.getAuthorId(), moment.getType(), moment.getTitle(), moment.getBody(),
