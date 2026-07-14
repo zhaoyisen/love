@@ -3,15 +3,18 @@
     <view class="sunset-glow"></view>
     <view class="feed-topbar">
       <view><text class="feed-brand">恋爱笔记</text><text class="feed-date">{{dateEyebrow}}</text></view>
-      <button class="feed-message press" bindtap="messages" aria-label="打开消息"><text>信笺</text><text wx:if="{{unread}}" class="feed-message-count">{{unread}}</text></button>
+      <button class="feed-message press" bindtap="messages" aria-label="打开消息">
+        <view class="message-envelope"><view></view></view>
+        <text wx:if="{{unread}}" class="feed-message-count">{{unread}}</text>
+      </button>
     </view>
     <view class="couple-signature">
-      <view class="signature-avatars"><view class="signature-avatar mine">{{profile.avatarText || '我'}}</view><view class="signature-avatar partner">{{partnerInitial}}</view></view>
+      <view class="signature-avatars"><view class="signature-avatar mine"><image wx:if="{{profile.avatarUrl}}" src="{{profile.avatarUrl}}" mode="aspectFill"></image><text wx:else>{{profile.avatarText || '我'}}</text></view><view class="signature-avatar partner">{{partnerInitial}}</view></view>
       <text>{{couple.status === 'PAIRED' ? couple.relationshipName : '等待 TA 加入这卷胶片'}}</text>
     </view>
     <view class="sunset-title"><text>今天和 TA，</text><text>又有新的心动吗？</text></view>
     <text class="sunset-copy">把一张合照、一句想说的话，留给以后一起看。</text>
-    <button class="capture-button press" bindtap="compose"><text class="capture-plus">＋</text><view><text>记录这一刻</text><text>照片、视频或一句话</text></view></button>
+    <view class="hero-prompt"><view class="prompt-line"></view><text>下一段故事，从底部的“这一刻”开始</text></view>
     <view class="film-meta"><text>LOVE ROLL · {{currentYear}}</text><text>{{moments.length}} FRAMES</text></view>
   </view>
 

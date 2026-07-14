@@ -3,14 +3,14 @@
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="retry">重试</button></view>
   <view wx:if="{{loading && !loaded}}" class="couple-skeleton"><view></view><view></view><text>正在确认你们的空间</text></view>
   <view wx:elif="{{couple.status === 'UNPAIRED'}}" class="invite-stage">
-    <view class="invite-film"><view class="invite-photo mine">{{myInitial}}</view><view class="invite-photo waiting">TA</view><text>01 / 02</text></view>
+    <view class="invite-film"><view class="invite-photo mine"><image wx:if="{{myAvatarUrl}}" src="{{myAvatarUrl}}" mode="aspectFill"></image><text wx:else>{{myInitial}}</text></view><view class="invite-photo waiting">TA</view><text>01 / 02</text></view>
     <view class="unpaired-title"><text>邀请 TA，</text><text>一起写下甜蜜日常。</text></view><text class="unpaired-note">配对后，你们可以分享心动瞬间、回应彼此，再把它们做成只属于两个人的回顾。</text><button class="primary-button press" bindtap="invite">邀请我的另一半</button><button class="secondary-button press" bindtap="privacy">了解共享方式</button>
   </view>
   <view wx:elif="{{couple.status === 'ENDED'}}" class="ended-card card"><text class="ended-mark">⌁</text><text class="section-title">情侣空间已停止访问</text><text class="section-note">你仍可在“时光”中查看自己创建的记录。对方上传的内容和原情侣回顾已隐藏。</text><button class="secondary-button press" bindtap="privacy">查看隐私设置</button></view>
   <block wx:else>
     <view class="relation-sunset">
       <view class="relation-light"></view><button class="relation-edit press" bindtap="openProfileEditor">编辑资料</button>
-      <view class="relation-avatars"><view class="avatar mine">{{myInitial}}</view><view class="relation-heart">＋</view><view class="avatar partner">{{partnerInitial}}</view></view>
+      <view class="relation-avatars"><view class="avatar mine"><image wx:if="{{myAvatarUrl}}" src="{{myAvatarUrl}}" mode="aspectFill"></image><text wx:else>{{myInitial}}</text></view><view class="relation-heart">＋</view><view class="avatar partner">{{partnerInitial}}</view></view>
       <text class="relation-kicker">{{couple.relationshipName}}</text><view wx:if="{{days}}" class="together-line"><text>在一起</text><text class="relation-days">{{days}}</text><text>天</text></view><button wx:else class="set-anniversary press" bindtap="openProfileEditor">还没设置在一起的日期 · 现在设置</button><text class="anniversary-copy">纪念日 · {{couple.anniversary || '等你们一起定下'}}</text>
     </view>
     <view wx:if="{{editing}}" class="relation-editor" aria-label="编辑关系资料">

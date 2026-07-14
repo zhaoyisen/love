@@ -3,11 +3,15 @@
 .edit-heading .section-note { display: block; max-width: 590rpx; }
 
 .profile-preview { display: flex; align-items: center; gap: 24rpx; margin-top: 42rpx; padding: 28rpx; }
-.preview-avatar {
+.avatar-picker {
+  position: relative;
   display: flex; flex: 0 0 auto; align-items: center; justify-content: center;
-  width: 100rpx; height: 100rpx; border-radius: 50%; color: #FFF;
-  background: linear-gradient(145deg, #CC6960, #A93F42); font-size: 40rpx;
+  width: 112rpx; min-width: 112rpx; max-width: 112rpx; height: 112rpx; margin: 0; padding: 0; border: 4rpx solid #FFF9F2; border-radius: 50%; color: #FFF9F2;
+  background: #B94E5A; box-shadow: 0 10rpx 24rpx rgba(102,52,65,.18); font-size: 40rpx;
 }
+.avatar-picker::after { border: 0; }
+.avatar-picker image { width: 100%; height: 100%; border-radius: 50%; }
+.avatar-edit-mark { position: absolute; right: -5rpx; bottom: -3rpx; display: flex; align-items: center; justify-content: center; width: 42rpx; height: 42rpx; border: 3rpx solid #FFF9F2; border-radius: 50%; color: #FFF9F2; background: #665060; font-size: 17rpx; font-weight: 700; }
 .preview-copy { min-width: 0; }
 .preview-copy text { display: block; }
 .preview-name { overflow: hidden; font-size: 32rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
@@ -21,7 +25,7 @@
 .field-note { display: block; margin-top: 16rpx; color: #817970; font: 20rpx/1.55 sans-serif; }
 .form-error { margin-top: 16rpx; padding: 16rpx 18rpx; border-radius: 14rpx; color: #823D3D; background: #F8E8E4; font-size: 22rpx; line-height: 1.45; }
 
-.avatar-note { margin: 24rpx 0 42rpx; padding: 24rpx 26rpx; border-left: 6rpx solid #B4813C; color: #756B62; background: rgba(255, 253, 248, .56); font: 22rpx/1.6 sans-serif; }
+.avatar-note { margin: 24rpx 0 42rpx; padding: 24rpx 26rpx; border: 2rpx solid #E3CEC2; border-radius: 20rpx; color: #756B62; background: rgba(255, 253, 248, .64); font: 22rpx/1.6 sans-serif; }
 .avatar-note text { display: block; }
 .avatar-note-title { margin-bottom: 6rpx; color: #554E48; font-weight: 600; }
 .cancel-button { width: 100%; min-height: 88rpx; margin-top: 14rpx; color: #756B62; background: transparent; font: 600 26rpx/1 sans-serif; }

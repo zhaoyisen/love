@@ -54,6 +54,9 @@ class ApiFlowIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        var existingUsers = users.findAll();
+        existingUsers.forEach(user -> user.setAvatarMediaId(null));
+        users.saveAllAndFlush(existingUsers);
         auditLogs.deleteAll(); contentFeedback.deleteAll(); deletionRequests.deleteAll(); derivedAssets.deleteAll(); notificationPreferences.deleteAll();
         appMessageSources.deleteAll(); appMessages.deleteAll(); petActionLogs.deleteAll(); petStates.deleteAll(); petAdoptionProposals.deleteAll(); annualRecapMoments.deleteAll(); annualRecaps.deleteAll(); comments.deleteAll(); reactions.deleteAll(); tags.deleteAll(); uploads.deleteAll(); assets.deleteAll(); moments.deleteAll();
         members.deleteAll(); invitations.deleteAll(); couples.deleteAll(); users.deleteAll();
@@ -105,6 +108,30 @@ class ApiFlowIntegrationTest {
                         .content("{\"nickname\":\"1234567890123456789012345678901\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void shouldUploadAndPersistWechatProfileAvatar() throws Exception {
+        Login user = login("profile-avatar-user");
+        String avatarAssetId = uploadImage(user, "wechat-avatar.jpg");
+
+        mvc.perform(patch("/me").header("Authorization", bearer(user.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"小满\",\"avatar_asset_id\":\"" + avatarAssetId + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.nickname").value("小满"))
+                .andExpect(jsonPath("$.data.avatar_asset_id").value(avatarAssetId))
+                .andExpect(jsonPath("$.data.avatar_status").value("READY"))
+                .andExpect(jsonPath("$.data.avatar_url", startsWith("local://")));
+
+        mvc.perform(get("/me").header("Authorization", bearer(user.accessToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.avatar_asset_id").value(avatarAssetId))
+                .andExpect(jsonPath("$.data.avatar_url", startsWith("local://")));
+
+        var userEntity = users.findById(UUID.fromString(user.userId())).orElseThrow();
+        Assertions.assertEquals(UUID.fromString(avatarAssetId), userEntity.getAvatarMediaId());
+        Assertions.assertTrue(assets.findById(UUID.fromString(avatarAssetId)).orElseThrow().isProfileAvatar());
     }
 
     @Test

@@ -1,7 +1,7 @@
 import { store } from "../../core/store";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
 Page({
-  data: { couple: {} as any, pet: {} as any, unread: 0, sharedCount: 0, days: 0, myInitial: "我", partnerInitial: "TA", loading: false, loaded: false, error: "", isRemote: appService.isRemote, editing: false, editName: "", editAnniversary: "", savingProfile: false },
+  data: { couple: {} as any, pet: {} as any, unread: 0, sharedCount: 0, days: 0, myInitial: "我", myAvatarUrl: "", partnerInitial: "TA", loading: false, loaded: false, error: "", isRemote: appService.isRemote, editing: false, editName: "", editAnniversary: "", savingProfile: false },
   async onShow() {
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 1 });
     this.setData({ loading: true, error: "" });
@@ -17,6 +17,7 @@ Page({
       sharedCount: state.moments.filter((item) => item.visibility === "SHARED" && item.status !== "DELETED").length,
       days: this.daysSince(state.couple.anniversary),
       myInitial: (state.profile.name || "我").slice(0, 1),
+      myAvatarUrl: state.profile.avatarUrl || "",
       partnerInitial: (state.couple.partnerName || "TA").slice(0, 1)
     });
   },

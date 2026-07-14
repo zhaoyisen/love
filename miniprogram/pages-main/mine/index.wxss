@@ -24,6 +24,7 @@
   background: linear-gradient(145deg, #CC6960, #A93F42); font-size: 38rpx;
   box-shadow: inset 0 0 0 4rpx rgba(255, 255, 255, .3);
 }
+.profile-avatar image { width: 100%; height: 100%; border-radius: 50%; }
 .profile-copy { flex: 1; min-width: 0; }
 .profile-copy text { display: block; }
 .profile-name { overflow: hidden; font-size: 34rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }

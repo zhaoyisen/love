@@ -12,6 +12,9 @@ export interface LoginResponse {
 export interface MeResponse {
   id: string;
   nickname: string;
+  avatar_asset_id?: string;
+  avatar_url?: string;
+  avatar_status?: string;
   couple_id?: string;
   relationship_status: "UNPAIRED" | "PAIRED" | "FROZEN";
 }
@@ -32,9 +35,9 @@ export const authService = {
     return result;
   },
   me: () => apiRequest<MeResponse>({ path: "/me" }),
-  updateProfile: (nickname: string) => apiRequest<MeResponse>({
+  updateProfile: (nickname: string, avatarAssetId?: string) => apiRequest<MeResponse>({
     path: "/me",
     method: "PATCH",
-    data: { nickname }
+    data: { nickname, avatar_asset_id: avatarAssetId }
   })
 };

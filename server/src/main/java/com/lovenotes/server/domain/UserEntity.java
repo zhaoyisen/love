@@ -20,6 +20,9 @@ public class UserEntity {
     private String wxRefCipher;
     @Column(nullable = false, length = 30)
     private String nickname;
+    @Column(name = "avatar_media_id")
+    @JdbcTypeCode(SqlTypes.BINARY)
+    private UUID avatarMediaId;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private DomainEnums.UserStatus status;
@@ -46,10 +49,12 @@ public class UserEntity {
     @PreUpdate void touch() { updatedAt = Instant.now(); }
     public UUID getId() { return id; }
     public String getNickname() { return nickname; }
+    public UUID getAvatarMediaId() { return avatarMediaId; }
     public String getWxRefHash() { return wxRefHash; }
     public DomainEnums.UserStatus getStatus() { return status; }
     public int getSessionVersion() { return sessionVersion; }
     public void setNickname(String nickname) { this.nickname = nickname; }
+    public void setAvatarMediaId(UUID avatarMediaId) { this.avatarMediaId = avatarMediaId; }
     public void beginDeletion() {
         if (status != DomainEnums.UserStatus.DELETING) {
             status = DomainEnums.UserStatus.DELETING;
@@ -60,6 +65,7 @@ public class UserEntity {
         this.wxRefHash = anonymizedWxRefHash;
         this.wxRefCipher = null;
         this.nickname = "已注销用户";
+        this.avatarMediaId = null;
         this.status = DomainEnums.UserStatus.DISABLED;
         this.sessionVersion += 1;
     }

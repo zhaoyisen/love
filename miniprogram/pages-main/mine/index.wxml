@@ -21,7 +21,10 @@
   </view>
 
   <view class="profile-card">
-    <view class="profile-avatar" aria-label="当前头像文字">{{state.profile.avatarText}}</view>
+    <view class="profile-avatar" aria-label="当前头像">
+      <image wx:if="{{state.profile.avatarUrl}}" src="{{state.profile.avatarUrl}}" mode="aspectFill"></image>
+      <text wx:else>{{state.profile.avatarText}}</text>
+    </view>
     <view class="profile-copy">
       <text class="profile-name">{{state.profile.name}}</text>
       <text class="label">{{state.couple.status === 'PAIRED' ? state.couple.relationshipName + ' · 已配对' : state.couple.status === 'ENDED' ? '情侣空间已结束' : '独自记录中'}}</text>

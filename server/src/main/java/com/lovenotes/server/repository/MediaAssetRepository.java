@@ -10,6 +10,6 @@ public interface MediaAssetRepository extends JpaRepository<MediaAssetEntity, UU
     List<MediaAssetEntity> findByUploaderIdAndStatusNotOrderByCreatedAtAsc(
             UUID uploaderId, com.lovenotes.server.domain.DomainEnums.MediaStatus status);
     List<MediaAssetEntity> findTop20ByStatusOrderByUpdatedAtAsc(com.lovenotes.server.domain.DomainEnums.MediaStatus status);
-    List<MediaAssetEntity> findTop100ByMomentIdIsNullAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
+    List<MediaAssetEntity> findTop100ByMomentIdIsNullAndProfileAvatarFalseAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
             Collection<com.lovenotes.server.domain.DomainEnums.MediaStatus> statuses, Instant createdBefore);
 }

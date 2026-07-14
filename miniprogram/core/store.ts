@@ -136,13 +136,17 @@ class LoveNotesStore {
     });
   }
 
-  applyRemoteProfile(profile: { id: string; name: string }) {
+  applyRemoteProfile(profile: { id: string; name: string; avatarUrl?: string; avatarAssetId?: string; avatarStatus?: string }, optimisticAvatarUrl?: string) {
     this.update((state) => {
+      const sameAvatar = Boolean(profile.avatarAssetId && profile.avatarAssetId === state.profile.avatarAssetId);
       state.loggedIn = true;
       state.consented = true;
       state.profile.id = profile.id;
       state.profile.name = profile.name || "微信用户";
       state.profile.avatarText = (profile.name || "微").slice(0, 1);
+      state.profile.avatarAssetId = profile.avatarAssetId;
+      state.profile.avatarStatus = profile.avatarStatus;
+      state.profile.avatarUrl = optimisticAvatarUrl || profile.avatarUrl || (sameAvatar ? state.profile.avatarUrl : undefined);
     });
   }
 
@@ -351,10 +355,11 @@ class LoveNotesStore {
     this.update((state) => { state.preferences[key] = value; });
   }
 
-  updateProfileName(nickname: string) {
+  updateProfileName(nickname: string, avatarUrl?: string) {
     this.update((state) => {
       state.profile.name = nickname;
       state.profile.avatarText = nickname.slice(0, 1) || "我";
+      if (avatarUrl) state.profile.avatarUrl = avatarUrl;
     });
   }
 

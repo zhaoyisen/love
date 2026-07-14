@@ -35,6 +35,8 @@ public class MediaAssetEntity {
     private String displayStorageKey;
     @Column(name = "thumbnail_storage_key", length = 300)
     private String thumbnailStorageKey;
+    @Column(name = "profile_avatar", nullable = false)
+    private boolean profileAvatar;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 20)
     private DomainEnums.MediaStatus status;
     @Column(name = "created_at", nullable = false)
@@ -61,6 +63,7 @@ public class MediaAssetEntity {
     public String getDisplayStorageKey() { return displayStorageKey; }
     public String getThumbnailStorageKey() { return thumbnailStorageKey; }
     public Instant getCreatedAt() { return createdAt; }
+    public boolean isProfileAvatar() { return profileAvatar; }
     public void complete(String etag, boolean requiresProcessing) {
         this.etag = etag;
         this.status = requiresProcessing ? DomainEnums.MediaStatus.PROCESSING : DomainEnums.MediaStatus.READY;
@@ -74,6 +77,7 @@ public class MediaAssetEntity {
     public void markFailed() { this.status = DomainEnums.MediaStatus.FAILED; }
     public void processingJob(String jobId) { this.processingJobId = jobId; this.updatedAt = Instant.now(); }
     public void attach(UUID momentId) { this.momentId = momentId; }
+    public void markProfileAvatar(boolean profileAvatar) { this.profileAvatar = profileAvatar; }
     public void markDeleted() { this.status = DomainEnums.MediaStatus.DELETED; }
     public java.util.List<String> objectKeys() {
         return java.util.stream.Stream.of(storageKey, displayStorageKey, thumbnailStorageKey)
