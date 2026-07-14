@@ -92,6 +92,19 @@ function cosUploadError(error: any, session: UploadSessionResponse): Error {
     bucket: session.bucket,
     region: session.region
   });
+  // COS is uploaded directly from the Mini Program, so report only safe diagnostic
+  // fields back to the API. Never send the temporary key, token or authorization data.
+  void apiRequest<{ accepted: boolean }>({
+    path: "/media-diagnostics/cos-upload-failures",
+    method: "POST",
+    data: {
+      upload_session_id: session.upload_session_id,
+      status_code: details.statusCode,
+      provider_code: details.code,
+      provider_message: details.message,
+      provider_request_id: details.requestId
+    }
+  }).catch(() => undefined);
   const uploadError: any = new Error(userMessage);
   uploadError.code = details.code || "COS_UPLOAD_FAILED";
   uploadError.requestId = details.requestId;

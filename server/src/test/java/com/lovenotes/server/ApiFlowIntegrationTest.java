@@ -928,6 +928,22 @@ class ApiFlowIntegrationTest {
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
     }
 
+    @Test
+    void shouldAcceptAuthenticatedCosUploadFailureDiagnostic() throws Exception {
+        Login user=login("cos-diagnostic-user");
+        String created=mvc.perform(post("/upload-sessions").header("Authorization",bearer(user.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"file_name\":\"photo.jpg\",\"mime_type\":\"image/jpeg\",\"size\":1024}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String uploadSessionId=mapper.readTree(created).at("/data/upload_session_id").asText();
+
+        mvc.perform(post("/media-diagnostics/cos-upload-failures").header("Authorization",bearer(user.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"upload_session_id\":\""+uploadSessionId+"\",\"status_code\":403,\"provider_code\":\"AccessDenied\",\"provider_message\":\"Access Denied.\",\"provider_request_id\":\"request-123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.accepted").value(true));
+    }
+
     private Login login(String code) throws Exception {
         String body = mvc.perform(post("/auth/wechat/session").contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"" + code + "\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.data.access_token").isNotEmpty())
