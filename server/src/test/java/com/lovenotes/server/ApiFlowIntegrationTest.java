@@ -67,6 +67,18 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
+    void shouldProtectAndRunTheManualTextAuditCheck() throws Exception {
+        mvc.perform(post("/internal/storage/text-audit-check"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error.code").value("INTERNAL_OPERATION_FORBIDDEN"));
+
+        mvc.perform(post("/internal/storage/text-audit-check")
+                        .header("X-Internal-Operation-Token", INTERNAL_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("READY"));
+    }
+
+    @Test
     void shouldUpdateProfileAndRejectInvalidNickname() throws Exception {
         Login user = login("profile-user");
 

@@ -3,6 +3,7 @@ package com.lovenotes.server.compliance;
 import com.lovenotes.server.common.ApiResponse;
 import com.lovenotes.server.common.RequestContext;
 import com.lovenotes.server.domain.DomainEnums;
+import com.lovenotes.server.storage.ObjectStorage;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -19,12 +20,23 @@ public class InternalComplianceController {
     private final InternalOperationGuard guard;
     private final FeedbackService feedback;
     private final AccountDeletionProcessingService accountDeletion;
+    private final ObjectStorage storage;
 
     public InternalComplianceController(InternalOperationGuard guard, FeedbackService feedback,
-                                        AccountDeletionProcessingService accountDeletion) {
+                                        AccountDeletionProcessingService accountDeletion, ObjectStorage storage) {
         this.guard = guard;
         this.feedback = feedback;
         this.accountDeletion = accountDeletion;
+        this.storage = storage;
+    }
+
+    @PostMapping("/storage/text-audit-check")
+    ApiResponse<StorageAuditCheck> checkTextAudit(
+            @RequestHeader(value = InternalOperationGuard.HEADER, required = false) String token,
+            HttpServletRequest request) {
+        guard.requireAuthorized(token);
+        ObjectStorage.ProcessingOutcome outcome = storage.auditText("内容安全服务发布前检查");
+        return ApiResponse.ok(new StorageAuditCheck(outcome.name()), RequestContext.requestId(request));
     }
 
     @GetMapping("/feedback")
@@ -70,4 +82,5 @@ public class InternalComplianceController {
     }
 
     public record UpdateFeedbackRequest(DomainEnums.FeedbackStatus status, @Size(max = 240) String note) {}
+    public record StorageAuditCheck(String status) {}
 }

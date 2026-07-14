@@ -23,12 +23,15 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.*;
 import java.util.*;
 
 @Component @Profile("prod")
 public class CosObjectStorage implements ObjectStorage {
+    private static final Logger log = LoggerFactory.getLogger(CosObjectStorage.class);
     private final LoveNotesProperties properties;
     private final COSClient cos;
     public CosObjectStorage(LoveNotesProperties properties){this.properties=properties;this.cos=new COSClient(new BasicCOSCredentials(properties.storage().secretId(),properties.storage().secretKey()),new com.qcloud.cos.ClientConfig(new Region(properties.storage().region())));}
@@ -104,7 +107,14 @@ public class CosObjectStorage implements ObjectStorage {
             AuditingJobsDetail detail=response.getJobsDetail();
             if(detail==null||detail.getResult()==null)return ProcessingOutcome.FAILED;
             return "0".equals(detail.getResult())?ProcessingOutcome.READY:ProcessingOutcome.BLOCKED;
-        }catch(Exception exception){throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"PROVIDER_UNAVAILABLE","文本安全检测服务暂时不可用，请稍后重试。");}
+        }catch(Exception exception){
+            CosProviderFailure.Diagnostic diagnostic=CosProviderFailure.inspect(exception);
+            log.error("COS text audit failed: category={}, status={}, errorCode={}, requestId={}, exceptionType={}, bucket={}, region={}",
+                    diagnostic.category(),diagnostic.status(),diagnostic.errorCode(),diagnostic.requestId(),diagnostic.exceptionType(),
+                    properties.storage().bucket(),properties.storage().region());
+            log.debug("COS text audit exception",exception);
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"PROVIDER_UNAVAILABLE","文本安全检测服务暂时不可用，请稍后重试。");
+        }
     }
     public void deleteObjects(Collection<String> storageKeys){
         List<String> keys=storageKeys.stream().filter(Objects::nonNull).filter(key->!key.isBlank()).distinct().toList();
