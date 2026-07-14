@@ -23,6 +23,24 @@ class CosProviderFailureTest {
     }
 
     @Test
+    void shouldPreferTencentAccessDeniedCodeOverGenericHttpStatus() {
+        CosServiceException failure = new CosServiceException("Access denied");
+        failure.setStatusCode(401);
+        failure.setErrorCode("AccessDenied");
+
+        assertEquals("PERMISSION_OR_ROLE", CosProviderFailure.inspect(failure).category());
+    }
+
+    @Test
+    void shouldClassifySignatureFailureAsCredentialFailure() {
+        CosServiceException failure = new CosServiceException("Signature mismatch");
+        failure.setStatusCode(401);
+        failure.setErrorCode("SignatureDoesNotMatch");
+
+        assertEquals("CREDENTIAL_OR_SIGNATURE", CosProviderFailure.inspect(failure).category());
+    }
+
+    @Test
     void shouldClassifyBucketAndNetworkFailures() {
         CosServiceException missingBucket = new CosServiceException("Missing bucket");
         missingBucket.setStatusCode(404);

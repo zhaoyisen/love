@@ -27,9 +27,14 @@ final class CosProviderFailure {
 
     private static String category(int status, String errorCode) {
         String code = errorCode == null ? "" : errorCode.toLowerCase(java.util.Locale.ROOT);
-        if (status == 401 || status == 403 || code.contains("accessdenied") || code.contains("signature")) {
+        if (code.contains("signature") || code.contains("invalidaccesskey") || code.contains("invalidsecret")) {
+            return "CREDENTIAL_OR_SIGNATURE";
+        }
+        if (code.contains("accessdenied")) {
             return "PERMISSION_OR_ROLE";
         }
+        if (status == 401) return "CREDENTIAL_OR_SIGNATURE";
+        if (status == 403) return "PERMISSION_OR_ROLE";
         if (status == 404 || code.contains("nosuchbucket") || code.contains("invalidbucket")) {
             return "BUCKET_OR_REGION";
         }
