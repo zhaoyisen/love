@@ -2,7 +2,7 @@
   <view class="film-strip"><text>FRAME {{display.day}}</text><text>{{display.month}}月 {{display.time}}</text></view>
   <view wx:if="{{display.mediaType !== 'TEXT'}}" class="media-cover tone-{{display.media[0].tone || 'paper'}}">
     <image wx:if="{{(display.media[0].thumbnailPath || display.media[0].path) && display.mediaType === 'IMAGE'}}" class="media-image" src="{{display.media[0].thumbnailPath || display.media[0].path}}" mode="aspectFill"></image>
-    <video wx:elif="{{display.media[0].path && display.mediaType === 'VIDEO'}}" class="media-image" src="{{display.media[0].path}}" controls="{{false}}" object-fit="cover"></video>
+    <video wx:elif="{{display.media[0].path && display.mediaType === 'VIDEO'}}" class="media-image" src="{{display.media[0].path}}" controls show-center-play-btn show-play-btn enable-play-gesture object-fit="cover" catchtap="keepVideoControl" binderror="videoError"></video>
     <view wx:else class="cover-art">
       <view class="cover-sun"></view>
       <view class="cover-line"></view>

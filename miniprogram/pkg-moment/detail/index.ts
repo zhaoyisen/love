@@ -10,6 +10,11 @@ Page({
   onUnload() { clearTimeout(this.pollTimer); },
   momentId: "",
   pollTimer: null as any,
+  videoError(event: any) {
+    const detail = event && event.detail ? event.detail : {};
+    console.error("Video playback failed", { errMsg: detail.errMsg, errCode: detail.errCode });
+    wx.showToast({ title: "视频播放失败，请检查视频格式或稍后重试", icon: "none" });
+  },
   async refresh() {
     this.setData({ loading: true, error: "" });
     try {

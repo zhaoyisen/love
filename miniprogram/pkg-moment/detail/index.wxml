@@ -4,7 +4,7 @@
   <block wx:if="{{!loading && !error}}">
   <view wx:if="{{moment.mediaType !== 'TEXT'}}" class="hero tone-{{moment.media[0].tone || 'paper'}}">
     <image wx:if="{{moment.media[0].path && moment.mediaType === 'IMAGE'}}" src="{{moment.media[0].path}}" mode="aspectFill"></image>
-    <video wx:elif="{{moment.media[0].path && moment.mediaType === 'VIDEO'}}" src="{{moment.media[0].path}}" controls object-fit="cover"></video>
+    <video wx:elif="{{moment.media[0].path && moment.mediaType === 'VIDEO'}}" src="{{moment.media[0].path}}" controls show-center-play-btn show-play-btn enable-play-gesture object-fit="cover" binderror="videoError"></video>
     <view wx:else class="hero-art"><view class="hero-sun"></view><view class="hero-hill"></view></view>
     <view wx:if="{{moment.status === 'UPLOADING'}}" class="processing-cover"><text>媒体正在安全处理中</text><text>完成前仅你自己可以查看</text></view>
     <view class="hero-frame"><text>{{moment.template || '原始照片'}}</text><text>{{moment.date}}</text></view>
