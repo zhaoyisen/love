@@ -7,7 +7,7 @@ import java.util.Collection;
 public interface ObjectStorage {
     UploadCredential issueUploadCredential(String storageKey, Duration ttl);
     ObjectInfo stat(String storageKey, long expectedSize);
-    String signedGetUrl(String storageKey, Duration ttl);
+    String signedGetUrl(String storageKey, Duration ttl, String contentType);
     boolean requiresProcessing();
     ProcessingResult process(DomainEnums.MediaKind kind, String storageKey, String jobId);
     ProcessingOutcome auditText(String text);

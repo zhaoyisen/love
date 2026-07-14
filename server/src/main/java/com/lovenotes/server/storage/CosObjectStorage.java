@@ -2,8 +2,11 @@ package com.lovenotes.server.storage;
 
 import com.qcloud.cos.COSClient;
 import com.qcloud.cos.auth.BasicCOSCredentials;
+import com.qcloud.cos.http.HttpProtocol;
 import com.qcloud.cos.model.DeleteObjectsRequest;
+import com.qcloud.cos.model.GeneratePresignedUrlRequest;
 import com.qcloud.cos.model.ObjectMetadata;
+import com.qcloud.cos.model.ResponseHeaderOverrides;
 import com.qcloud.cos.model.ciModel.auditing.AuditingJobsDetail;
 import com.qcloud.cos.model.ciModel.auditing.ImageAuditingRequest;
 import com.qcloud.cos.model.ciModel.auditing.ImageAuditingResponse;
@@ -22,7 +25,6 @@ import jakarta.annotation.PreDestroy;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +36,12 @@ public class CosObjectStorage implements ObjectStorage {
     private static final Logger log = LoggerFactory.getLogger(CosObjectStorage.class);
     private final LoveNotesProperties properties;
     private final COSClient cos;
-    public CosObjectStorage(LoveNotesProperties properties){this.properties=properties;this.cos=new COSClient(new BasicCOSCredentials(properties.storage().secretId(),properties.storage().secretKey()),new com.qcloud.cos.ClientConfig(new Region(properties.storage().region())));}
+    public CosObjectStorage(LoveNotesProperties properties){
+        this.properties=properties;
+        var clientConfig=new com.qcloud.cos.ClientConfig(new Region(properties.storage().region()));
+        clientConfig.setHttpProtocol(HttpProtocol.https);
+        this.cos=new COSClient(new BasicCOSCredentials(properties.storage().secretId(),properties.storage().secretKey()),clientConfig);
+    }
 
     public UploadCredential issueUploadCredential(String key,Duration ttl){
         TreeMap<String,Object> config=new TreeMap<>();
@@ -55,12 +62,12 @@ public class CosObjectStorage implements ObjectStorage {
                 "name/cos:AbortMultipartUpload"
         });
         try{
-            JSONObject response=CosStsClient.getCredential(config);
-            JSONObject temporary=response.getJSONObject("credentials");
-            long startTime=response.getLong("startTime");long expiredTime=response.getLong("expiredTime");
-            var credentials=new Credentials(temporary.getString("tmpSecretId"),temporary.getString("tmpSecretKey"),temporary.getString("sessionToken"),startTime,expiredTime);
-            log.info("COS upload credential issued: bucket={}, region={}, key={}, scope={}, startTime={}, expiredTime={}, ttlSeconds={}",
-                    properties.storage().bucket(),properties.storage().region(),key,scope,startTime,expiredTime,ttl.toSeconds());
+            var response=CosStsClient.getCredential(config);
+            var temporary=response.credentials;
+            long startTime=response.startTime;long expiredTime=response.expiredTime;
+            var credentials=new Credentials(temporary.tmpSecretId,temporary.tmpSecretKey,temporary.sessionToken,startTime,expiredTime);
+            log.info("COS upload credential issued: bucket={}, region={}, key={}, scope={}, startTime={}, expiredTime={}, ttlSeconds={}, stsRequestId={}",
+                    properties.storage().bucket(),properties.storage().region(),key,scope,startTime,expiredTime,ttl.toSeconds(),response.requestId);
             return new UploadCredential("COS",properties.storage().bucket(),properties.storage().region(),key,credentials,Instant.ofEpochSecond(expiredTime));
         }catch(Exception exception){
             log.error("COS STS credential issuance failed: bucket={}, region={}, key={}, scope={}, exceptionType={}",
@@ -75,7 +82,17 @@ public class CosObjectStorage implements ObjectStorage {
         return key.substring(0,separator+1)+"*";
     }
     public ObjectInfo stat(String key,long expectedSize){try{ObjectMetadata metadata=cos.getObjectMetadata(properties.storage().bucket(),key);return new ObjectInfo(metadata.getContentLength(),metadata.getETag(),metadata.getContentType());}catch(Exception exception){throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,"UPLOAD_NOT_FOUND","没有找到已上传的媒体，请重试上传。");}}
-    public String signedGetUrl(String key,Duration ttl){Date expiry=Date.from(Instant.now().plus(ttl));return cos.generatePresignedUrl(properties.storage().bucket(),key,expiry).toString();}
+    public String signedGetUrl(String key,Duration ttl,String contentType){
+        Date expiry=Date.from(Instant.now().plus(ttl));
+        var request=new GeneratePresignedUrlRequest(properties.storage().bucket(),key);
+        request.setExpiration(expiry);
+        if(contentType!=null&&!contentType.isBlank()){
+            request.setResponseHeaders(new ResponseHeaderOverrides()
+                    .withContentType(contentType)
+                    .withContentDisposition("inline"));
+        }
+        return cos.generatePresignedUrl(request).toString();
+    }
     public boolean requiresProcessing(){return true;}
     public ProcessingResult process(DomainEnums.MediaKind kind,String key,String jobId){
         try{

@@ -130,6 +130,10 @@ function uploadToCos(session: UploadSessionResponse, file: MediaItem, onProgress
       Key: session.key,
       FilePath: file.path,
       FileSize: file.size,
+      // COS cannot reliably infer the media type from a Mini Program temporary
+      // file. Persist the real type so <image> and <video> receive a playable
+      // Content-Type instead of application/octet-stream.
+      ContentType: file.mimeType,
       SliceSize: 5 * 1024 * 1024,
       onProgress: (info: any) => {
         const value = typeof info.percent === "number"

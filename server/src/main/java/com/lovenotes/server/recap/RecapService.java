@@ -167,9 +167,10 @@ public class RecapService {
         List<MediaView> media = assets.findByMomentIdOrderByCreatedAtAsc(moment.getId()).stream().map(asset -> {
             boolean ready = asset.getStatus() == DomainEnums.MediaStatus.READY;
             String displayKey = asset.getDisplayStorageKey() == null ? asset.getStorageKey() : asset.getDisplayStorageKey();
+            String displayContentType = asset.getDisplayStorageKey() == null ? asset.getMimeType() : "image/webp";
             return new MediaView(asset.getId(), asset.getKind(), asset.getStatus(),
-                    ready ? storage.signedGetUrl(displayKey, Duration.ofMinutes(5)) : null,
-                    ready && asset.getThumbnailStorageKey() != null ? storage.signedGetUrl(asset.getThumbnailStorageKey(), Duration.ofMinutes(5)) : null);
+                    ready ? storage.signedGetUrl(displayKey, Duration.ofMinutes(15), displayContentType) : null,
+                    ready && asset.getThumbnailStorageKey() != null ? storage.signedGetUrl(asset.getThumbnailStorageKey(), Duration.ofMinutes(15), "image/webp") : null);
         }).toList();
         return new MomentSummaryView(moment.getId(), moment.getAuthorId(), moment.getType(), moment.getTitle(), moment.getBody(),
                 moment.getOccurredAt(), moment.getVisibility(), moment.getStatus(), mood, events, media, moment.getAuthorId().equals(actorId));
