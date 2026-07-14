@@ -55,6 +55,7 @@ public class MediaAssetEntity {
     public String getStorageKey() { return storageKey; }
     public DomainEnums.MediaKind getKind() { return kind; }
     public DomainEnums.MediaStatus getStatus() { return status; }
+    public String getMimeType() { return mimeType; }
     public long getSizeBytes() { return sizeBytes; }
     public String getProcessingJobId() { return processingJobId; }
     public String getDisplayStorageKey() { return displayStorageKey; }
