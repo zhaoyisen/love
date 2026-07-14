@@ -40,10 +40,11 @@ public class CosObjectStorage implements ObjectStorage {
         TreeMap<String,Object> config=new TreeMap<>();
         config.put("secretId",properties.storage().secretId());config.put("secretKey",properties.storage().secretKey());
         config.put("durationSeconds",Math.toIntExact(ttl.toSeconds()));config.put("bucket",properties.storage().bucket());config.put("region",properties.storage().region());
+        String scope=uploadScope(key);
         // uploadFile may use multipart/resume APIs in addition to PutObject. Authorize only
         // the uploader's generated monthly directory so every SDK request addresses a
         // resource covered by the temporary policy, without exposing other users' objects.
-        config.put("allowPrefixes",new String[]{uploadScope(key)});
+        config.put("allowPrefixes",new String[]{scope});
         config.put("allowActions",new String[]{
                 "name/cos:PutObject",
                 "name/cos:InitiateMultipartUpload",
@@ -58,8 +59,15 @@ public class CosObjectStorage implements ObjectStorage {
             JSONObject temporary=response.getJSONObject("credentials");
             long startTime=response.getLong("startTime");long expiredTime=response.getLong("expiredTime");
             var credentials=new Credentials(temporary.getString("tmpSecretId"),temporary.getString("tmpSecretKey"),temporary.getString("sessionToken"),startTime,expiredTime);
+            log.info("COS upload credential issued: bucket={}, region={}, key={}, scope={}, startTime={}, expiredTime={}, ttlSeconds={}",
+                    properties.storage().bucket(),properties.storage().region(),key,scope,startTime,expiredTime,ttl.toSeconds());
             return new UploadCredential("COS",properties.storage().bucket(),properties.storage().region(),key,credentials,Instant.ofEpochSecond(expiredTime));
-        }catch(Exception exception){throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"PROVIDER_UNAVAILABLE","对象存储临时凭证暂时不可用，请稍后重试。");}
+        }catch(Exception exception){
+            log.error("COS STS credential issuance failed: bucket={}, region={}, key={}, scope={}, exceptionType={}",
+                    properties.storage().bucket(),properties.storage().region(),key,scope,exception.getClass().getSimpleName());
+            log.debug("COS STS credential issuance exception",exception);
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"PROVIDER_UNAVAILABLE","对象存储临时凭证暂时不可用，请稍后重试。");
+        }
     }
     static String uploadScope(String key){
         int separator=key==null?-1:key.lastIndexOf('/');
