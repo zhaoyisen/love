@@ -20,9 +20,11 @@ requirePattern("pages-main/time/index.wxss", /\.memory-tabs-inner\s*\{[^}]*displ
 requirePattern("pkg-compose/composer/index.wxss", /\.media-type-grid\s*\{[^}]*display:\s*flex/s, "媒体类型必须使用 Flex");
 requirePattern("pkg-compose/composer/index.wxss", /\.capture-type\s*\{[^}]*flex:\s*1 1 0[^}]*width:\s*0[^}]*min-width:\s*0/s, "单页记录器的媒体按钮必须等宽并允许收缩");
 requirePattern("pkg-compose/composer/index.wxss", /\.media-grid\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/s, "媒体列表必须使用可换行 Flex");
-requirePattern("pkg-compose/composer/index.wxss", /\.compose-close\s*\{[^}]*width:\s*72rpx\s*!important[^}]*min-width:\s*72rpx\s*!important[^}]*max-width:\s*72rpx\s*!important/s, "记录页关闭按钮必须锁定宽度，避免真机被原生按钮样式拉伸");
 requirePattern("pkg-compose/composer/index.wxss", /\.media-grid\.is-empty \.add-media\s*\{[^}]*width:\s*100%[^}]*height:\s*142rpx/s, "未选择媒体时必须使用紧凑的全宽添加入口");
-requirePattern("pkg-compose/composer/index.wxss", /\.preview-heart\s*\{[^}]*position:\s*fixed[^}]*left:\s*32rpx[^}]*right:\s*32rpx/s, "记录页的预览操作必须在长表单中持续可见");
+requirePattern("pkg-compose/composer/index.wxss", /\.preview-heart\s*\{[^}]*position:\s*relative[^}]*width:\s*100%/s, "记录页的预览操作必须占满内容区并保持在正常文档流中");
+if (/\.preview-heart\s*\{[^}]*position:\s*fixed/s.test(read("pkg-compose/composer/index.wxss"))) {
+  failures.push("pkg-compose/composer/index.wxss: 记录页预览按钮不能固定悬浮遮挡表单内容");
+}
 requirePattern("pages-main/mine/index.wxss", /\.edit-button\s*\{[^}]*width:\s*124rpx\s*!important[^}]*max-width:\s*124rpx\s*!important/s, "个人资料编辑按钮必须锁定宽度，避免挤压昵称");
 
 const composerTemplate = read("pkg-compose/composer/index.wxml");

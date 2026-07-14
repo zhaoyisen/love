@@ -6,10 +6,14 @@
   </view>
 
   <view class="profile-preview card">
-    <view class="preview-avatar">{{initial}}</view>
+    <button class="avatar-picker press" open-type="chooseAvatar" bindchooseavatar="chooseWechatAvatar" aria-label="选择微信头像">
+      <image wx:if="{{avatarUrl}}" src="{{avatarUrl}}" mode="aspectFill"></image>
+      <text wx:else>{{initial}}</text>
+      <view class="avatar-edit-mark">换</view>
+    </button>
     <view class="preview-copy">
       <text class="preview-name">{{displayName}}</text>
-      <text>{{isRemote ? '保存到你的账号' : '保存在当前设备'}}</text>
+      <text>点击头像，可从微信选择</text>
     </view>
   </view>
 
@@ -20,26 +24,26 @@
     </view>
     <input
       class="input nickname-input"
+      type="nickname"
       value="{{nickname}}"
       maxlength="30"
-      focus="{{true}}"
       confirm-type="done"
-      placeholder="请输入你的昵称"
+      placeholder="输入昵称，或选择微信昵称"
       bindinput="inputNickname"
       bindconfirm="save"
       aria-label="昵称"
     />
     <view wx:if="{{error}}" class="form-error" role="alert">{{error}}</view>
-    <text class="field-note">支持中文、英文、数字和常用符号，不要包含换行。</text>
+    <text class="field-note">点击输入框后，微信会在键盘上方提供昵称快捷选择；你也可以自行输入。</text>
   </view>
 
   <view class="avatar-note">
-    <text class="avatar-note-title">关于头像</text>
-    <text>当前会用昵称首字作为头像。头像上传会在对象存储安全链路完成后接入。</text>
+    <text class="avatar-note-title">头像如何保存</text>
+    <text>{{isRemote ? '选择后会通过临时凭证上传到你的私有对象存储，不会把永久密钥放进小程序。' : '当前是演示模式，头像只保存在这台设备。'}}</text>
   </view>
 
   <button class="primary-button press" disabled="{{submitting || !canSubmit}}" loading="{{submitting}}" bindtap="save">
-    {{submitting ? '正在保存' : '保存资料'}}
+    {{submitting ? savingText : '保存资料'}}
   </button>
   <button class="cancel-button press" disabled="{{submitting}}" bindtap="cancel">取消</button>
 </view>

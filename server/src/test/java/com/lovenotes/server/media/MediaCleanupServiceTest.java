@@ -43,7 +43,7 @@ class MediaCleanupServiceTest {
         when(moments.findTop100ByStatusAndDeletedAtBeforeOrderByDeletedAtAsc(
                 any(DomainEnums.MomentStatus.class), any(Instant.class))).thenReturn(List.of(moment));
         when(assets.findByMomentIdOrderByCreatedAtAsc(moment.getId())).thenReturn(List.of(asset));
-        when(assets.findTop100ByMomentIdIsNullAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
+        when(assets.findTop100ByMomentIdIsNullAndProfileAvatarFalseAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
                 anyCollection(), any(Instant.class))).thenReturn(List.of());
 
         service.runBatch();
@@ -65,7 +65,7 @@ class MediaCleanupServiceTest {
 
         when(moments.findTop100ByStatusAndDeletedAtBeforeOrderByDeletedAtAsc(
                 any(DomainEnums.MomentStatus.class), any(Instant.class))).thenReturn(List.of());
-        when(assets.findTop100ByMomentIdIsNullAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
+        when(assets.findTop100ByMomentIdIsNullAndProfileAvatarFalseAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
                 anyCollection(), any(Instant.class))).thenReturn(List.of(orphan));
 
         service.runBatch();

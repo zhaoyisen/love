@@ -179,7 +179,7 @@ async function uploadDraftMedia(draftId: string) {
 
 async function synchronizeRemoteState() {
   const me = await authService.me();
-  store.applyRemoteProfile({ id: me.id, name: me.nickname });
+  store.applyRemoteProfile({ id: me.id, name: me.nickname, avatarUrl: me.avatar_url, avatarAssetId: me.avatar_asset_id, avatarStatus: me.avatar_status });
   const now = new Date();
   const from = new Date("2000-01-01T00:00:00.000Z").toISOString();
   const to = new Date(now.getTime() + 5 * 60000).toISOString();
@@ -261,14 +261,20 @@ export const appService = {
     return synchronizeRemoteState();
   },
 
-  async updateProfile(nickname: string) {
+  async updateProfile(nickname: string, avatarAssetId?: string, optimisticAvatarUrl?: string) {
     const normalized = nickname.trim();
     if (!API_CONFIG.useRemoteApi) {
-      store.updateProfileName(normalized);
+      store.updateProfileName(normalized, optimisticAvatarUrl);
       return;
     }
-    const profile = await authService.updateProfile(normalized);
-    store.applyRemoteProfile({ id: profile.id, name: profile.nickname });
+    const profile = await authService.updateProfile(normalized, avatarAssetId);
+    store.applyRemoteProfile({
+      id: profile.id,
+      name: profile.nickname,
+      avatarUrl: profile.avatar_url,
+      avatarAssetId: profile.avatar_asset_id,
+      avatarStatus: profile.avatar_status
+    }, optimisticAvatarUrl);
   },
 
   async publish(draftId: string, options: { skipTemplate?: boolean } = {}) {

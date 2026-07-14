@@ -55,7 +55,7 @@ public class MediaCleanupService {
             purgedMoments++;
         }
 
-        var orphans = assets.findTop100ByMomentIdIsNullAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
+        var orphans = assets.findTop100ByMomentIdIsNullAndProfileAvatarFalseAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
                 ORPHAN_STATUSES,
                 now.minus(properties.media().orphanRetentionHours(), ChronoUnit.HOURS));
         for (MediaAssetEntity orphan : orphans) {

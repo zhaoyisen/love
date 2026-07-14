@@ -7,6 +7,7 @@ import com.lovenotes.server.common.ApiResponse;
 import com.lovenotes.server.common.RequestContext;
 import com.lovenotes.server.couple.CoupleService;
 import com.lovenotes.server.domain.UserEntity;
+import com.lovenotes.server.media.MediaService;
 import com.lovenotes.server.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -27,11 +28,13 @@ public class MeController {
     private final UserRepository users;
     private final CoupleService couples;
     private final UserProfileService profiles;
+    private final MediaService media;
 
-    public MeController(UserRepository users, CoupleService couples, UserProfileService profiles) {
+    public MeController(UserRepository users, CoupleService couples, UserProfileService profiles, MediaService media) {
         this.users = users;
         this.couples = couples;
         this.profiles = profiles;
+        this.media = media;
     }
 
     @GetMapping("/me")
@@ -47,7 +50,7 @@ public class MeController {
             @RequestAttribute(AuthFilter.ACTOR_ATTRIBUTE) Actor actor,
             @Valid @RequestBody UpdateMeRequest body,
             HttpServletRequest request) {
-        UserEntity user = profiles.updateNickname(actor.userId(), body.nickname());
+        UserEntity user = profiles.updateProfile(actor.userId(), body.nickname(), body.avatarAssetId());
         return ApiResponse.ok(response(user), RequestContext.requestId(request));
     }
 
@@ -60,9 +63,19 @@ public class MeController {
 
     private MeResponse response(UserEntity user) {
         var couple = couples.current(user.getId()).orElse(null);
+        String avatarUrl = null;
+        String avatarStatus = null;
+        if (user.getAvatarMediaId() != null) {
+            var avatar = media.getAuthorized(user.getId(), user.getAvatarMediaId());
+            avatarUrl = media.accessUrlIfReady(user.getId(), avatar);
+            avatarStatus = avatar.getStatus().name();
+        }
         return new MeResponse(
                 user.getId(),
                 user.getNickname(),
+                user.getAvatarMediaId(),
+                avatarUrl,
+                avatarStatus,
                 couple == null ? null : couple.getId(),
                 couple == null ? "UNPAIRED" : couple.getStatus().name());
     }
@@ -71,7 +84,9 @@ public class MeController {
             @NotBlank(message = "昵称不能为空")
             @Size(max = 30, message = "昵称最多 30 个字符")
             @Pattern(regexp = "[^\\r\\n\\t]+", message = "昵称不能包含换行或制表符")
-            String nickname) {}
+            String nickname,
+            UUID avatarAssetId) {}
 
-    public record MeResponse(UUID id, String nickname, UUID coupleId, String relationshipStatus) {}
+    public record MeResponse(UUID id, String nickname, UUID avatarAssetId, String avatarUrl,
+                             String avatarStatus, UUID coupleId, String relationshipStatus) {}
 }

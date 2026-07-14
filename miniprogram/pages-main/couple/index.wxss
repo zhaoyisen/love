@@ -207,6 +207,7 @@
 .avatar.partner {
   background: #B4813C;
 }
+.avatar image,.invite-photo image { width: 100%; height: 100%; border-radius: inherit; }
 
 .thread {
   width: 92rpx;

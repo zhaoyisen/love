@@ -3,7 +3,7 @@ import { decorateMoment } from "../../core/format";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
 
 Page({
-  data: { moment: {} as any, reactions: ["心动","抱抱","笑哭","懂你","对不起","收藏"], commentText: "", loading: false, error: "", isRemote: appService.isRemote, reactionSaving: false, commentSending: false },
+  data: { moment: {} as any, reactions: ["心动","抱抱","笑哭","懂你","对不起","收藏"], commentText: "", loading: false, error: "", isRemote: appService.isRemote, reactionSaving: false, commentSending: false, deleting: false },
   onLoad(query: any) { this.momentId = query.id; },
   onShow() { if (this.momentId) this.refresh(); },
   onHide() { clearTimeout(this.pollTimer); },
@@ -84,7 +84,7 @@ Page({
     const mine = this.data.moment.author === "我";
     wx.showActionSheet({ itemList: mine ? ["编辑记录", "移入回收站", "内容反馈"] : ["内容反馈", "隐私与关系设置"], success: (res: any) => {
       if (mine && res.tapIndex === 0) wx.navigateTo({ url: `/pkg-moment/edit/index?id=${this.momentId}` });
-      if (mine && res.tapIndex === 1) this.remove();
+      if (mine && res.tapIndex === 1) setTimeout(() => this.remove(), 180);
       if ((!mine && res.tapIndex === 1)) wx.navigateTo({ url: "/pkg-couple/privacy/index" });
       if ((mine && res.tapIndex === 2) || (!mine && res.tapIndex === 0)) this.feedback();
     }});
@@ -114,5 +114,33 @@ Page({
       }
     });
   },
-  remove() { wx.showModal({ title: "移入回收站？", content: "对方将立即无法访问。你可以在 30 天内恢复。", confirmText: "移入回收站", confirmColor: "#8F3F3F", success: async (res: any) => { if (!res.confirm) return; try { await appService.trashMoment(this.momentId, this.data.moment.version || 0); wx.showToast({ title: "已移入回收站", icon: "none" }); setTimeout(() => wx.navigateBack(), 500); } catch (error) { if (!redirectExpiredSession()) this.setData({ error: userError(error, "删除没有完成，请刷新后重试。") }); } } }); }
+  remove() {
+    if (this.data.deleting) return;
+    wx.showModal({
+      title: "移入回收站？",
+      content: "对方将立即无法访问。你可以在 30 天内恢复。",
+      confirmText: "移入回收站",
+      confirmColor: "#8F3F3F",
+      success: async (res: any) => {
+        if (!res.confirm || this.data.deleting) return;
+        this.setData({ deleting: true, error: "" });
+        wx.showLoading({ title: "正在移入", mask: true });
+        try {
+          await appService.trashMoment(this.momentId, Number(this.data.moment.version || 0));
+          wx.hideLoading();
+          wx.showToast({ title: "已移入回收站", icon: "success", duration: 900 });
+          setTimeout(() => wx.navigateBack({ delta: 1 }), 450);
+        } catch (error) {
+          wx.hideLoading();
+          if (!redirectExpiredSession()) {
+            const message = userError(error, "移入回收站失败，请刷新后重试。");
+            this.setData({ error: message });
+            wx.showToast({ title: message, icon: "none", duration: 2500 });
+          }
+        } finally {
+          this.setData({ deleting: false });
+        }
+      }
+    });
+  }
 });
