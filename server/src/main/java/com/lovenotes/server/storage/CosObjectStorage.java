@@ -40,10 +40,14 @@ public class CosObjectStorage implements ObjectStorage {
         TreeMap<String,Object> config=new TreeMap<>();
         config.put("secretId",properties.storage().secretId());config.put("secretKey",properties.storage().secretKey());
         config.put("durationSeconds",Math.toIntExact(ttl.toSeconds()));config.put("bucket",properties.storage().bucket());config.put("region",properties.storage().region());
-        config.put("allowPrefixes",new String[]{key});
+        // uploadFile may use multipart/resume APIs in addition to PutObject. Authorize only
+        // the uploader's generated monthly directory so every SDK request addresses a
+        // resource covered by the temporary policy, without exposing other users' objects.
+        config.put("allowPrefixes",new String[]{uploadScope(key)});
         config.put("allowActions",new String[]{
                 "name/cos:PutObject",
                 "name/cos:InitiateMultipartUpload",
+                "name/cos:ListMultipartUploads",
                 "name/cos:UploadPart",
                 "name/cos:ListParts",
                 "name/cos:CompleteMultipartUpload",
@@ -56,6 +60,11 @@ public class CosObjectStorage implements ObjectStorage {
             var credentials=new Credentials(temporary.getString("tmpSecretId"),temporary.getString("tmpSecretKey"),temporary.getString("sessionToken"),startTime,expiredTime);
             return new UploadCredential("COS",properties.storage().bucket(),properties.storage().region(),key,credentials,Instant.ofEpochSecond(expiredTime));
         }catch(Exception exception){throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"PROVIDER_UNAVAILABLE","对象存储临时凭证暂时不可用，请稍后重试。");}
+    }
+    static String uploadScope(String key){
+        int separator=key==null?-1:key.lastIndexOf('/');
+        if(separator<0)throw new IllegalArgumentException("storage key must contain a directory");
+        return key.substring(0,separator+1)+"*";
     }
     public ObjectInfo stat(String key,long expectedSize){try{ObjectMetadata metadata=cos.getObjectMetadata(properties.storage().bucket(),key);return new ObjectInfo(metadata.getContentLength(),metadata.getETag(),metadata.getContentType());}catch(Exception exception){throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,"UPLOAD_NOT_FOUND","没有找到已上传的媒体，请重试上传。");}}
     public String signedGetUrl(String key,Duration ttl){Date expiry=Date.from(Instant.now().plus(ttl));return cos.generatePresignedUrl(properties.storage().bucket(),key,expiry).toString();}
