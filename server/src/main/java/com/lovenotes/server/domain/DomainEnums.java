@@ -16,6 +16,7 @@ public final class DomainEnums {
     public enum TagType { MOOD, EVENT }
     public enum MessageType { MOMENT, REACTION, COMMENT, PET, SYSTEM }
     public enum PetAction { FEED, PLAY }
+    public enum PetGrowthSource { MOMENT_CREATED, PARTNER_REACTION, BOTH_ACTIVE }
     public enum RecapStatus { DRAFT, READY }
     public enum FeedbackCategory { CONTENT_ISSUE, RIGHTS_COMPLAINT, PRIVACY_CONCERN, MODERATION_APPEAL, OTHER }
     public enum FeedbackStatus { OPEN, IN_REVIEW, RESOLVED, REJECTED }

@@ -27,6 +27,8 @@ public class MediaAssetEntity {
     private String mimeType;
     @Column(name = "size_bytes", nullable = false)
     private long sizeBytes;
+    @Column(name = "duration_seconds")
+    private Integer durationSeconds;
     @Column(length = 100)
     private String etag;
     @Column(name = "processing_job_id", length = 100)
@@ -46,8 +48,11 @@ public class MediaAssetEntity {
 
     protected MediaAssetEntity() {}
     public MediaAssetEntity(UUID uploaderId, DomainEnums.MediaKind kind, String storageKey, String sha256, String mimeType, long sizeBytes) {
+        this(uploaderId, kind, storageKey, sha256, mimeType, sizeBytes, null);
+    }
+    public MediaAssetEntity(UUID uploaderId, DomainEnums.MediaKind kind, String storageKey, String sha256, String mimeType, long sizeBytes, Integer durationSeconds) {
         this.id = UuidV7.next(); this.uploaderId = uploaderId; this.kind = kind; this.storageKey = storageKey;
-        this.sha256 = sha256; this.mimeType = mimeType; this.sizeBytes = sizeBytes; this.status = DomainEnums.MediaStatus.CREATED;
+        this.sha256 = sha256; this.mimeType = mimeType; this.sizeBytes = sizeBytes; this.durationSeconds = durationSeconds; this.status = DomainEnums.MediaStatus.CREATED;
         this.createdAt = Instant.now(); this.updatedAt = createdAt;
     }
     @PreUpdate void touch() { updatedAt = Instant.now(); }
@@ -59,6 +64,7 @@ public class MediaAssetEntity {
     public DomainEnums.MediaStatus getStatus() { return status; }
     public String getMimeType() { return mimeType; }
     public long getSizeBytes() { return sizeBytes; }
+    public Integer getDurationSeconds() { return durationSeconds; }
     public String getProcessingJobId() { return processingJobId; }
     public String getDisplayStorageKey() { return displayStorageKey; }
     public String getThumbnailStorageKey() { return thumbnailStorageKey; }
@@ -75,6 +81,7 @@ public class MediaAssetEntity {
     }
     public void markBlocked() { this.status = DomainEnums.MediaStatus.BLOCKED; }
     public void markFailed() { this.status = DomainEnums.MediaStatus.FAILED; }
+    public void retryProcessing() { this.processingJobId = null; this.status = DomainEnums.MediaStatus.PROCESSING; }
     public void processingJob(String jobId) { this.processingJobId = jobId; this.updatedAt = Instant.now(); }
     public void attach(UUID momentId) { this.momentId = momentId; }
     public void markProfileAvatar(boolean profileAvatar) { this.profileAvatar = profileAvatar; }

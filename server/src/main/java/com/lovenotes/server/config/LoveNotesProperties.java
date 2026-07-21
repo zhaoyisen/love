@@ -19,6 +19,7 @@ public record LoveNotesProperties(
     public record Media(
             long imageMaxBytes,
             long videoMaxBytes,
+            int videoMaxDurationSeconds,
             int uploadCredentialTtlSeconds,
             int trashRetentionDays,
             int orphanRetentionHours

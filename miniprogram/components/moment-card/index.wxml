@@ -1,34 +1,60 @@
-<view class="film-moment {{display.mediaType === 'TEXT' ? 'is-text' : ''}} press" bindtap="open">
-  <view class="film-strip"><text>FRAME {{display.day}}</text><text>{{display.month}}月 {{display.time}}</text></view>
-  <view wx:if="{{display.mediaType !== 'TEXT'}}" class="media-cover tone-{{display.media[0].tone || 'paper'}}">
-    <image wx:if="{{display.media[0].path && display.mediaType === 'IMAGE'}}" class="media-image" src="{{display.media[0].path}}" mode="aspectFill" binderror="imageError"></image>
-    <video wx:elif="{{display.media[0].path && display.mediaType === 'VIDEO'}}" class="media-image" src="{{display.media[0].path}}" controls show-center-play-btn show-play-btn enable-play-gesture object-fit="cover" catchtap="keepVideoControl" binderror="videoError"></video>
-    <view wx:else class="cover-art">
-      <view class="cover-sun"></view>
-      <view class="cover-line"></view>
-      <text>{{display.mediaType === 'VIDEO' ? '▶ 片刻影像' : display.template || '原始照片'}}</text>
-    </view>
-    <view class="film-date-stamp"><text>{{display.day}}</text><text>{{display.month}}月</text></view>
-    <view wx:if="{{display.status === 'UPLOADING'}}" class="card-processing"><text>正在冲洗</text><text>完成前只给你看</text></view>
-  </view>
-  <view class="film-copy">
-    <view class="author-row">
+<view wx:if="{{display.id}}" class="timeline-moment card--interactive {{display.mediaType === 'TEXT' ? 'is-text' : ''}}" role="button" aria-label="打开记录：{{display.title || display.body}}" bindtap="open">
+  <view class="moment-meta">
+    <view class="moment-author">
       <text class="author-dot {{display.author === '我' ? 'mine' : 'partner'}}"></text>
-      <text>{{display.author === '我' ? '我留下的' : 'TA 留下的'}}</text>
+      <text class="author-name">{{display.author === '我' ? '我留下的' : partnerName + ' 留下的'}}</text>
+    </view>
+    <text class="moment-date numeric">{{display.month}}月{{display.day}}日 · {{display.time}}</text>
+  </view>
+
+  <view wx:if="{{display.mediaType !== 'TEXT'}}" class="media-cover tone-{{display.media[0].tone || 'paper'}}">
+    <image wx:if="{{!mediaError && display.mediaType === 'IMAGE' && (display.media[0].thumbnailPath || display.media[0].path)}}" class="media-image" src="{{display.media[0].thumbnailPath || display.media[0].path}}" mode="aspectFill" lazy-load="{{!eager}}" binderror="imageError"></image>
+    <image wx:elif="{{!mediaError && display.mediaType === 'VIDEO' && display.media[0].thumbnailPath}}" class="media-image" src="{{display.media[0].thumbnailPath}}" mode="aspectFill" lazy-load="{{!eager}}" binderror="imageError"></image>
+
+    <view wx:elif="{{mediaError}}" class="media-error" role="status">
+      <view class="media-error-mark">!</view>
+      <text class="media-error-title">媒体没有加载完成</text>
+      <text class="media-error-copy">打开记录后可重新尝试</text>
+    </view>
+
+    <view wx:else class="cover-art">
+      <text>{{display.mediaType === 'VIDEO' ? '视频封面正在准备' : display.template || '媒体暂不可见'}}</text>
+      <text>打开记录查看详情</text>
+    </view>
+
+    <view wx:if="{{display.mediaType === 'VIDEO'}}" class="video-entry" aria-label="进入详情播放视频">
+      <text aria-hidden="true">▶</text>
+      <text>查看视频</text>
+    </view>
+    <text wx:if="{{display.mediaType === 'IMAGE' && display.media.length > 1}}" class="card-media-count">{{display.media.length}} 张</text>
+    <view wx:if="{{display.status === 'UPLOADING'}}" class="card-processing" role="status">
+      <text>正在上传这段记录</text>
+      <text>完成前只给你看</text>
+    </view>
+  </view>
+
+  <view class="moment-copy-area">
+    <view class="scope-row">
       <text wx:if="{{display.status === 'UPLOADING'}}" class="lock-label">处理中</text>
       <text wx:elif="{{display.visibility === 'PRIVATE'}}" class="lock-label">只给自己</text>
-      <text wx:else class="shared-label">我和 TA</text>
+      <text wx:else class="shared-label">我和 {{partnerName}}</text>
     </view>
-    <text class="moment-title">{{display.title}}</text>
-    <text class="moment-copy">{{display.body}}</text>
-    <view class="tag-row">
+    <text wx:if="{{display.title}}" class="moment-title">{{display.title}}</text>
+    <text wx:if="{{display.body}}" class="moment-copy">{{display.body}}</text>
+    <view wx:if="{{display.mood || (display.events && display.events.length)}}" class="tag-row">
       <text wx:if="{{display.mood}}" class="tag">{{display.mood}}</text>
       <text wx:for="{{display.events}}" wx:key="*this" wx:for-item="tag" wx:if="{{index < 2}}" class="tag">{{tag}}</text>
     </view>
     <view wx:if="{{display.reaction || display.commentCount}}" class="sweet-response">
-      <view class="response-avatar">TA</view>
-      <text wx:if="{{display.reaction}}">{{display.reaction.actor === '我' ? '我回应了：' : 'TA 回应了：'}}{{display.reaction.value}}</text>
-      <text wx:if="{{display.commentCount}}">还有 {{display.commentCount}} 句悄悄话</text>
+      <view class="response-avatar">{{partnerInitial}}</view>
+      <view class="response-copy">
+        <text wx:if="{{display.reaction}}">{{display.reaction.actor === '我' ? '我回应了：' : partnerName + ' 回应了：'}}{{display.reaction.value}}</text>
+        <text wx:if="{{display.commentCount}}">还有 {{display.commentCount}} 句悄悄话</text>
+      </view>
     </view>
   </view>
+</view>
+
+<view wx:else class="moment-card-empty" role="status">
+  <text>这条记录暂时无法显示</text>
 </view>

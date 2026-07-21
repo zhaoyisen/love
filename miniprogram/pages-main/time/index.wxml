@@ -1,39 +1,162 @@
-<view class="page sweet-feed-page">
-  <view class="sunset-hero">
-    <view class="sunset-glow"></view>
-    <view class="feed-topbar">
-      <view><text class="feed-brand">恋爱笔记</text><text class="feed-date">{{dateEyebrow}}</text></view>
-      <button class="feed-message press" bindtap="messages" aria-label="打开消息">
-        <view class="message-envelope"><view></view></view>
-        <text wx:if="{{unread}}" class="feed-message-count">{{unread}}</text>
-      </button>
+<view class="page time-page">
+  <view class="feed-header">
+    <view class="feed-heading">
+      <text class="feed-date numeric">{{dateEyebrow}}</text>
+      <text class="display-title">我们的时光</text>
+      <view class="couple-signature">
+        <view class="signature-avatars" aria-hidden="true">
+          <view class="signature-avatar mine">
+            <image wx:if="{{profile.avatarUrl}}" src="{{profile.avatarUrl}}" mode="aspectFill"></image>
+            <text wx:else>{{profile.avatarText || '我'}}</text>
+          </view>
+          <view class="signature-avatar partner">
+            <image wx:if="{{partnerAvatarUrl}}" src="{{partnerAvatarUrl}}" mode="aspectFill" lazy-load="{{true}}"></image>
+            <text wx:else>{{partnerInitial}}</text>
+          </view>
+        </view>
+        <text>{{couple.status === 'PAIRED' ? couple.relationshipName : '等待 TA 加入后，一起保存生活里的片刻'}}</text>
+      </view>
     </view>
-    <view class="couple-signature">
-      <view class="signature-avatars"><view class="signature-avatar mine"><image wx:if="{{profile.avatarUrl}}" src="{{profile.avatarUrl}}" mode="aspectFill"></image><text wx:else>{{profile.avatarText || '我'}}</text></view><view class="signature-avatar partner">{{partnerInitial}}</view></view>
-      <text>{{couple.status === 'PAIRED' ? couple.relationshipName : '等待 TA 加入这卷胶片'}}</text>
-    </view>
-    <view class="sunset-title"><text>今天和 TA，</text><text>又有新的心动吗？</text></view>
-    <text class="sunset-copy">把一张合照、一句想说的话，留给以后一起看。</text>
-    <view class="hero-prompt"><view class="prompt-line"></view><text>下一段故事，从底部的“这一刻”开始</text></view>
-    <view class="film-meta"><text>LOVE ROLL · {{currentYear}}</text><text>{{moments.length}} FRAMES</text></view>
+
+    <button class="message-button press" bindtap="messages" aria-label="打开消息">
+      <view class="message-envelope" aria-hidden="true"></view>
+      <text wx:if="{{unread}}" class="message-badge">{{unread > 99 ? '99+' : unread}}</text>
+    </button>
   </view>
 
   <view class="memory-toolbar">
-    <scroll-view scroll-x class="memory-tabs" show-scrollbar="false"><view class="memory-tabs-inner"><button wx:for="{{views}}" wx:key="key" class="memory-tab {{viewType === item.key ? 'active' : ''}} press" data-view="{{item.key}}" bindtap="switchView">{{item.label}}</button></view></scroll-view>
-    <button class="mood-filter press" bindtap="toggleFilter"><text>{{filterMood === '全部' ? '筛选' : filterMood}}</text><text>⌄</text></button>
+    <scroll-view scroll-x class="memory-tabs" show-scrollbar="false" aria-label="选择时间范围">
+      <view class="memory-tabs-inner">
+        <button
+          wx:for="{{views}}"
+          wx:key="key"
+          class="memory-tab {{viewType === item.key ? 'active' : ''}} press"
+          data-view="{{item.key}}"
+          aria-current="{{viewType === item.key ? 'page' : 'false'}}"
+          bindtap="switchView"
+        >{{item.label}}</button>
+      </view>
+    </scroll-view>
+    <button class="mood-filter {{filterMood !== '全部' ? 'active' : ''}} press" aria-expanded="{{showFilter}}" bindtap="toggleFilter">
+      <text>{{filterMood === '全部' ? '筛选' : filterMood}}</text>
+      <text aria-hidden="true">⌄</text>
+    </button>
   </view>
 
-  <view wx:if="{{showFilter}}" class="sweet-filter"><text>想看哪一种心情？</text><view class="filter-chips"><button wx:for="{{['全部','开心','心动','平静','想念','委屈']}}" wx:key="*this" class="chip {{filterMood === item ? 'chip--active' : ''}}" data-value="{{item}}" bindtap="filterMood">{{item}}</button></view></view>
-  <view wx:if="{{loading}}" class="sync-status"><view class="sync-dot"></view><text>正在冲洗你们的新回忆</text></view>
-  <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="refresh">重试</button></view>
+  <view wx:if="{{showFilter}}" class="mood-panel">
+    <text class="mood-panel-title">想看哪一种心情？</text>
+    <view class="filter-chips">
+      <button
+        wx:for="{{['全部','开心','心动','平静','想念','委屈']}}"
+        wx:key="*this"
+        class="chip {{filterMood === item ? 'chip--active' : ''}} press"
+        data-value="{{item}}"
+        bindtap="filterMood"
+      >{{item}}</button>
+    </view>
+  </view>
 
-  <view wx:if="{{viewType === 'week'}}" class="sweet-week"><view wx:for="{{weekDays}}" wx:key="day" class="sweet-day {{item.active ? 'active' : ''}}"><text>{{item.label}}</text><text>{{item.day}}</text><view wx:if="{{item.count}}"></view></view></view>
-  <view wx:elif="{{viewType === 'month'}}" class="sweet-calendar"><view class="calendar-heading"><text>{{currentMonthTitle}}</text><text>点亮过的日子</text></view><view class="calendar-week"><text wx:for="{{['一','二','三','四','五','六','日']}}" wx:key="*this">{{item}}</text></view><view class="calendar-grid"><view wx:for="{{calendar}}" wx:key="index" class="calendar-day {{item.muted ? 'muted' : ''}} {{item.active ? 'active' : ''}}"><text>{{item.day}}</text><view wx:if="{{item.count}}"></view></view></view></view>
-  <view wx:elif="{{viewType === 'year'}}" class="sweet-year"><view class="year-heading"><text>{{currentYear}}</text><text>属于你们的这一年</text></view><view class="month-grid"><view wx:for="{{months}}" wx:key="label" class="month-cell {{item.count ? 'has-record' : ''}}"><text>{{item.label}}</text><text>{{item.count || '·'}}</text></view></view></view>
-  <view wx:elif="{{viewType === 'custom'}}" class="sweet-range"><text class="section-title">选一段想重温的日子</text><view class="date-range"><picker mode="date" value="{{customStart}}" end="{{customEnd}}" bindchange="customStartChange"><view><text>从</text><text>{{customStart}}</text></view></picker><text>到</text><picker mode="date" value="{{customEnd}}" start="{{customStart}}" bindchange="customEndChange"><view><text>到</text><text>{{customEnd}}</text></view></picker></view></view>
+  <view wx:if="{{loading && loaded}}" class="sync-status" role="status">
+    <view class="sync-dot" aria-hidden="true"></view>
+    <text>正在同步新的记录，已保存的内容仍可查看</text>
+  </view>
 
-  <view class="feed-section-head"><view><text>{{viewType === 'day' ? '最近的甜蜜' : viewType === 'week' ? '本周心动' : viewType === 'month' ? '这个月的我们' : viewType === 'year' ? '这一年的我们' : '找到的瞬间'}}</text><text>{{viewType === 'day' ? '看看彼此最近留下了什么' : currentDateLabel + ' · 按发生时间排列'}}</text></view><text class="film-count">{{moments.length}} 个瞬间</text></view>
-  <block wx:if="{{moments.length}}"><moment-card wx:for="{{moments}}" wx:key="id" item="{{item}}" bind:open="openMoment"></moment-card></block>
-  <empty-state wx:else title="这一格还空着" description="下一次心动发生时，记得把它留给你们。" action="记录这一刻" bind:action="compose"></empty-state>
-  <button wx:if="{{hasMore}}" class="load-more press" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">{{loadingMore ? '正在冲洗' : '继续翻看'}}</button>
+  <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
+    <text>{{error}}</text>
+    <button bindtap="refresh">重试</button>
+  </view>
+
+  <view wx:if="{{loading && !loaded}}" class="timeline-skeleton" role="status" aria-label="正在读取记录">
+    <text>正在读取你们的记录</text>
+    <view wx:for="{{[1,2]}}" wx:key="*this" class="skeleton-entry">
+      <view class="skeleton-meta skeleton-block"></view>
+      <view class="skeleton-media skeleton-block"></view>
+      <view class="skeleton-copy skeleton-block"></view>
+    </view>
+  </view>
+
+  <block wx:else>
+    <view wx:if="{{viewType === 'week'}}" class="period-panel week-strip">
+      <view wx:for="{{weekDays}}" wx:key="day" class="week-day {{item.active ? 'active' : ''}}">
+        <text>{{item.label}}</text>
+        <text class="week-number numeric">{{item.day}}</text>
+        <view wx:if="{{item.count}}" class="record-dot" aria-label="这一天有记录"></view>
+      </view>
+    </view>
+
+    <view wx:elif="{{viewType === 'month'}}" class="period-panel calendar-panel">
+      <view class="period-heading">
+        <text>{{currentMonthTitle}}</text>
+        <text>有圆点的日期留下过记录</text>
+      </view>
+      <view class="calendar-week">
+        <text wx:for="{{['一','二','三','四','五','六','日']}}" wx:key="*this">{{item}}</text>
+      </view>
+      <view class="calendar-grid">
+        <view wx:for="{{calendar}}" wx:key="index" class="calendar-day {{item.muted ? 'muted' : ''}} {{item.active ? 'active' : ''}}">
+          <text class="numeric">{{item.day}}</text>
+          <view wx:if="{{item.count}}" class="record-dot" aria-label="这一天有记录"></view>
+        </view>
+      </view>
+    </view>
+
+    <view wx:elif="{{viewType === 'year'}}" class="period-panel year-panel">
+      <view class="period-heading">
+        <text class="numeric">{{currentYear}}</text>
+        <text>按月份查看这一年的记录</text>
+      </view>
+      <view class="month-grid">
+        <view wx:for="{{months}}" wx:key="label" class="month-cell {{item.count ? 'has-record' : ''}} {{item.active ? 'is-current' : ''}}">
+          <text>{{item.label}}</text>
+          <text class="numeric">{{summaryComplete ? (item.count || '·') : (item.count ? '有记录' : '·')}}</text>
+        </view>
+      </view>
+      <text wx:if="{{!summaryComplete}}" class="summary-note">继续翻看后，将补全这一年的月份统计</text>
+    </view>
+
+    <view wx:elif="{{viewType === 'custom'}}" class="period-panel range-panel">
+      <text class="section-title">选一段想重温的日子</text>
+      <view class="date-range">
+        <picker mode="date" value="{{customStart}}" end="{{customEnd}}" bindchange="customStartChange">
+          <view><text>开始日期</text><text class="numeric">{{customStart}}</text></view>
+        </picker>
+        <text aria-hidden="true">至</text>
+        <picker mode="date" value="{{customEnd}}" start="{{customStart}}" bindchange="customEndChange">
+          <view><text>结束日期</text><text class="numeric">{{customEnd}}</text></view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="feed-section-head">
+      <view>
+        <text>{{viewType === 'day' ? '最近的记录' : viewType === 'week' ? '本周记录' : viewType === 'month' ? '本月记录' : viewType === 'year' ? '今年的记录' : '找到的记录'}}</text>
+        <text>{{viewType === 'day' ? '按发生时间，看看彼此最近留下了什么' : currentDateLabel + ' · 按发生时间排列'}}</text>
+      </view>
+      <text class="moment-count">{{moments.length}} 个瞬间</text>
+    </view>
+
+    <view wx:if="{{moments.length}}" class="timeline-list">
+      <moment-card
+        wx:for="{{moments}}"
+        wx:key="id"
+        item="{{item}}"
+        eager="{{index === 0}}"
+        partner-name="{{couple.partnerName || 'TA'}}"
+        partner-initial="{{partnerInitial}}"
+        bind:open="openMoment"
+      ></moment-card>
+    </view>
+
+    <empty-state
+      wx:else
+      title="{{filterMood !== '全部' ? '没有找到这种心情' : viewType === 'day' ? '还没有共同记录' : '这段时间还没有记录'}}"
+      description="{{filterMood !== '全部' ? '换一种心情看看，或者清除当前筛选。' : '下一次想记住什么时，把它留在这里。'}}"
+      action="{{filterMood !== '全部' ? '清除筛选' : '记下这一刻'}}"
+      bind:action="emptyAction"
+    ></empty-state>
+
+    <button wx:if="{{hasMore}}" class="load-more press" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">
+      {{loadingMore ? '正在读取更多记录' : '继续翻看'}}
+    </button>
+  </block>
 </view>

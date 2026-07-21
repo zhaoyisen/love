@@ -10,6 +10,7 @@ export interface MediaItem {
   fileName?: string;
   mimeType?: string;
   size?: number;
+  durationSeconds?: number;
   assetId?: string;
   uploadSessionId?: string;
   error?: string;
@@ -96,6 +97,7 @@ export interface AppState {
     version?: number;
     status: "UNPAIRED" | "PAIRED" | "ENDED";
     partnerName: string;
+    partnerAvatarUrl?: string;
     relationshipName: string;
     anniversary: string;
     pairedAt?: string;
@@ -106,8 +108,15 @@ export interface AppState {
   pet: {
     name: string;
     kind: string;
-    level: number;
-    growth: number;
+      level: number;
+      growth: number;
+      maxLevel: number;
+      growthPercent: number;
+      unlockedItems: string[];
+      nextUnlockLevel?: number;
+      nextUnlockItem?: string;
+      relationshipGrowthToday: number;
+      relationshipDailyCap: number;
     fedToday: boolean;
     playedToday: boolean;
     logs: string[];

@@ -37,4 +37,5 @@
   </view>
 
   <canvas canvas-id="recapPosterCanvas" class="recap-canvas" style="width: {{posterWidth}}px; height: {{posterHeight}}px;"></canvas>
+  <privacy-consent id="privacy-consent"></privacy-consent>
 </view>

@@ -1,0 +1,139 @@
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V5
+ * theme: custom · vibe: 暖昏生活胶片 · axes: light / geometric-numeral / warm-berry
+ */
+
+page {
+  /* Color · canonical */
+  --color-paper: #F7EDE2;
+  --color-surface: #FFF9F2;
+  --color-surface-muted: #F1E3D9;
+  --color-ink: #2D2425;
+  --color-ink-secondary: #6B5C5B;
+  --color-rule: #E3CEC2;
+  --color-focus: #2D2425;
+  --color-disabled-bg: #E9DDD4;
+  --color-disabled-ink: #A0918C;
+  --color-overlay: rgba(45, 36, 37, .46);
+
+  --color-accent: #B94E5A;
+  --color-accent-strong: #943D48;
+  --color-accent-soft: #F3D9DA;
+  --color-accent-ink: var(--color-surface);
+  --color-apricot: #D99062;
+  --color-shared: #5F6F54;
+
+  --color-success: #536A4C;
+  --color-success-bg: #E5ECE1;
+  --color-info: #496477;
+  --color-info-bg: #E2EAF0;
+  --color-warning: #8F5D2B;
+  --color-warning-bg: #F5E6D5;
+  --color-error: #A64642;
+  --color-error-bg: #F8E3DF;
+
+  /* Typography */
+  --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-display: var(--font-body);
+  --font-numeric: "Bricolage Grotesque", var(--font-body);
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --text-display: 88rpx;
+  --text-page-title: 48rpx;
+  --text-section-title: 36rpx;
+  --text-list-title: 32rpx;
+  --text-body: 30rpx;
+  --text-secondary: 28rpx;
+  --text-meta: 24rpx;
+  --text-button: 30rpx;
+
+  --line-display: 1.1;
+  --line-page-title: 56rpx;
+  --line-section-title: 48rpx;
+  --line-list-title: 44rpx;
+  --line-body: 48rpx;
+  --line-secondary: 44rpx;
+  --line-meta: 36rpx;
+  --line-button: 40rpx;
+
+  /* Spacing · 4rpx base */
+  --space-3xs: 4rpx;
+  --space-2xs: 8rpx;
+  --space-xs: 12rpx;
+  --space-sm: 16rpx;
+  --space-md: 20rpx;
+  --space-lg: 28rpx;
+  --space-xl: 40rpx;
+  --space-2xl: 64rpx;
+  --space-3xl: 96rpx;
+
+  --page-gutter: 32rpx;
+  --touch-target: 88rpx;
+  --tabbar-content-height: 112rpx;
+  --textarea-min-height: 240rpx;
+  --state-content-max-width: 520rpx;
+  --state-mark-size: 88rpx;
+  --modal-max-height: 80vh;
+  --media-card-min-height: 480rpx;
+
+  /* Shape, depth, rules */
+  --radius-sm: 12rpx;
+  --radius-md: 18rpx;
+  --radius-lg: 20rpx;
+  --radius-xl: 28rpx;
+  --radius-pill: 999rpx;
+  --radius-round: 50%;
+
+  --rule-thin: 2rpx;
+  --rule-strong: 4rpx;
+  --shadow-media: 0 8rpx 24rpx rgba(45, 36, 37, .08);
+  --shadow-modal: 0 16rpx 48rpx rgba(45, 36, 37, .14);
+
+  /* Motion */
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 360ms;
+  --dur-loader: 1200ms;
+  --dur-loader-reduced: 1800ms;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --ease-in: cubic-bezier(.7, 0, .84, 0);
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);
+  --opacity-disabled: .58;
+  --opacity-loading: .78;
+  --opacity-pressed: .86;
+  --press-scale: .98;
+
+  /* Layering */
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-toast: 500;
+
+  /* Compatibility aliases · remove only after page WXSS migrates */
+  --paper: var(--color-paper);
+  --paper-deep: var(--color-surface-muted);
+  --paper-light: var(--color-surface);
+  --surface: var(--color-surface);
+  --surface-soft: var(--color-surface-muted);
+  --ink: var(--color-ink);
+  --ink-soft: var(--color-ink-secondary);
+  --muted: var(--color-ink-secondary);
+  --muted-light: var(--color-disabled-ink);
+  --line: var(--color-rule);
+  --line-strong: var(--color-rule);
+  --red: var(--color-accent);
+  --red-deep: var(--color-accent-strong);
+  --red-soft: var(--color-accent-soft);
+  --green: var(--color-shared);
+  --green-soft: var(--color-success-bg);
+  --gold: var(--color-apricot);
+  --sunset: var(--color-apricot);
+  --dusk: var(--color-ink-secondary);
+  --shadow-card: var(--shadow-media);
+  --shadow-float: var(--shadow-modal);
+}

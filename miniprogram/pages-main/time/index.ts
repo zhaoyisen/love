@@ -11,8 +11,10 @@ Page({
     weekDays: [], calendar: [], months: [], showFilter: false, filterMood: "全部", unread: 0,
     loading: false, loadingMore: false, loaded: false, error: "", dateEyebrow: "", currentDateLabel: "", currentYear: 0, currentMonthTitle: "",
     nextCursor: "", hasMore: false, timelineFrom: "", timelineTo: "",
-    customStart: "", customEnd: "", isRemote: appService.isRemote, partnerInitial: "TA"
+    customStart: "", customEnd: "", isRemote: appService.isRemote, partnerInitial: "TA", partnerAvatarUrl: "", summaryComplete: true
   },
+  remoteMoments: [] as any[],
+  rangeRequestId: 0,
   onShow() {
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 0 });
     this.refresh();
@@ -22,12 +24,13 @@ Page({
   async refresh() {
     this.setData({ loading: true, error: "" });
     try {
-      const page = await appService.refresh();
-      if (page) this.setData({ nextCursor: page.nextCursor, hasMore: page.hasMore, timelineFrom: page.from, timelineTo: page.to });
-      this.render();
+      await appService.refresh();
+      if (appService.isRemote) await this.reloadTimelineRange();
+      else this.render();
       this.setData({ loaded: true });
     } catch (error) {
       if (redirectExpiredSession()) return;
+      if (appService.isRemote && !this.remoteMoments.length) this.remoteMoments = store.getState().moments;
       this.render();
       this.setData({ loaded: true, error: userError(error, "时光同步失败，当前展示最近一次保存的内容。") });
     } finally {
@@ -41,15 +44,58 @@ Page({
     try {
       const page = await appService.timelinePage(this.data.timelineFrom, this.data.timelineTo, 50, this.data.nextCursor);
       store.appendRemoteMoments(page.items);
-      this.setData({ nextCursor: page.next_cursor || "", hasMore: Boolean(page.has_more) });
+      const incoming = new Set(page.items.map((item: any) => item.id));
+      this.remoteMoments = [...this.remoteMoments.filter((item: any) => !incoming.has(item.id)), ...page.items];
+      this.setData({ nextCursor: page.next_cursor || "", hasMore: Boolean(page.has_more), summaryComplete: !page.has_more });
       this.render();
     } catch (error) {
       if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "更多记录加载失败"), icon: "none" });
     } finally { this.setData({ loadingMore: false }); }
   },
+  timelineRange() {
+    const now = new Date();
+    const from = new Date(now);
+    const to = new Date(now.getTime() + 5 * 60000);
+    if (this.data.viewType === "day") {
+      from.setTime(new Date("2000-01-01T00:00:00.000Z").getTime());
+    } else if (this.data.viewType === "week") {
+      from.setHours(0, 0, 0, 0); from.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      to.setTime(from.getTime()); to.setDate(from.getDate() + 6); to.setHours(23, 59, 59, 999);
+    } else if (this.data.viewType === "month") {
+      from.setFullYear(now.getFullYear(), now.getMonth(), 1); from.setHours(0, 0, 0, 0);
+      to.setFullYear(now.getFullYear(), now.getMonth() + 1, 0); to.setHours(23, 59, 59, 999);
+    } else if (this.data.viewType === "year") {
+      from.setFullYear(now.getFullYear(), 0, 1); from.setHours(0, 0, 0, 0);
+      to.setFullYear(now.getFullYear(), 11, 31); to.setHours(23, 59, 59, 999);
+    } else {
+      const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(now.getDate() - 30);
+      const start = this.data.customStart || this.dateValue(thirtyDaysAgo);
+      const end = this.data.customEnd || this.dateValue(now);
+      from.setTime(new Date(`${start}T00:00:00`).getTime());
+      to.setTime(new Date(`${end}T23:59:59.999`).getTime());
+    }
+    return { from: from.toISOString(), to: to.toISOString() };
+  },
+  async reloadTimelineRange() {
+    const requestId = ++this.rangeRequestId;
+    const range = this.timelineRange();
+    const page = await appService.timelinePage(range.from, range.to, 50);
+    if (requestId !== this.rangeRequestId) return;
+    this.remoteMoments = page.items;
+    store.appendRemoteMoments(page.items);
+    this.setData({
+      timelineFrom: range.from,
+      timelineTo: range.to,
+      nextCursor: page.next_cursor || "",
+      hasMore: Boolean(page.has_more),
+      summaryComplete: !page.has_more
+    });
+    this.render();
+  },
   render() {
     const state = store.getState();
-    const moments = state.moments.filter((item) => item.status !== "DELETED" && (state.couple.status === "PAIRED" || item.author === "我"));
+    const source = appService.isRemote ? this.remoteMoments : state.moments;
+    const moments = source.filter((item) => item.status !== "DELETED" && (state.couple.status === "PAIRED" || item.author === "我"));
     const now = new Date();
     const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(now.getDate() - 30);
     const customStart = this.data.customStart || this.dateValue(thirtyDaysAgo);
@@ -80,7 +126,7 @@ Page({
       dateEyebrow: `${now.getFullYear()} · ${now.getMonth() + 1}月`,
       currentDateLabel: `${now.getMonth() + 1} 月 ${now.getDate()} 日`, currentYear: now.getFullYear(),
       currentMonthTitle: `${now.getFullYear()} 年 ${now.getMonth() + 1} 月`, customStart, customEnd,
-      partnerInitial: (state.couple.partnerName || "TA").slice(0, 1)
+      partnerInitial: (state.couple.partnerName || "TA").slice(0, 1), partnerAvatarUrl: state.couple.partnerAvatarUrl || ""
     });
   },
   dateValue(date: Date) { const month = `${date.getMonth() + 1}`.padStart(2, "0"); const day = `${date.getDate()}`.padStart(2, "0"); return `${date.getFullYear()}-${month}-${day}`; },
@@ -107,11 +153,26 @@ Page({
   buildMonths(now: Date, moments: any[]) {
     return ["一月","二月","三月","四月","五月","六月","七月","八月","九月","十月","十一月","十二月"].map((label, index) => ({ label, count: moments.filter((item) => { const date = new Date(item.occurredAt); return date.getFullYear() === now.getFullYear() && date.getMonth() === index; }).length, active: index === now.getMonth() }));
   },
-  switchView(event: any) { this.setData({ viewType: event.currentTarget.dataset.view }); this.render(); },
-  customStartChange(event: any) { const customStart = event.detail.value; if (customStart > this.data.customEnd) { wx.showToast({ title: "开始日期不能晚于结束日期", icon: "none" }); return; } this.setData({ customStart }); this.render(); },
-  customEndChange(event: any) { const customEnd = event.detail.value; if (customEnd < this.data.customStart) { wx.showToast({ title: "结束日期不能早于开始日期", icon: "none" }); return; } this.setData({ customEnd }); this.render(); },
+  async switchView(event: any) {
+    const viewType = event.currentTarget.dataset.view;
+    if (viewType === this.data.viewType) return;
+    this.setData({ viewType, loading: appService.isRemote, error: "" });
+    try { if (appService.isRemote) await this.reloadTimelineRange(); else this.render(); }
+    catch (error) { this.setData({ error: userError(error, "这段时光没有加载完成，请重试。") }); }
+    finally { this.setData({ loading: false }); }
+  },
+  async customStartChange(event: any) { const customStart = event.detail.value; if (customStart > this.data.customEnd) { wx.showToast({ title: "开始日期不能晚于结束日期", icon: "none" }); return; } this.setData({ customStart, loading: appService.isRemote, error: "" }); try { if (appService.isRemote) await this.reloadTimelineRange(); else this.render(); } catch (error) { this.setData({ error: userError(error, "自定义时间范围加载失败，请重试。") }); } finally { this.setData({ loading: false }); } },
+  async customEndChange(event: any) { const customEnd = event.detail.value; if (customEnd < this.data.customStart) { wx.showToast({ title: "结束日期不能早于开始日期", icon: "none" }); return; } this.setData({ customEnd, loading: appService.isRemote, error: "" }); try { if (appService.isRemote) await this.reloadTimelineRange(); else this.render(); } catch (error) { this.setData({ error: userError(error, "自定义时间范围加载失败，请重试。") }); } finally { this.setData({ loading: false }); } },
   toggleFilter() { this.setData({ showFilter: !this.data.showFilter }); },
   filterMood(event: any) { this.setData({ filterMood: event.currentTarget.dataset.value, showFilter: false }); this.render(); },
+  emptyAction() {
+    if (this.data.filterMood !== "全部") {
+      this.setData({ filterMood: "全部", showFilter: false });
+      this.render();
+      return;
+    }
+    this.compose();
+  },
   openMoment(event: any) { wx.navigateTo({ url: `/pkg-moment/detail/index?id=${event.detail.id}` }); },
   compose() { wx.navigateTo({ url: "/pkg-compose/composer/index" }); },
   messages() { wx.navigateTo({ url: "/pkg-couple/messages/index" }); }

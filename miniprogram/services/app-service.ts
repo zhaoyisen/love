@@ -85,20 +85,30 @@ function remoteMessage(item: any): MessageItem {
 }
 
 function emptyPet(): AppState["pet"] {
-  return { name: "", kind: "", level: 0, growth: 0, fedToday: false, playedToday: false, logs: [], adoptionState: "NOT_STARTED" };
+  return { name: "", kind: "", level: 0, growth: 0, maxLevel: 10, growthPercent: 0, unlockedItems: [], nextUnlockLevel: 2,
+    nextUnlockItem: "云朵围巾", relationshipGrowthToday: 0, relationshipDailyCap: 20,
+    fedToday: false, playedToday: false, logs: [], adoptionState: "NOT_STARTED" };
 }
 
 function remotePet(item: any): AppState["pet"] {
   const logs = (item.logs || []).map((log: any) => {
-    const actor = log.mine ? "我" : "TA";
-    const action = log.action === "FEED" ? "给团子喂了小饼干" : "陪团子玩了毛线球";
-    return `${shortDateTime(log.created_at)} · ${actor}${action}`;
+    const actor = log.source === "BOTH_ACTIVE" ? "" : (log.mine ? "我" : "TA");
+    const action = log.summary || (log.action === "FEED" ? "喂了小饼干" : "陪它玩了毛线球");
+    const growth = Number(log.growth_delta || 0) > 0 ? ` · +${log.growth_delta}` : "";
+    return `${shortDateTime(log.created_at)} · ${actor}${action}${growth}`;
   });
   return {
     name: item.name || "",
     kind: item.kind || "",
     level: Number(item.level || 0),
     growth: item.growth || 0,
+    maxLevel: Number(item.max_level || 10),
+    growthPercent: Number(item.growth_percent ?? item.growth ?? 0),
+    unlockedItems: item.unlocked_items || [],
+    nextUnlockLevel: item.next_unlock_level == null ? undefined : Number(item.next_unlock_level),
+    nextUnlockItem: item.next_unlock_item || undefined,
+    relationshipGrowthToday: Number(item.relationship_growth_today || 0),
+    relationshipDailyCap: Number(item.relationship_daily_cap || 20),
     fedToday: Boolean(item.fed_today),
     playedToday: Boolean(item.played_today),
     logs,
@@ -130,6 +140,10 @@ function remotePreferences(item: any): AppState["preferences"] {
     petNotice: item?.pet_notice !== false,
     recapNotice: item?.recap_notice !== false
   };
+}
+
+function remoteDefaultVisibility(item: any): "PRIVATE" | "SHARED" {
+  return item?.default_visibility === "SHARED" ? "SHARED" : "PRIVATE";
 }
 
 function applyRecapPayload(item: any) {
@@ -196,6 +210,7 @@ async function synchronizeRemoteState() {
   store.replaceRemoteMoments(moments);
   store.replaceRemoteMessages((messagePage.items || []).map(remoteMessage));
   store.applyRemotePreferences(remotePreferences(preferences));
+  store.updateDefaultVisibility(remoteDefaultVisibility(preferences));
   if (couple && couple.status === "PAIRED") {
     store.applyRemotePet(remotePet(await petService.current()));
   } else {
@@ -381,12 +396,18 @@ export const appService = {
     };
   },
 
-  async messages() {
-    if (!API_CONFIG.useRemoteApi) return store.getState().messages;
-    const result = await messageService.list(50);
+  async retryMediaProcessing(assetId: string) {
+    if (!API_CONFIG.useRemoteApi) return;
+    await mediaService.retryProcessing(assetId);
+  },
+
+  async messages(page = 0) {
+    if (!API_CONFIG.useRemoteApi) return { items: store.getState().messages, unreadCount: store.getState().messages.filter((item) => !item.read).length, hasMore: false, page: 0 };
+    const result = await messageService.list(30, page);
     const messages = (result.items || []).map(remoteMessage);
-    store.replaceRemoteMessages(messages);
-    return messages;
+    if (page === 0) store.replaceRemoteMessages(messages);
+    else store.appendRemoteMessages(messages);
+    return { items: messages, unreadCount: Number(result.unread_count || 0), hasMore: Boolean(result.has_more), page: Number(result.page || page) };
   },
 
   async readMessage(messageId: string) {
@@ -531,11 +552,31 @@ export const appService = {
       moment_notice: next.momentNotice,
       reaction_notice: next.reactionNotice,
       pet_notice: next.petNotice,
-      recap_notice: next.recapNotice
+      recap_notice: next.recapNotice,
+      default_visibility: store.getState().profile.defaultVisibility
     });
     const preferences = remotePreferences(result);
     store.applyRemotePreferences(preferences);
     return preferences;
+  },
+
+  async updateDefaultVisibility(value: "PRIVATE" | "SHARED") {
+    if (!API_CONFIG.useRemoteApi) {
+      store.updateDefaultVisibility(value);
+      return value;
+    }
+    const current = store.getState();
+    const result = await notificationPreferenceService.update({
+      moment_notice: current.preferences.momentNotice,
+      reaction_notice: current.preferences.reactionNotice,
+      pet_notice: current.preferences.petNotice,
+      recap_notice: current.preferences.recapNotice,
+      default_visibility: value
+    });
+    store.applyRemotePreferences(remotePreferences(result));
+    const saved = remoteDefaultVisibility(result);
+    store.updateDefaultVisibility(saved);
+    return saved;
   },
 
   async deletionStatus(id: string, token: string) {

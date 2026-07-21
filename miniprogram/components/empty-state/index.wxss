@@ -1,8 +1,77 @@
-.empty-state { display: flex; flex-direction: column; align-items: center; padding: 80rpx 30rpx; text-align: center; }
-.empty-mark { position: relative; width: 130rpx; height: 104rpx; border: 3rpx solid #BFAF9F; border-radius: 65rpx 65rpx 42rpx 42rpx; transform: rotate(-5deg); }
-.empty-mark::before,.empty-mark::after { content: ''; position: absolute; top: -12rpx; width: 36rpx; height: 42rpx; border: 3rpx solid #BFAF9F; background: #F7F1E8; transform: rotate(40deg); }
-.empty-mark::before { left: 16rpx; }.empty-mark::after { right: 16rpx; transform: rotate(-40deg); }
-.empty-mark view { position: absolute; left: 36rpx; right: 36rpx; bottom: 28rpx; height: 3rpx; background: #BD4E4E; transform: rotate(4deg); }
-.empty-title { margin-top: 30rpx; font-size: 34rpx; font-weight: 700; }
-.empty-description { max-width: 480rpx; margin-top: 12rpx; color: #817970; font: 25rpx/1.7 sans-serif; }
-.empty-action { margin-top: 30rpx; padding: 22rpx 38rpx; border-radius: 40rpx; color: #FFF; background: #BD4E4E; font: 25rpx/1 sans-serif; }
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4 · component: quiet empty state */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 360rpx;
+  padding: var(--space-2xl) var(--page-gutter);
+  color: var(--color-ink);
+  text-align: center;
+}
+
+.empty-mark {
+  position: relative;
+  width: var(--state-mark-size);
+  height: var(--state-mark-size);
+  border: var(--rule-thin) solid var(--color-rule);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  transform: rotate(-3deg);
+}
+
+.empty-mark::before {
+  content: '';
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  left: var(--space-md);
+  height: var(--rule-thin);
+  background: var(--color-rule);
+}
+
+.empty-mark view {
+  position: absolute;
+  right: var(--space-md);
+  bottom: var(--space-md);
+  left: var(--space-md);
+  height: var(--rule-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+.empty-title {
+  display: block;
+  max-width: var(--state-content-max-width);
+  margin-top: var(--space-lg);
+  font-size: var(--text-list-title);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-list-title);
+  word-break: break-word;
+}
+
+.empty-description {
+  display: block;
+  max-width: var(--state-content-max-width);
+  margin-top: var(--space-xs);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-secondary);
+  line-height: var(--line-secondary);
+  word-break: break-word;
+}
+
+.empty-action {
+  width: auto;
+  max-width: var(--state-content-max-width);
+  margin-top: var(--space-lg);
+  padding-right: var(--space-xl);
+  padding-left: var(--space-xl);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-mark {
+    transform: none;
+  }
+}

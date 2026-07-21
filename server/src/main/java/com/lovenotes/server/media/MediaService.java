@@ -21,13 +21,14 @@ public class MediaService {
     public MediaService(MediaAssetRepository assets,UploadSessionRepository sessions,MomentRepository moments,ActiveCoupleMemberRepository members,ObjectStorage storage,LoveNotesProperties properties){this.assets=assets;this.sessions=sessions;this.moments=moments;this.members=members;this.storage=storage;this.properties=properties;}
 
     @Transactional
-    public CreatedUpload create(UUID actorId,String mimeType,long size,String sha256){
+    public CreatedUpload create(UUID actorId,String mimeType,long size,String sha256,Integer durationSeconds){
         DomainEnums.MediaKind kind=kind(mimeType);long max=kind==DomainEnums.MediaKind.IMAGE?properties.media().imageMaxBytes():properties.media().videoMaxBytes();
         if(size<=0||size>max)throw new ApiException(HttpStatus.BAD_REQUEST,"VALIDATION_ERROR","媒体文件大小不符合要求。",Map.of("max_bytes",max));
+        if(kind==DomainEnums.MediaKind.VIDEO&&(durationSeconds==null||durationSeconds<1||durationSeconds>properties.media().videoMaxDurationSeconds()))throw new ApiException(HttpStatus.BAD_REQUEST,"VALIDATION_ERROR","视频时长必须在 1 到 "+properties.media().videoMaxDurationSeconds()+" 秒之间。",Map.of("max_duration_seconds",properties.media().videoMaxDurationSeconds()));
         if(sha256!=null&&!sha256.matches("[a-fA-F0-9]{64}"))throw new ApiException(HttpStatus.BAD_REQUEST,"VALIDATION_ERROR","sha256 格式不正确。");
         String month=DateTimeFormatter.ofPattern("yyyy/MM").withZone(ZoneOffset.UTC).format(Instant.now());
         String key="original/"+actorId+"/"+month+"/"+UuidV7.next()+extension(mimeType);
-        MediaAssetEntity asset=assets.save(new MediaAssetEntity(actorId,kind,key,sha256,mimeType,size));
+        MediaAssetEntity asset=assets.save(new MediaAssetEntity(actorId,kind,key,sha256,mimeType,size,durationSeconds));
         Duration ttl=Duration.ofSeconds(properties.media().uploadCredentialTtlSeconds());
         UploadSessionEntity session=sessions.save(new UploadSessionEntity(asset.getId(),actorId,Instant.now().plus(ttl)));
         return new CreatedUpload(session,asset,storage.issueUploadCredential(key,ttl));
@@ -58,6 +59,22 @@ public class MediaService {
     public String accessUrl(UUID actorId,UUID assetId){MediaAssetEntity asset=getAuthorized(actorId,assetId);if(asset.getStatus()!=DomainEnums.MediaStatus.READY)throw new ApiException(HttpStatus.CONFLICT,"MEDIA_NOT_READY","媒体仍在安全处理中，请稍后刷新。");return storage.signedGetUrl(displayKey(asset),Duration.ofMinutes(15),displayContentType(asset));}
     public String accessUrlIfReady(UUID actorId,MediaAssetEntity asset){return asset.getStatus()==DomainEnums.MediaStatus.READY&&canRead(actorId,asset)?storage.signedGetUrl(displayKey(asset),Duration.ofMinutes(15),displayContentType(asset)):null;}
     public String thumbnailUrlIfReady(UUID actorId,MediaAssetEntity asset){return asset.getStatus()==DomainEnums.MediaStatus.READY&&asset.getThumbnailStorageKey()!=null&&canRead(actorId,asset)?storage.signedGetUrl(asset.getThumbnailStorageKey(),Duration.ofMinutes(15),"image/webp"):null;}
+    @Transactional
+    public MediaAssetEntity retryProcessing(UUID actorId,UUID assetId){
+        MediaAssetEntity asset=assets.findById(assetId).orElseThrow(()->notFound());
+        if(!asset.getUploaderId().equals(actorId))throw forbidden();
+        if(asset.getStatus()!=DomainEnums.MediaStatus.FAILED)throw new ApiException(HttpStatus.CONFLICT,"MEDIA_NOT_RETRYABLE","只有处理失败的媒体可以重试。");
+        asset.retryProcessing();
+        return asset;
+    }
+    public String profileAvatarUrlIfReady(UUID actorId,UUID profileOwnerId,UUID assetId){
+        if(assetId==null)return null;
+        MediaAssetEntity asset=assets.findById(assetId).orElse(null);
+        if(asset==null||!asset.isProfileAvatar()||!asset.getUploaderId().equals(profileOwnerId)||asset.getStatus()!=DomainEnums.MediaStatus.READY)return null;
+        boolean sameUser=actorId.equals(profileOwnerId);
+        boolean sameCouple=members.findById(actorId).flatMap(actorMember->members.findById(profileOwnerId).map(ownerMember->actorMember.getCoupleId().equals(ownerMember.getCoupleId()))).orElse(false);
+        return sameUser||sameCouple?storage.signedGetUrl(displayKey(asset),Duration.ofMinutes(15),displayContentType(asset)):null;
+    }
     private String displayKey(MediaAssetEntity asset){return asset.getStorageKey();}
     private String displayContentType(MediaAssetEntity asset){return asset.getMimeType();}
     private boolean canRead(UUID actorId,MediaAssetEntity asset){

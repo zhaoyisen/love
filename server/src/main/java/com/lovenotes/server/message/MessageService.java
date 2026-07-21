@@ -24,11 +24,12 @@ public class MessageService {
     }
 
     @Transactional(readOnly = true)
-    public MessagePage list(UUID actorId, int limit) {
-        if (limit < 1 || limit > 100) throw validation("分页大小不正确。");
-        List<MessageView> items = messages.findByRecipientIdOrderByCreatedAtDesc(actorId, PageRequest.of(0, limit))
+    public MessagePage list(UUID actorId, int limit, int page) {
+        if (limit < 1 || limit > 100 || page < 0) throw validation("分页参数不正确。");
+        List<MessageView> items = messages.findByRecipientIdOrderByCreatedAtDesc(actorId, PageRequest.of(page, limit))
                 .stream().map(MessageView::from).toList();
-        return new MessagePage(items, messages.countByRecipientIdAndReadAtIsNull(actorId));
+        boolean hasMore = ((long) page + 1) * limit < messages.countByRecipientId(actorId);
+        return new MessagePage(items, messages.countByRecipientIdAndReadAtIsNull(actorId), page, hasMore);
     }
 
     @Transactional
@@ -150,7 +151,7 @@ public class MessageService {
         return new ApiException(HttpStatus.NOT_FOUND, "MESSAGE_NOT_FOUND", "消息不存在或已经失效。");
     }
 
-    public record MessagePage(List<MessageView> items, long unreadCount) {}
+    public record MessagePage(List<MessageView> items, long unreadCount, int page, boolean hasMore) {}
     public record MessageView(UUID id, DomainEnums.MessageType type, String title, String summary, UUID actorId,
                               UUID momentId, int aggregateCount, Instant readAt, Instant createdAt) {
         static MessageView from(AppMessageEntity message) {

@@ -46,4 +46,5 @@
     {{submitting ? savingText : '保存资料'}}
   </button>
   <button class="cancel-button press" disabled="{{submitting}}" bindtap="cancel">取消</button>
+  <privacy-consent id="privacy-consent"></privacy-consent>
 </view>

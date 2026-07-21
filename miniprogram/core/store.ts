@@ -80,6 +80,13 @@ function initialState(): AppState {
       kind: "云朵猫",
       level: 3,
       growth: 64,
+      maxLevel: 10,
+      growthPercent: 64,
+      unlockedItems: ["云朵围巾"],
+      nextUnlockLevel: 4,
+      nextUnlockItem: "星星抱枕",
+      relationshipGrowthToday: 10,
+      relationshipDailyCap: 20,
       fedToday: false,
       playedToday: false,
       logs: ["昨天 · TA 陪团子玩了一会儿", "06-30 · 你们共同记录了一个时刻"]
@@ -98,7 +105,9 @@ function initialState(): AppState {
     state.couple = { status: "UNPAIRED", partnerName: "TA", relationshipName: "我们的空间", anniversary: "" };
     state.moments = [];
     state.messages = [];
-    state.pet = { name: "团子", kind: "云朵猫", level: 1, growth: 0, fedToday: false, playedToday: false, logs: [] };
+    state.pet = { name: "团子", kind: "云朵猫", level: 1, growth: 0, maxLevel: 10, growthPercent: 0,
+      unlockedItems: [], nextUnlockLevel: 2, nextUnlockItem: "云朵围巾", relationshipGrowthToday: 0,
+      relationshipDailyCap: 20, fedToday: false, playedToday: false, logs: [] };
     state.recap = { title: `我们的 ${new Date().getFullYear()}`, year: new Date().getFullYear(), selectedMomentIds: [], status: "DRAFT", version: 1 };
   }
   return state;
@@ -156,6 +165,7 @@ class LoveNotesStore {
         state.couple = {
           status: "UNPAIRED",
           partnerName: "TA",
+          partnerAvatarUrl: undefined,
           relationshipName: "我们的空间",
           anniversary: ""
         };
@@ -164,7 +174,8 @@ class LoveNotesStore {
       state.couple.id = couple.id;
       state.couple.version = couple.version;
       state.couple.status = couple.status === "PAIRED" ? "PAIRED" : "ENDED";
-      state.couple.partnerName = "TA";
+      state.couple.partnerName = couple.partner_nickname || "TA";
+      state.couple.partnerAvatarUrl = couple.partner_avatar_url || undefined;
       state.couple.relationshipName = couple.relationship_name || "我们的空间";
       state.couple.anniversary = couple.anniversary || "";
     });
@@ -183,6 +194,13 @@ class LoveNotesStore {
 
   replaceRemoteMessages(messages: AppState["messages"]) {
     this.update((state) => { state.messages = messages; });
+  }
+
+  appendRemoteMessages(messages: AppState["messages"]) {
+    this.update((state) => {
+      const known = new Set(state.messages.map((item) => item.id));
+      state.messages = [...state.messages, ...messages.filter((item) => !known.has(item.id))];
+    });
   }
 
   applyRemotePet(pet: AppState["pet"]) {

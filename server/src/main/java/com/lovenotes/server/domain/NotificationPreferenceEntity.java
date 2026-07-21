@@ -25,6 +25,9 @@ public class NotificationPreferenceEntity {
     private boolean petNotice;
     @Column(name = "recap_notice", nullable = false)
     private boolean recapNotice;
+    @Column(name = "default_visibility", nullable = false, length = 20)
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    private DomainEnums.Visibility defaultVisibility;
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
@@ -36,6 +39,7 @@ public class NotificationPreferenceEntity {
         this.reactionNotice = true;
         this.petNotice = true;
         this.recapNotice = true;
+        this.defaultVisibility = DomainEnums.Visibility.PRIVATE;
         this.updatedAt = Instant.now();
     }
 
@@ -44,13 +48,16 @@ public class NotificationPreferenceEntity {
     public boolean isReactionNotice() { return reactionNotice; }
     public boolean isPetNotice() { return petNotice; }
     public boolean isRecapNotice() { return recapNotice; }
+    public DomainEnums.Visibility getDefaultVisibility() { return defaultVisibility; }
     public Instant getUpdatedAt() { return updatedAt; }
 
-    public void update(boolean momentNotice, boolean reactionNotice, boolean petNotice, boolean recapNotice) {
+    public void update(boolean momentNotice, boolean reactionNotice, boolean petNotice, boolean recapNotice,
+                       DomainEnums.Visibility defaultVisibility) {
         this.momentNotice = momentNotice;
         this.reactionNotice = reactionNotice;
         this.petNotice = petNotice;
         this.recapNotice = recapNotice;
+        if (defaultVisibility != null) this.defaultVisibility = defaultVisibility;
         this.updatedAt = Instant.now();
     }
 }

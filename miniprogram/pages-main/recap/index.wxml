@@ -1,20 +1,87 @@
-<view class="page memory-room-page">
-  <text class="memory-kicker">OUR LOVE FILM</text>
-  <view class="memory-title"><text>把每一次心动，</text><text>剪成只属于你们的电影。</text></view>
-  <text class="memory-note">从共同胶片里挑选片段，写下旁白，再保存成一份周年或年度回忆。</text>
-  <view wx:if="{{loading}}" class="sync-status"><view class="sync-dot"></view><text>正在整理你们的胶片</text></view>
-  <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="onShow">重试</button></view>
-  <view class="love-film-cover {{recap.status === 'READY' ? 'ready' : ''}}">
-    <view class="film-holes"><text wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this"></text></view>
-    <view class="cover-top"><text>LOVE NOTES</text><text>ROLL {{recap.version}}</text></view>
-    <text class="cover-year">{{recap.year}}</text><view class="cover-sunset"></view>
-    <text class="cover-title">{{recap.title}}</text>
-    <text class="cover-meta">{{count}} 格共同胶片 · {{recap.status === 'READY' ? '已经上映' : '正在剪辑'}}</text>
-    <button class="cover-action press" bindtap="openCover">{{recap.status === 'READY' ? '一起重温' : '继续剪辑'}} ›</button>
+<view class="page recap-page">
+  <view class="recap-intro">
+    <text class="recap-title">回看共同留下的日子</text>
+    <text class="recap-note">从共同可见的记录里选出片段，整理成一份只属于你们的年度回顾。</text>
   </view>
-  <view class="recap-section">
-    <view><text class="section-title">制作一部新的回忆</text><text class="section-note">你决定哪些片段进入故事，私密记录不会被自动加入。</text></view>
-    <button class="new-recap press" bindtap="create"><text>＋</text><view><text>{{recap.year}} 心动回顾</text><text class="label">{{paired ? (count < 3 ? '胶片不多，也可以亲手选择' : '从你们的共同瞬间开始') : '邀请 TA 后一起制作'}}</text></view></button>
+
+  <view wx:if="{{loading && recap.year}}" class="sync-status" aria-live="polite">
+    <view class="sync-dot"></view>
+    <text>正在同步最近一次回顾</text>
   </view>
-  <view class="recap-principles"><text>故事由你们决定</text><view><view class="decor">1</view><text class="label">只从共同可见瞬间中挑选</text></view><view><view class="decor">2</view><text class="label">不开心的片段默认不打扰</text></view><view><view class="decor">3</view><text class="label">保存或分享前再一起确认</text></view></view>
+
+  <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
+    <text>{{error}}</text>
+    <button bindtap="onShow">重试</button>
+  </view>
+
+  <view wx:if="{{loading && !recap.year}}" class="recap-skeleton" role="status" aria-live="polite" aria-label="正在读取年度回顾">
+    <view class="skeleton-visual"></view>
+    <view class="skeleton-copy">
+      <view class="skeleton-line skeleton-line--short"></view>
+      <view class="skeleton-line"></view>
+      <view class="skeleton-line skeleton-line--medium"></view>
+    </view>
+  </view>
+
+  <empty-state
+    wx:elif="{{!paired}}"
+    title="先和 TA 完成配对"
+    description="配对后，才能从共同可见的记录里一起制作回顾。"
+    action="去邀请 TA"
+    bind:action="invite"
+  ></empty-state>
+
+  <empty-state
+    wx:elif="{{count === 0}}"
+    title="还没有可用于回顾的共同记录"
+    description="先记下一个双方可见的时刻，之后就能把它选进回顾。"
+    action="记下这一刻"
+    bind:action="compose"
+  ></empty-state>
+
+  <block wx:else>
+    <view class="recap-feature">
+      <view class="feature-visual full-bleed {{coverPath ? 'has-photo' : 'is-text'}}">
+        <image wx:if="{{coverPath}}" src="{{coverPath}}" mode="aspectFill" aria-label="年度回顾封面照片"></image>
+        <view wx:else class="feature-fallback">
+          <text class="feature-year">{{recap.year}}</text>
+          <text>这份回顾从文字开始</text>
+        </view>
+        <text class="feature-status">{{recap.status === 'READY' ? '已生成 · 版本 ' + recap.version : '正在整理'}}</text>
+      </view>
+
+      <view class="feature-copy">
+        <text class="feature-meta">{{recap.year}} 年 · 已选 {{selectedCount}} 段 · 共 {{count}} 条可用</text>
+        <text class="feature-title">{{recap.title}}</text>
+        <text class="feature-note">{{recap.status === 'READY' ? '已经可以重温；重新选片后，可以再生成一个版本。' : selectedCount ? '草稿已经保留，继续选择或调整想放进故事里的片段。' : '还没有选择片段，可以从共同记录里慢慢挑。'}}</text>
+        <button class="primary-button feature-action press" bindtap="openCover">{{recap.status === 'READY' ? '一起重温' : selectedCount ? '继续选片' : '开始选片'}}</button>
+        <button wx:if="{{recap.status === 'READY'}}" class="text-button edit-action press" bindtap="create">重新选择片段</button>
+      </view>
+    </view>
+
+    <view class="recap-rules">
+      <text class="rules-title">选片时会遵守这些规则</text>
+      <view class="rule-row">
+        <view>
+          <text class="rule-title">只使用共同可见的记录</text>
+          <text class="rule-note">仅自己可见的内容不会进入候选。</text>
+        </view>
+        <text class="rule-state">已保护</text>
+      </view>
+      <view class="rule-row">
+        <view>
+          <text class="rule-title">敏感片段不会自动加入</text>
+          <text class="rule-note">你仍然可以回到原记录单独查看。</text>
+        </view>
+        <text class="rule-state">默认跳过</text>
+      </view>
+      <view class="rule-row">
+        <view>
+          <text class="rule-title">生成之前再次确认</text>
+          <text class="rule-note">标题、片段和分享内容都由你们决定。</text>
+        </view>
+        <text class="rule-state">由你确认</text>
+      </view>
+    </view>
+  </block>
 </view>

@@ -1,7 +1,7 @@
 import { store } from "../../core/store";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
 Page({
-  data: { couple: {} as any, pet: {} as any, unread: 0, sharedCount: 0, days: 0, myInitial: "我", myAvatarUrl: "", partnerInitial: "TA", loading: false, loaded: false, error: "", isRemote: appService.isRemote, editing: false, editName: "", editAnniversary: "", savingProfile: false },
+  data: { couple: {} as any, pet: {} as any, unread: 0, sharedCount: 0, days: 0, myInitial: "我", myAvatarUrl: "", partnerInitial: "TA", partnerAvatarUrl: "", loading: false, loaded: false, error: "", isRemote: appService.isRemote, editing: false, editName: "", editAnniversary: "", savingProfile: false },
   async onShow() {
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 1 });
     this.setData({ loading: true, error: "" });
@@ -18,7 +18,8 @@ Page({
       days: this.daysSince(state.couple.anniversary),
       myInitial: (state.profile.name || "我").slice(0, 1),
       myAvatarUrl: state.profile.avatarUrl || "",
-      partnerInitial: (state.couple.partnerName || "TA").slice(0, 1)
+      partnerInitial: (state.couple.partnerName || "TA").slice(0, 1),
+      partnerAvatarUrl: state.couple.partnerAvatarUrl || ""
     });
   },
   retry() { this.onShow(); },
@@ -44,7 +45,6 @@ Page({
     try {
       await appService.updateCoupleProfile(name, this.data.editAnniversary || null);
       this.render(); this.setData({ editing: false });
-      wx.showToast({ title: "关系资料已保存", icon: "success" });
     } catch (error: any) {
       if (error?.code === "VERSION_CONFLICT") { await appService.refresh(); this.render(); }
       if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "保存失败，请稍后重试。"), icon: "none" });

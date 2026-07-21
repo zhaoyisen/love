@@ -1,7 +1,7 @@
 import { store } from "../../core/store";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
 Page({
-  data: { recap: {} as any, count: 0, paired: false, loading: false, error: "" },
+  data: { recap: {} as any, count: 0, selectedCount: 0, coverPath: "", paired: false, loading: true, error: "" },
   async onShow() {
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 2 });
     this.setData({ loading: appService.isRemote, error: "" });
@@ -17,8 +17,20 @@ Page({
       this.setData({ loading: false });
     }
   },
-  render() { const state = store.getState(); this.setData({ recap: state.recap, count: state.moments.filter((item) => item.status === "PUBLISHED" && item.visibility === "SHARED").length, paired: state.couple.status === "PAIRED" }); },
+  render() {
+    const state = store.getState();
+    const sharedMoments = state.moments.filter((item) => item.status === "PUBLISHED" && item.visibility === "SHARED");
+    const selectedMoments = state.recap.selectedMomentIds.map((id) => sharedMoments.find((item) => item.id === id)).filter(Boolean) as any[];
+    let coverPath = "";
+    for (const moment of selectedMoments) {
+      const media = (moment.media || []).find((item: any) => (item.type === "IMAGE" && item.path) || item.thumbnailPath);
+      if (media) { coverPath = media.thumbnailPath || media.path || ""; break; }
+    }
+    this.setData({ recap: state.recap, count: sharedMoments.length, selectedCount: selectedMoments.length, coverPath, paired: state.couple.status === "PAIRED" });
+  },
   create() { if (!this.data.paired) { wx.showToast({ title: "完成配对后可制作双人回顾", icon: "none" }); return; } wx.navigateTo({ url: "/pkg-recap/editor/index" }); },
   openCover() { if (this.data.recap.status === "READY") this.preview(); else this.create(); },
-  preview() { wx.navigateTo({ url: "/pkg-recap/preview/index" }); }
+  preview() { wx.navigateTo({ url: "/pkg-recap/preview/index" }); },
+  invite() { wx.navigateTo({ url: "/pkg-couple/invite/index" }); },
+  compose() { wx.navigateTo({ url: "/pkg-compose/composer/index" }); }
 });

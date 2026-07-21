@@ -59,9 +59,17 @@ love-notes:
     refresh-ttl: P30D
   invitation:
     ttl: PT24H
+  pet:
+    relationship-daily-cap: 20
+    moment-growth: 6
+    reaction-growth: 4
+    both-active-growth: 6
+    rule-version: 1
+    unlocks: 云朵围巾,星星抱枕,晚安动作,纪念相框,双人烟花
   media:
     image-max-bytes: 20971520
     video-max-bytes: 209715200
+    video-max-duration-seconds: 60
     upload-credential-ttl-seconds: 1800
     trash-retention-days: ${MEDIA_TRASH_RETENTION_DAYS:30}
     orphan-retention-hours: ${MEDIA_ORPHAN_RETENTION_HOURS:24}

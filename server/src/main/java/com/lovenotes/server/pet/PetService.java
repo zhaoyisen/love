@@ -6,6 +6,7 @@ import com.lovenotes.server.domain.*;
 import com.lovenotes.server.idempotency.IdempotencyStore;
 import com.lovenotes.server.message.MessageService;
 import com.lovenotes.server.repository.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -28,10 +29,13 @@ public class PetService {
     private final IdempotencyStore idempotency;
     private final MessageService messages;
     private final AuditService audit;
+    private final PetGrowthService petGrowth;
+    private final List<String> unlocks;
 
     public PetService(ActiveCoupleMemberRepository members, CoupleSpaceRepository couples, PetStateRepository pets,
                       PetAdoptionProposalRepository proposals, PetActionLogRepository logs, IdempotencyStore idempotency,
-                      MessageService messages, AuditService audit) {
+                      MessageService messages, AuditService audit, PetGrowthService petGrowth,
+                      @Value("${love-notes.pet.unlocks:云朵围巾,星星抱枕,晚安动作,纪念相框,双人烟花}") String unlocks) {
         this.members = members;
         this.couples = couples;
         this.pets = pets;
@@ -40,6 +44,8 @@ public class PetService {
         this.idempotency = idempotency;
         this.messages = messages;
         this.audit = audit;
+        this.petGrowth = petGrowth;
+        this.unlocks = Arrays.stream(unlocks.split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList();
     }
 
     @Transactional
@@ -53,7 +59,7 @@ public class PetService {
     @Transactional
     public PetActionResult act(UUID actorId, DomainEnums.PetAction action, String idempotencyKey) {
         UUID coupleId = requireActiveCouple(actorId);
-        PetStateEntity pet = pets.findByCoupleId(coupleId).orElseThrow(this::petNotAdopted);
+        PetStateEntity pet = pets.findByCoupleIdLocked(coupleId).orElseThrow(this::petNotAdopted);
         String key = Hashing.sha256(actorId + ":pet:" + action + ":" + idempotencyKey);
         Optional<String> replay = idempotency.get(key);
         if (replay.isPresent()) {
@@ -67,11 +73,13 @@ public class PetService {
             idempotency.putIfAbsent(key, "false|0", Duration.ofHours(48));
             return new PetActionResult(view(actorId, pet, null, 0), false, 0);
         }
-        logs.save(new PetActionLogEntity(pet.getId(), coupleId, actorId, action, today, ACTION_GROWTH));
-        pet.addGrowth(ACTION_GROWTH);
-        messages.notifyPet(coupleId, actorId, actionTitle(action), "TA " + actionSummary(action) + "，团子成长 +" + ACTION_GROWTH + "。");
-        idempotency.putIfAbsent(key, "true|" + ACTION_GROWTH, Duration.ofHours(48));
-        return new PetActionResult(view(actorId, pet, action, ACTION_GROWTH), true, ACTION_GROWTH);
+        int actionDelta = pet.addGrowth(ACTION_GROWTH);
+        logs.save(new PetActionLogEntity(pet.getId(), coupleId, actorId, action, today, actionDelta));
+        int togetherDelta = petGrowth.rewardBothActive(coupleId, actorId, today);
+        int totalDelta = actionDelta + togetherDelta;
+        messages.notifyPet(coupleId, actorId, actionTitle(action), "TA " + actionSummary(action) + (totalDelta > 0 ? "，共同成长 +" + totalDelta : "。"));
+        idempotency.putIfAbsent(key, "true|" + totalDelta, Duration.ofHours(48));
+        return new PetActionResult(view(actorId, pet, action, totalDelta), true, totalDelta);
     }
 
     private UUID requireActiveCouple(UUID actorId) {
@@ -136,20 +144,31 @@ public class PetService {
                 || currentAction == DomainEnums.PetAction.FEED;
         boolean playedToday = logs.existsByCoupleIdAndActorIdAndActionTypeAndActionDate(pet.getCoupleId(), actorId, DomainEnums.PetAction.PLAY, today)
                 || currentAction == DomainEnums.PetAction.PLAY;
-        List<PetLogView> logViews = logs.findByPetIdOrderByCreatedAtDesc(pet.getId(), PageRequest.of(0, 20))
-                .stream().map(log -> PetLogView.from(log, actorId)).toList();
+        Instant cutoff = Instant.now().minus(Duration.ofDays(30));
+        List<PetLogView> logViews = new ArrayList<>();
+        logViews.addAll(logs.findByPetIdAndCreatedAtAfterOrderByCreatedAtDesc(pet.getId(), cutoff, PageRequest.of(0, 20))
+                .stream().map(log -> PetLogView.from(log, actorId)).toList());
+        logViews.addAll(petGrowth.recent(pet.getId(), 20).stream().map(log -> PetLogView.from(log, actorId)).toList());
+        logViews = new ArrayList<>(logViews.stream().sorted(Comparator.comparing(PetLogView::createdAt).reversed()).limit(20).toList());
         if (currentAction != null && logViews.stream().noneMatch(log -> log.actorId().equals(actorId) && log.action() == currentAction && log.createdAt().isAfter(Instant.now().minusSeconds(5)))) {
             logViews = new ArrayList<>(logViews);
-            logViews.add(0, new PetLogView(actorId, currentAction, currentDelta, today, Instant.now(), true));
+            logViews.add(0, new PetLogView(actorId, currentAction, null, actionSummary(currentAction), currentDelta, today, Instant.now(), true));
         }
+        int unlockedCount = Math.min(unlocks.size(), pet.getLevel() / 2);
+        List<String> unlockedItems = unlocks.subList(0, unlockedCount);
+        Integer nextUnlockLevel = unlockedCount < unlocks.size() ? (unlockedCount + 1) * 2 : null;
+        String nextUnlockItem = unlockedCount < unlocks.size() ? unlocks.get(unlockedCount) : null;
         return new PetView(pet.getId(), pet.getName(), pet.getKind(), pet.getLevel(), pet.getGrowth(), fedToday, playedToday,
-                logViews, "ADOPTED", null, renameAvailableAt(pet));
+                logViews, "ADOPTED", null, renameAvailableAt(pet), PetStateEntity.MAX_LEVEL,
+                pet.getLevel() >= PetStateEntity.MAX_LEVEL ? 100 : pet.getGrowth(), unlockedItems, nextUnlockLevel,
+                nextUnlockItem, petGrowth.todayRelationshipGrowth(pet.getCoupleId()), petGrowth.dailyCap());
     }
 
     private PetView pendingView(UUID actorId, PetAdoptionProposalEntity proposal) {
         PetAdoptionView adoption = proposal == null ? null : new PetAdoptionView(proposal.getKind(), proposal.getName(),
                 proposal.getProposerId().equals(actorId), proposal.getCreatedAt());
-        return new PetView(null, null, null, 0, 0, false, false, List.of(), proposal == null ? "NOT_STARTED" : "PENDING_CONFIRMATION", adoption, null);
+        return new PetView(null, null, null, 0, 0, false, false, List.of(), proposal == null ? "NOT_STARTED" : "PENDING_CONFIRMATION", adoption, null,
+                PetStateEntity.MAX_LEVEL, 0, List.of(), 2, unlocks.isEmpty() ? null : unlocks.get(0), 0, petGrowth.dailyCap());
     }
 
     private Instant renameAvailableAt(PetStateEntity pet) {
@@ -183,13 +202,25 @@ public class PetService {
 
     public record PetView(UUID id, String name, String kind, int level, int growth, boolean fedToday,
                           boolean playedToday, List<PetLogView> logs, String adoptionState, PetAdoptionView adoption,
-                          Instant renameAvailableAt) {}
+                          Instant renameAvailableAt, int maxLevel, int growthPercent, List<String> unlockedItems,
+                          Integer nextUnlockLevel, String nextUnlockItem, int relationshipGrowthToday,
+                          int relationshipDailyCap) {}
     public record PetAdoptionView(String kind, String name, boolean proposedByMe, Instant createdAt) {}
-    public record PetLogView(UUID actorId, DomainEnums.PetAction action, int growthDelta, LocalDate actionDate,
-                             Instant createdAt, boolean mine) {
+    public record PetLogView(UUID actorId, DomainEnums.PetAction action, DomainEnums.PetGrowthSource source,
+                             String summary, int growthDelta, LocalDate actionDate, Instant createdAt, boolean mine) {
         static PetLogView from(PetActionLogEntity log, UUID actorId) {
-            return new PetLogView(log.getActorId(), log.getActionType(), log.getGrowthDelta(), log.getActionDate(),
+            String summary = log.getActionType() == DomainEnums.PetAction.FEED ? "喂了小饼干" : "陪它玩了毛线球";
+            return new PetLogView(log.getActorId(), log.getActionType(), null, summary, log.getGrowthDelta(), log.getActionDate(),
                     log.getCreatedAt(), log.getActorId().equals(actorId));
+        }
+        static PetLogView from(PetGrowthLedgerEntity log, UUID actorId) {
+            String summary = switch (log.getSourceType()) {
+                case MOMENT_CREATED -> "记录了一个共同瞬间";
+                case PARTNER_REACTION -> "回应了对方的记录";
+                case BOTH_ACTIVE -> "你们今天都来陪它了";
+            };
+            return new PetLogView(log.getActorId(), null, log.getSourceType(), summary, log.getDelta(),
+                    log.getActionDate(), log.getCreatedAt(), log.getActorId().equals(actorId));
         }
     }
     public record PetActionResult(PetView pet, boolean changed, int growthDelta) {}

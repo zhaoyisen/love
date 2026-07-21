@@ -15,8 +15,9 @@ public class MessageController {
     @GetMapping("/messages")
     ApiResponse<MessageService.MessagePage> list(@RequestAttribute(AuthFilter.ACTOR_ATTRIBUTE) Actor actor,
                                                  @RequestParam(defaultValue = "50") int limit,
+                                                 @RequestParam(defaultValue = "0") int page,
                                                  HttpServletRequest request) {
-        return ApiResponse.ok(service.list(actor.userId(), limit), RequestContext.requestId(request));
+        return ApiResponse.ok(service.list(actor.userId(), limit, page), RequestContext.requestId(request));
     }
 
     @PostMapping("/messages/{id}/read")
