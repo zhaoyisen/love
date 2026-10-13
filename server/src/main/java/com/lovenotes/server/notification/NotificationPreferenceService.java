@@ -2,6 +2,7 @@ package com.lovenotes.server.notification;
 
 import com.lovenotes.server.compliance.AuditService;
 import com.lovenotes.server.domain.NotificationPreferenceEntity;
+import com.lovenotes.server.domain.DomainEnums;
 import com.lovenotes.server.repository.NotificationPreferenceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,14 +27,16 @@ public class NotificationPreferenceService {
 
     @Transactional
     public NotificationPreferenceEntity update(UUID userId, boolean momentNotice, boolean reactionNotice,
-                                               boolean petNotice, boolean recapNotice) {
+                                               boolean petNotice, boolean recapNotice,
+                                               DomainEnums.Visibility defaultVisibility) {
         NotificationPreferenceEntity preference = preferences.findById(userId)
                 .orElseGet(() -> new NotificationPreferenceEntity(userId));
-        preference.update(momentNotice, reactionNotice, petNotice, recapNotice);
+        preference.update(momentNotice, reactionNotice, petNotice, recapNotice, defaultVisibility);
         NotificationPreferenceEntity saved = preferences.save(preference);
         audit.record(userId, null, "NOTIFICATION_PREFERENCE", userId, "NOTIFICATION_PREFERENCE_UPDATE", "SUCCESS",
                 null, null, Map.of("moment_notice", momentNotice, "reaction_notice", reactionNotice,
-                        "pet_notice", petNotice, "recap_notice", recapNotice));
+                        "pet_notice", petNotice, "recap_notice", recapNotice,
+                        "default_visibility", preference.getDefaultVisibility().name()));
         return saved;
     }
 }

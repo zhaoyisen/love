@@ -1,28 +1,190 @@
-<view class="page us-page">
-  <view class="us-heading"><view><text class="us-kicker">ONLY FOR US</text><text class="us-title">只属于我们</text></view><view class="heading-actions"><button class="settings-button press" bindtap="settings">设置</button></view></view>
-  <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="retry">重试</button></view>
-  <view wx:if="{{loading && !loaded}}" class="couple-skeleton"><view></view><view></view><text>正在确认你们的空间</text></view>
-  <view wx:elif="{{couple.status === 'UNPAIRED'}}" class="invite-stage">
-    <view class="invite-film"><view class="invite-photo mine"><image wx:if="{{myAvatarUrl}}" src="{{myAvatarUrl}}" mode="aspectFill"></image><text wx:else>{{myInitial}}</text></view><view class="invite-photo waiting">TA</view><text>01 / 02</text></view>
-    <view class="unpaired-title"><text>邀请 TA，</text><text>一起写下甜蜜日常。</text></view><text class="unpaired-note">配对后，你们可以分享心动瞬间、回应彼此，再把它们做成只属于两个人的回顾。</text><button class="primary-button press" bindtap="invite">邀请我的另一半</button><button class="secondary-button press" bindtap="privacy">了解共享方式</button>
+<view class="page couple-page">
+  <view class="couple-heading">
+    <view class="heading-copy">
+      <text class="display-title">我们</text>
+      <text class="section-note">两个人的关系、回应和共同生活</text>
+    </view>
+    <button class="settings-button press" bindtap="settings">设置</button>
   </view>
-  <view wx:elif="{{couple.status === 'ENDED'}}" class="ended-card card"><text class="ended-mark">⌁</text><text class="section-title">情侣空间已停止访问</text><text class="section-note">你仍可在“时光”中查看自己创建的记录。对方上传的内容和原情侣回顾已隐藏。</text><button class="secondary-button press" bindtap="privacy">查看隐私设置</button></view>
+
+  <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
+    <text>{{error}}</text>
+    <button bindtap="retry">重试</button>
+  </view>
+
+  <view wx:if="{{loading && loaded}}" class="sync-status" role="status">
+    <view aria-hidden="true"></view>
+    <text>正在同步关系空间，已保存的内容仍可查看</text>
+  </view>
+
+  <view wx:if="{{loading && !loaded}}" class="relationship-skeleton" role="status" aria-label="正在读取关系空间">
+    <view class="skeleton-identity">
+      <view class="skeleton-avatar skeleton-block"></view>
+      <view class="skeleton-avatar skeleton-block"></view>
+    </view>
+    <view class="skeleton-number skeleton-block"></view>
+    <view class="skeleton-line skeleton-block"></view>
+    <text>正在确认你们的空间</text>
+  </view>
+
+  <view wx:elif="{{couple.status === 'UNPAIRED'}}" class="relationship-state invite-state">
+    <view class="pair-preview" aria-label="你已加入，正在等待另一半">
+      <view class="preview-person">
+        <view class="preview-avatar mine">
+          <image wx:if="{{myAvatarUrl}}" src="{{myAvatarUrl}}" mode="aspectFill"></image>
+          <text wx:else>{{myInitial}}</text>
+        </view>
+        <text>你</text>
+      </view>
+      <text class="pair-word">和</text>
+      <view class="preview-person waiting">
+        <view class="preview-avatar"><text>TA</text></view>
+        <text>等待加入</text>
+      </view>
+    </view>
+
+    <view class="state-copy">
+      <text class="state-title">邀请 TA，一起留下生活里的片刻</text>
+      <text class="state-description">配对后，你们可以分享记录、回应彼此，也可以随时查看共享范围。</text>
+    </view>
+
+    <view class="state-actions">
+      <button class="primary-button press" bindtap="invite">邀请另一半</button>
+      <button class="text-button press" bindtap="privacy">了解共享方式</button>
+    </view>
+  </view>
+
+  <view wx:elif="{{couple.status === 'ENDED'}}" class="relationship-state ended-state">
+    <view class="state-rule" aria-hidden="true"></view>
+    <text class="state-title">情侣空间已停止访问</text>
+    <text class="state-description">你仍可在“甜蜜”中查看自己创建的记录；对方上传的内容和原情侣回顾已隐藏。</text>
+    <text class="state-description">重新邀请会建立新的情侣空间，旧空间的记录不会自动共享。</text>
+    <view class="state-actions">
+      <button class="primary-button press" bindtap="invite">重新邀请另一半</button>
+      <button class="secondary-button press" bindtap="privacy">查看隐私设置</button>
+    </view>
+  </view>
+
   <block wx:else>
-    <view class="relation-sunset">
-      <view class="relation-light"></view><button class="relation-edit press" bindtap="openProfileEditor">编辑资料</button>
-      <view class="relation-avatars"><view class="avatar mine"><image wx:if="{{myAvatarUrl}}" src="{{myAvatarUrl}}" mode="aspectFill"></image><text wx:else>{{myInitial}}</text></view><view class="relation-heart">＋</view><view class="avatar partner">{{partnerInitial}}</view></view>
-      <text class="relation-kicker">{{couple.relationshipName}}</text><view wx:if="{{days}}" class="together-line"><text>在一起</text><text class="relation-days">{{days}}</text><text>天</text></view><button wx:else class="set-anniversary press" bindtap="openProfileEditor">还没设置在一起的日期 · 现在设置</button><text class="anniversary-copy">纪念日 · {{couple.anniversary || '等你们一起定下'}}</text>
+    <view class="relationship-summary">
+      <view class="relationship-topline">
+        <view class="relationship-people" aria-label="你和另一半">
+          <view class="person-avatar mine">
+            <image wx:if="{{myAvatarUrl}}" src="{{myAvatarUrl}}" mode="aspectFill"></image>
+            <text wx:else>{{myInitial}}</text>
+          </view>
+          <text class="people-join">和</text>
+          <view class="person-avatar partner">
+            <image wx:if="{{partnerAvatarUrl}}" src="{{partnerAvatarUrl}}" mode="aspectFill"></image>
+            <text wx:else>{{partnerInitial}}</text>
+          </view>
+        </view>
+        <button class="edit-relationship press" bindtap="openProfileEditor">编辑资料</button>
+      </view>
+
+      <text class="relationship-name">{{couple.relationshipName || '我们的空间'}}</text>
+
+      <view wx:if="{{days}}" class="days-statement">
+        <text class="days-number numeric">{{days}}</text>
+        <view class="days-qualifier">
+          <text>天</text>
+          <text>我们一起走过</text>
+        </view>
+      </view>
+      <button wx:else class="missing-anniversary press" bindtap="openProfileEditor">还没有设置在一起的日期</button>
+
+      <view class="anniversary-line">
+        <text>纪念日</text>
+        <text class="numeric">{{couple.anniversary || '等你们一起定下'}}</text>
+      </view>
     </view>
+
     <view wx:if="{{editing}}" class="relation-editor" aria-label="编辑关系资料">
-      <view class="editor-head"><view><text>编辑你们的资料</text><text class="label">双方都可以修改，保存后会同步给对方</text></view><button class="text-button" bindtap="closeProfileEditor">取消</button></view>
-      <view class="editor-field"><text>关系昵称</text><input value="{{editName}}" maxlength="40" placeholder="例如：满屿之间" bindinput="nameInput" /></view>
-      <view class="editor-field"><text>纪念日 <text class="optional">可留空</text></text><picker mode="date" value="{{editAnniversary}}" bindchange="anniversaryChange"><view class="date-picker">{{editAnniversary || '选择一个值得纪念的日期'}}<text>›</text></view></picker></view>
-      <view class="editor-actions"><button class="secondary-button press" bindtap="clearAnniversary">清空日期</button><button class="primary-button press" loading="{{savingProfile}}" disabled="{{savingProfile}}" bindtap="saveProfile">保存资料</button></view>
+      <view class="editor-head">
+        <view>
+          <text class="editor-title">编辑关系资料</text>
+          <text class="editor-note">保存后会同步给对方</text>
+        </view>
+        <button class="text-button" disabled="{{savingProfile}}" bindtap="closeProfileEditor">取消</button>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">关系昵称</text>
+        <input
+          class="input"
+          value="{{editName}}"
+          maxlength="40"
+          placeholder="例如：满屿之间"
+          aria-label="关系昵称"
+          bindinput="nameInput"
+        />
+        <text class="form-helper">用于标记你们共同的空间</text>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label-row">
+          <text class="form-label">在一起的日期</text>
+          <text class="form-optional">可留空</text>
+        </view>
+        <picker class="date-control" mode="date" value="{{editAnniversary}}" bindchange="anniversaryChange">
+          <view class="date-picker press" role="button" aria-label="选择在一起的日期">
+            <text>{{editAnniversary || '选择日期'}}</text>
+            <text>更改</text>
+          </view>
+        </picker>
+        <view class="date-helper">
+          <text class="form-helper">用于计算在一起的天数</text>
+          <button class="clear-date" disabled="{{!editAnniversary || savingProfile}}" bindtap="clearAnniversary">清空日期</button>
+        </view>
+      </view>
+
+      <button class="primary-button press" loading="{{savingProfile}}" disabled="{{savingProfile}}" bindtap="saveProfile">
+        {{savingProfile ? '正在保存' : '保存资料'}}
+      </button>
     </view>
-    <view class="us-section-title"><text>TA 最近的回应</text><text>每一次回应，都让回忆更完整</text></view>
-    <button class="love-letter-row press" bindtap="messages"><view class="letter-mark">{{unread || '✓'}}</view><view><text>{{unread ? '有新的心意等你看' : '今天的信笺已经读完'}}</text><text>{{unread ? 'TA 的回应和悄悄话都在这里' : '下一次回应会出现在这里'}}</text></view><text>›</text></button>
-    <view class="shared-memory-row"><view><text>{{sharedCount}}</text><text>个共同瞬间</text></view><text>你们一起留下的甜蜜日常</text></view>
-    <button class="pet-card romantic-pet press" bindtap="pet"><view class="pet-scene"><view class="pet-body"><view class="decor"></view><view class="decor"></view><text>⌁</text></view><view class="pet-shadow"></view></view><view class="pet-copy"><text class="pet-kicker">共同养成</text><text class="pet-name">{{pet.name}} · Lv.{{pet.level}}</text><text class="label">{{pet.kind}}也在收藏你们的陪伴</text><view class="growth-track"><view class="decor" style="width: {{pet.growth}}%"></view></view></view><text class="pet-arrow">›</text></button>
-    <view class="date-prompt"><text>今天也可以很值得纪念</text><text>拍下一张照片，告诉 TA 你正在想什么。</text></view>
+
+    <view class="shared-section">
+      <view class="section-heading">
+        <text class="section-title">最近的共同生活</text>
+        <text class="section-note">回应、记录和一起养成的日常，都从这里继续</text>
+      </view>
+
+      <view class="shared-ledger">
+        <button class="ledger-row press" bindtap="messages">
+          <view class="ledger-copy">
+            <text class="ledger-title">TA 最近的回应</text>
+            <text class="ledger-description">{{unread ? '有新的回应和悄悄话等你查看' : '今天的消息已经读完'}}</text>
+          </view>
+          <view class="ledger-action">
+            <text wx:if="{{unread}}" class="unread-count numeric">{{unread > 99 ? '99+' : unread}}</text>
+            <text>{{unread ? '查看' : '已读'}}</text>
+          </view>
+        </button>
+
+        <view class="shared-count-row">
+          <view>
+            <text class="shared-count numeric">{{sharedCount}}</text>
+            <text>个共同瞬间</text>
+          </view>
+          <text>只统计你们共同可见的记录</text>
+        </view>
+
+        <button class="ledger-row pet-row press" bindtap="pet">
+          <view class="pet-copy">
+            <text class="ledger-title">{{pet.name}} · Lv.{{pet.level}}</text>
+            <text class="ledger-description">{{pet.kind}}也在记录你们一起陪伴的时间</text>
+            <view class="growth-track" aria-label="成长进度">
+              <view class="growth-value" style="width: {{pet.growthPercent}}%"></view>
+            </view>
+          </view>
+          <view class="ledger-action"><text>查看</text></view>
+        </button>
+      </view>
+    </view>
+
+    <view class="couple-closing">
+      <text>今天也值得留下</text>
+      <text>想记录什么时，从下方“这一刻”开始。</text>
+    </view>
   </block>
 </view>

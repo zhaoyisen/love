@@ -1,24 +1,69 @@
-<view class="sunset-welcome">
-  <view class="welcome-aurora"></view>
-  <view class="welcome-brand"><view class="brand-roll">LN</view><view><text>恋爱笔记</text><text>LOVE ROLL · FOR TWO</text></view></view>
-  <view class="welcome-film">
-    <view class="film-perforations top"><text wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this"></text></view>
-    <view class="welcome-scene"><view class="welcome-sun"></view><view class="scene-horizon"></view><view class="two-shadows"><view></view><view></view></view><text>今晚的风，也想和你一起记住</text></view>
-    <view class="film-perforations bottom"><text wx:for="{{[1,2,3,4,5,6]}}" wx:key="*this"></text></view>
-  </view>
-  <view class="welcome-copy">
-    <text class="welcome-kicker">只属于两个人的心动胶片</text>
-    <view class="welcome-title"><text>把每一次心动，</text><text>留给以后一起看。</text></view>
-    <text class="welcome-note">记录合照、约会和想对 TA 说的话。每一次回应，都会成为这段回忆的一部分。</text>
-  </view>
-  <view class="welcome-features"><text>合照与视频</text><text>一句想说的话</text><text>TA 的回应</text></view>
-  <view class="welcome-actions safe-bottom">
-    <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="login">重试</button></view>
-    <button class="welcome-primary press" loading="{{loading}}" disabled="{{loading}}" bindtap="login">{{loading ? '正在打开你们的胶片' : '开始记录我们的心动'}}</button>
-    <view class="agreement" bindtap="toggleAgree">
-      <view class="checkbox {{agreed ? 'checked' : ''}}">{{agreed ? '✓' : ''}}</view>
-      <text>我已阅读并同意</text><text class="agreement-link" catchtap="openPrivacy">《用户协议》与《隐私政策》</text>
+<view class="welcome-page">
+  <view
+    class="welcome-header"
+    style="padding-top: {{statusBarHeight}}px; min-height: {{navigationHeight}}px; padding-right: {{menuInset}}px;"
+  >
+    <view class="brand-rule" aria-hidden="true"></view>
+    <view class="brand-copy">
+      <text class="brand-name">恋爱笔记</text>
+      <text class="brand-note">两个人的生活记录</text>
     </view>
-    <text class="welcome-privacy">记录由你决定是否分享给 TA，旧记录不会自动公开。</text>
+  </view>
+
+  <view class="welcome-main">
+    <view class="welcome-intro">
+      <text class="welcome-kicker">欢迎来到恋爱笔记</text>
+      <view class="welcome-title">
+        <text>普通的日子，</text>
+        <text>也值得认真留下。</text>
+      </view>
+      <text class="welcome-note">照片、视频和随手写下的话，会按原来的样子留在这里。</text>
+    </view>
+
+    <view class="welcome-questions" aria-label="登录前说明">
+      <view class="welcome-question">
+        <view class="question-copy">
+          <text class="question-title">另一半会自动看到吗？</text>
+          <text class="question-answer">不会。每条记录都由你决定是否共享，旧内容不会因为配对自动公开。</text>
+        </view>
+      </view>
+      <view class="welcome-question">
+        <view class="question-copy">
+          <text class="question-title">为什么需要微信登录？</text>
+          <text class="question-answer">登录用来确认你的身份，并在你主动分享时识别双方权限。</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="welcome-actions">
+    <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
+      <text class="status-banner__copy">{{error}}</text>
+      <button hover-class="is-pressed" hover-stay-time="120" bindtap="login">重试</button>
+    </view>
+
+    <view class="agreement press" hover-class="is-pressed" hover-stay-time="120" role="checkbox" aria-checked="{{agreed}}" aria-label="同意用户协议和隐私保护指引" tabindex="0" bindtap="toggleAgree">
+      <view class="checkbox {{agreed ? 'checked' : ''}}" aria-hidden="true">{{agreed ? '✓' : ''}}</view>
+      <view class="agreement-copy">
+        <text>我已阅读并同意</text>
+        <text class="agreement-link" role="link" catchtap="openUserAgreement">《用户协议》</text>
+        <text>和</text>
+        <text class="agreement-link" role="link" catchtap="openPrivacy">《隐私保护指引》</text>
+      </view>
+    </view>
+
+    <button
+      class="primary-button press"
+      loading="{{loading}}"
+      disabled="{{loading}}"
+      hover-class="is-pressed"
+      hover-stay-time="120"
+      aria-label="{{loading ? '正在登录' : agreed ? '微信登录，开始记录' : '微信登录；继续前需先同意用户协议和隐私保护指引'}}"
+      bindtap="login"
+    >
+      {{loading ? '正在登录' : '微信登录，开始记录'}}
+    </button>
+
+    <text class="welcome-privacy">默认私密。只有你主动设为共同可见的内容，TA 才能查看。</text>
   </view>
 </view>

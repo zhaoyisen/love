@@ -5,6 +5,7 @@ import com.lovenotes.server.domain.DerivedAssetEntity;
 import com.lovenotes.server.domain.MediaAssetEntity;
 import com.lovenotes.server.domain.MomentEntity;
 import com.lovenotes.server.message.MessageService;
+import com.lovenotes.server.pet.PetGrowthService;
 import com.lovenotes.server.repository.MediaAssetRepository;
 import com.lovenotes.server.repository.DerivedAssetRepository;
 import com.lovenotes.server.repository.MomentRepository;
@@ -22,13 +23,15 @@ public class MediaProcessingService {
     private final MomentRepository moments;
     private final ObjectStorage storage;
     private final MessageService messages;
+    private final PetGrowthService petGrowth;
 
-    public MediaProcessingService(MediaAssetRepository assets, DerivedAssetRepository derivedAssets, MomentRepository moments, ObjectStorage storage, MessageService messages) {
+    public MediaProcessingService(MediaAssetRepository assets, DerivedAssetRepository derivedAssets, MomentRepository moments, ObjectStorage storage, MessageService messages, PetGrowthService petGrowth) {
         this.assets = assets;
         this.derivedAssets = derivedAssets;
         this.moments = moments;
         this.storage = storage;
         this.messages = messages;
+        this.petGrowth = petGrowth;
     }
 
     @Transactional(readOnly = true)
@@ -72,7 +75,10 @@ public class MediaProcessingService {
                 .allMatch(asset -> asset.getStatus() == DomainEnums.MediaStatus.READY)) {
             boolean justPublished = moment.getStatus() != DomainEnums.MomentStatus.PUBLISHED;
             moment.publish();
-            if (justPublished) messages.notifySharedMoment(moment);
+            if (justPublished) {
+                messages.notifySharedMoment(moment);
+                petGrowth.rewardMoment(moment);
+            }
         }
     }
 }

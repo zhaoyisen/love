@@ -1,95 +1,171 @@
 <view class="page mine-page">
-  <view class="mine-heading">
-    <view>
-      <text class="eyebrow">FOR THIS LOVE</text>
-      <text class="display-title">我的</text>
-      <text class="mine-intro">资料、隐私与提醒，都由你决定</text>
-    </view>
-    <view class="service-state {{isRemote ? 'remote' : ''}}">
-      <view class="service-dot"></view>
+  <view class="mine-introduction">
+    <text class="mine-title">身份、关系与设置</text>
+    <text class="mine-intro">这里保管你的资料、分享边界和提醒。</text>
+    <view class="service-state {{isRemote ? 'remote' : ''}}" role="status">
+      <view class="service-dot" aria-hidden="true"></view>
       <text>{{modeText}}</text>
     </view>
   </view>
 
-  <view wx:if="{{loading}}" class="sync-status" aria-live="polite">
-    <view class="sync-dot"></view>
-    <text>正在同步个人资料</text>
-  </view>
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
     <text>{{error}}</text>
     <button bindtap="retry">重试</button>
   </view>
 
-  <view class="profile-card">
-    <view class="profile-avatar" aria-label="当前头像">
-      <image wx:if="{{state.profile.avatarUrl}}" src="{{state.profile.avatarUrl}}" mode="aspectFill"></image>
-      <text wx:else>{{state.profile.avatarText}}</text>
-    </view>
-    <view class="profile-copy">
-      <text class="profile-name">{{state.profile.name}}</text>
-      <text class="label">{{state.couple.status === 'PAIRED' ? state.couple.relationshipName + ' · 已配对' : state.couple.status === 'ENDED' ? '情侣空间已结束' : '独自记录中'}}</text>
-    </view>
-    <button class="edit-button press" bindtap="edit" aria-label="编辑个人资料">编辑</button>
+  <view wx:if="{{loading && loaded}}" class="sync-status" role="status">
+    <view aria-hidden="true"></view>
+    <text>正在同步个人资料，已保存的设置仍可查看</text>
   </view>
 
-  <view class="privacy-promise">
-    <view class="promise-mark">私</view>
-    <view>
-      <text>分享由你决定</text>
-      <text class="label">每次记录都能确认可见范围，旧内容不会自动共享。</text>
-    </view>
+  <view wx:if="{{!loaded}}" class="loading-state mine-loading" role="status" aria-label="正在读取个人资料">
+    <view class="loading-indicator" aria-hidden="true"></view>
+    <text class="loading-copy">正在读取你的身份与设置</text>
   </view>
 
-  <view class="setting-group">
-    <text class="group-title">记录与隐私</text>
-    <view class="settings-panel">
-      <button class="setting-row press" bindtap="privacy">
-        <view><text>默认可见范围</text><text class="label">{{state.profile.defaultVisibility === 'PRIVATE' ? '仅自己可见' : '与另一半共同可见'}}</text></view>
-        <text class="row-arrow">›</text>
-      </button>
-      <button class="setting-row press" bindtap="recycle">
-        <view><text>回收站</text><text class="label">删除后保留 30 天</text></view>
-        <text class="row-arrow">›</text>
-      </button>
-      <button class="setting-row press" bindtap="messages">
-        <view><text>应用内信笺</text><text class="label">{{state.messages.length}} 条消息</text></view>
-        <text class="row-arrow">›</text>
-      </button>
-      <button wx:if="{{!isRemote}}" class="setting-row press" bindtap="recap">
-        <view><text>年度回顾</text><text class="label">整理共同可见的时刻</text></view>
-        <text class="row-arrow">›</text>
-      </button>
-    </view>
-  </view>
+  <block wx:else>
+    <view class="setting-group identity-group">
+      <view class="group-heading">
+        <text class="group-title">身份与关系</text>
+        <text class="group-description">先确认是谁，再管理共同空间</text>
+      </view>
 
-  <view class="setting-group">
-    <text class="group-title">提醒偏好</text>
-    <view class="settings-panel">
-      <view class="switch-row"><text>新共享时刻</text><switch color="#557263" checked="{{state.preferences.momentNotice}}" data-key="momentNotice" bindchange="toggle" /></view>
-      <view class="switch-row"><text>回应与短评</text><switch color="#557263" checked="{{state.preferences.reactionNotice}}" data-key="reactionNotice" bindchange="toggle" /></view>
-      <view class="switch-row"><text>云宠物互动</text><switch color="#557263" checked="{{state.preferences.petNotice}}" data-key="petNotice" bindchange="toggle" /></view>
-      <view class="switch-row"><text>回顾生成完成</text><switch color="#557263" checked="{{state.preferences.recapNotice}}" data-key="recapNotice" bindchange="toggle" /></view>
-    </view>
-    <text class="setting-help">{{isRemote ? '偏好已保存到服务端，会在其他登录设备同步。订阅消息仍需你主动授权。' : '演示模式下，这些开关只保存在当前设备。'}}</text>
-  </view>
+      <view class="identity-ledger">
+        <view class="profile-row">
+          <view class="profile-avatar" aria-label="当前头像">
+            <image wx:if="{{state.profile.avatarUrl}}" src="{{state.profile.avatarUrl}}" mode="aspectFill"></image>
+            <text wx:else>{{myInitial}}</text>
+          </view>
+          <view class="profile-copy">
+            <text class="profile-name">{{state.profile.name || '微信用户'}}</text>
+            <text class="profile-role">你的账号</text>
+          </view>
+          <button class="edit-button edit-profile text-button press" bindtap="edit" aria-label="编辑个人资料">编辑资料</button>
+        </view>
 
-  <view class="setting-group">
-    <text class="group-title">数据与关于</text>
-    <view class="settings-panel">
-      <button class="setting-row press" bindtap="about">
-        <view><text>关于恋爱笔记</text><text class="label">客户端 {{clientVersion}}</text></view>
-        <text class="row-arrow">›</text>
-      </button>
-      <button class="setting-row danger-row press" bindtap="deleteAccount">
-        <view><text>账号注销</text><text class="label">冻结情侣空间、撤销本机登录，并生成处理进度</text></view>
-        <text class="row-arrow">›</text>
-      </button>
-      <button wx:if="{{!isRemote}}" class="setting-row danger-row press" bindtap="reset">
-        <view><text>重置演示数据</text><text class="label">清除当前设备上的所有演示状态</text></view>
-        <text class="row-arrow">›</text>
-      </button>
-    </view>
-  </view>
+        <view class="identity-rule" aria-hidden="true"></view>
 
-  <text class="mine-footer">PRIVATE BY DEFAULT · ORDINARY DAYS MATTER</text>
+        <view class="relationship-row {{state.couple.status === 'PAIRED' ? 'paired' : state.couple.status === 'ENDED' ? 'ended' : 'unpaired'}}">
+          <view class="partner-avatar" aria-label="{{state.couple.status === 'PAIRED' ? '另一半头像' : '关系成员占位'}}">
+            <image wx:if="{{partnerAvatarUrl}}" src="{{partnerAvatarUrl}}" mode="aspectFill"></image>
+            <text wx:else>{{partnerInitial}}</text>
+          </view>
+          <view class="relationship-copy">
+            <view class="relationship-title-line">
+              <text class="relationship-name">{{relationshipName}}</text>
+              <text class="relationship-status">{{relationshipStatusText}}</text>
+            </view>
+            <text class="relationship-description">{{relationshipDescription}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="privacy-promise">
+      <text class="promise-title">分享由你决定</text>
+      <text class="promise-copy">每条记录都能确认可见范围，旧内容不会因为配对自动共享。</text>
+    </view>
+
+    <view class="setting-group">
+      <view class="group-heading">
+        <text class="group-title">隐私与记录</text>
+        <text class="group-description">管理分享边界和已删除内容</text>
+      </view>
+      <view class="index-list">
+        <button class="index-row press" bindtap="privacy">
+          <view class="row-copy">
+            <text class="row-title">默认可见范围</text>
+            <text class="row-description">{{state.profile.defaultVisibility === 'PRIVATE' ? '仅自己可见' : '与另一半共同可见'}}</text>
+          </view>
+          <text class="row-arrow" aria-hidden="true">›</text>
+        </button>
+        <button class="index-row press" bindtap="recycle">
+          <view class="row-copy">
+            <text class="row-title">回收站</text>
+            <text class="row-description">删除后保留 30 天</text>
+          </view>
+          <text class="row-arrow" aria-hidden="true">›</text>
+        </button>
+        <button class="index-row press" bindtap="messages">
+          <view class="row-copy">
+            <text class="row-title">应用内信笺</text>
+            <text class="row-description">{{unreadCount ? unreadCount + ' 条未读' : state.messages.length ? '已全部阅读' : '暂无消息'}}</text>
+          </view>
+          <text class="row-arrow" aria-hidden="true">›</text>
+        </button>
+        <button wx:if="{{!isRemote}}" class="index-row press" bindtap="recap">
+          <view class="row-copy">
+            <text class="row-title">年度回顾</text>
+            <text class="row-description">整理共同可见的时刻</text>
+          </view>
+          <text class="row-arrow" aria-hidden="true">›</text>
+        </button>
+      </view>
+    </view>
+
+    <view class="setting-group">
+      <view class="group-heading">
+        <text class="group-title">应用内提醒</text>
+        <text class="group-description">只控制小程序内出现的信笺</text>
+      </view>
+      <view class="index-list switch-list">
+        <!-- Native switch color mirrors --color-accent; the component property cannot consume WXSS custom properties. -->
+        <view class="switch-row {{loading ? 'is-disabled' : ''}}">
+          <text>新共享时刻</text>
+          <switch color="#B94E5A" checked="{{state.preferences.momentNotice}}" disabled="{{loading}}" data-key="momentNotice" aria-label="新共享时刻提醒" bindchange="toggle" />
+        </view>
+        <view class="switch-row {{loading ? 'is-disabled' : ''}}">
+          <text>回应与短评</text>
+          <switch color="#B94E5A" checked="{{state.preferences.reactionNotice}}" disabled="{{loading}}" data-key="reactionNotice" aria-label="回应与短评提醒" bindchange="toggle" />
+        </view>
+        <view class="switch-row {{loading ? 'is-disabled' : ''}}">
+          <text>云宠物互动</text>
+          <switch color="#B94E5A" checked="{{state.preferences.petNotice}}" disabled="{{loading}}" data-key="petNotice" aria-label="云宠物互动提醒" bindchange="toggle" />
+        </view>
+        <view class="switch-row {{loading ? 'is-disabled' : ''}}">
+          <text>回顾生成完成</text>
+          <switch color="#B94E5A" checked="{{state.preferences.recapNotice}}" disabled="{{loading}}" data-key="recapNotice" aria-label="回顾生成完成提醒" bindchange="toggle" />
+        </view>
+      </view>
+      <text class="setting-help">{{isRemote ? '这些偏好会同步到你的账号。微信服务通知需要在模板配置完成后另行授权。' : '演示模式下，这些开关只保存在当前设备。'}}</text>
+    </view>
+
+    <view class="setting-group about-group">
+      <view class="group-heading">
+        <text class="group-title">关于</text>
+      </view>
+      <view class="index-list">
+        <button class="index-row press" bindtap="about">
+          <view class="row-copy">
+            <text class="row-title">关于恋爱笔记</text>
+            <text class="row-description">客户端 {{clientVersion}}</text>
+          </view>
+          <text class="row-arrow" aria-hidden="true">›</text>
+        </button>
+      </view>
+    </view>
+
+    <view class="account-zone">
+      <view class="group-heading">
+        <text class="group-title">账号管理</text>
+        <text class="group-description">以下操作只会在你明确确认后执行</text>
+      </view>
+      <view class="danger-list">
+        <button class="index-row danger-row press" bindtap="deleteAccount">
+          <view class="row-copy">
+            <text class="row-title">账号注销</text>
+            <text class="row-description">冻结情侣空间、撤销本机登录，并生成处理进度</text>
+          </view>
+          <text class="row-arrow" aria-hidden="true">›</text>
+        </button>
+        <button wx:if="{{!isRemote}}" class="index-row danger-row press" bindtap="reset">
+          <view class="row-copy">
+            <text class="row-title">重置演示数据</text>
+            <text class="row-description">清除当前设备上的所有演示状态</text>
+          </view>
+          <text class="row-arrow" aria-hidden="true">›</text>
+        </button>
+      </view>
+    </view>
+  </block>
 </view>

@@ -1,0 +1,12 @@
+<view wx:if="{{visible}}" class="privacy-mask modal-mask" catchtap="stopPropagation" catchtouchmove="stopPropagation">
+  <view class="privacy-panel modal-panel modal-sheet" role="dialog" aria-modal="true" aria-label="隐私授权">
+    <view class="privacy-mark">私</view>
+    <text class="privacy-title">使用这项功能前，请确认隐私授权</text>
+    <text class="privacy-copy">我们只会在你主动选择时读取相应的头像、照片或视频；保存回顾时，仅会写入你确认保存的图片。</text>
+    <button class="privacy-link text-button press" bindtap="openContract">查看《隐私保护指引》</button>
+    <view class="privacy-actions modal-actions">
+      <button class="privacy-cancel secondary-button press" bindtap="disagree">暂不使用</button>
+      <button id="privacy-agree-button" class="privacy-agree primary-button press" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agree">同意并继续</button>
+    </view>
+  </view>
+</view>

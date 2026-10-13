@@ -153,18 +153,19 @@ function uploadToCos(session: UploadSessionResponse, file: MediaItem, onProgress
 }
 
 export const mediaService = {
-  createUploadSession(fileName: string, mimeType: string, size: number, sha256?: string) {
-    return apiRequest<UploadSessionResponse>({ path: "/upload-sessions", method: "POST", data: { file_name: fileName, mime_type: mimeType, size, sha256 } });
+  createUploadSession(fileName: string, mimeType: string, size: number, durationSeconds?: number, sha256?: string) {
+    return apiRequest<UploadSessionResponse>({ path: "/upload-sessions", method: "POST", data: { file_name: fileName, mime_type: mimeType, size, duration_seconds: durationSeconds, sha256 } });
   },
   completeUpload(sessionId: string, etag?: string) {
     return apiRequest<AssetResponse>({ path: `/upload-sessions/${sessionId}/complete`, method: "POST", data: { etag } });
   },
   asset: (assetId: string) => apiRequest<AssetResponse>({ path: `/media-assets/${assetId}` }),
   accessUrl: (assetId: string) => apiRequest<{ url: string }>({ path: `/media-assets/${assetId}/access-url` }),
+  retryProcessing: (assetId: string) => apiRequest<AssetResponse>({ path: `/media-assets/${assetId}/retry-processing`, method: "POST" }),
 
   async upload(file: MediaItem, onProgress: (progress: number) => void) {
     if (!file.path || !file.fileName || !file.mimeType || !file.size) throw new Error("媒体文件信息不完整，请重新选择。 ");
-    const session = await this.createUploadSession(file.fileName, file.mimeType, file.size);
+    const session = await this.createUploadSession(file.fileName, file.mimeType, file.size, file.durationSeconds);
     let etag: string | undefined;
     if (session.provider === "COS") etag = await uploadToCos(session, file, onProgress);
     const asset = await this.completeUpload(session.upload_session_id, etag);

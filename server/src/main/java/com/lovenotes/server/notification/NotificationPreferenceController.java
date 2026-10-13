@@ -5,6 +5,7 @@ import com.lovenotes.server.auth.AuthFilter;
 import com.lovenotes.server.common.ApiResponse;
 import com.lovenotes.server.common.RequestContext;
 import com.lovenotes.server.domain.NotificationPreferenceEntity;
+import com.lovenotes.server.domain.DomainEnums;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -29,14 +30,17 @@ public class NotificationPreferenceController {
     ApiResponse<PreferenceView> update(@RequestAttribute(AuthFilter.ACTOR_ATTRIBUTE) Actor actor,
                                        @Valid @RequestBody UpdatePreferenceRequest body, HttpServletRequest request) {
         return ApiResponse.ok(PreferenceView.from(service.update(actor.userId(), body.momentNotice(), body.reactionNotice(),
-                body.petNotice(), body.recapNotice())), RequestContext.requestId(request));
+                body.petNotice(), body.recapNotice(), body.defaultVisibility())), RequestContext.requestId(request));
     }
 
     public record UpdatePreferenceRequest(@NotNull Boolean momentNotice, @NotNull Boolean reactionNotice,
-                                          @NotNull Boolean petNotice, @NotNull Boolean recapNotice) {}
-    public record PreferenceView(boolean momentNotice, boolean reactionNotice, boolean petNotice, boolean recapNotice) {
+                                          @NotNull Boolean petNotice, @NotNull Boolean recapNotice,
+                                          DomainEnums.Visibility defaultVisibility) {}
+    public record PreferenceView(boolean momentNotice, boolean reactionNotice, boolean petNotice, boolean recapNotice,
+                                 String defaultVisibility) {
         static PreferenceView from(NotificationPreferenceEntity value) {
-            return new PreferenceView(value.isMomentNotice(), value.isReactionNotice(), value.isPetNotice(), value.isRecapNotice());
+            return new PreferenceView(value.isMomentNotice(), value.isReactionNotice(), value.isPetNotice(), value.isRecapNotice(),
+                    value.getDefaultVisibility().name());
         }
     }
 }

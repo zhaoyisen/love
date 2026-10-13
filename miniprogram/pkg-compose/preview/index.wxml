@@ -2,7 +2,12 @@
   <view class="preview-heading"><text class="preview-kicker">READY TO DEVELOP</text><view class="display-title"><text>准备好，把这份心动</text><text>留进你们的故事。</text></view><text class="preview-note">发布后仍可修改内容和可见范围。</text></view>
   <view class="heart-preview-card">
     <view wx:if="{{draft.mediaType !== 'TEXT'}}" class="preview-media">
-      <video wx:if="{{draft.mediaType === 'VIDEO' && draft.media[0].path}}" src="{{draft.media[0].path}}" controls="{{false}}" object-fit="cover"></video><image wx:elif="{{draft.media[0].path}}" src="{{draft.media[0].path}}" mode="aspectFill"></image><view wx:else class="preview-art"></view>
+      <swiper wx:if="{{draft.mediaType === 'IMAGE' && draft.media.length}}" class="preview-swiper" current="{{previewIndex}}" indicator-dots="{{draft.media.length > 1}}" indicator-color="rgba(255,249,242,.55)" indicator-active-color="#FFF9F2" bindchange="previewChange">
+        <swiper-item wx:for="{{draft.media}}" wx:key="id"><image src="{{item.path}}" mode="aspectFill" lazy-load="{{true}}"></image></swiper-item>
+      </swiper>
+      <video wx:elif="{{draft.mediaType === 'VIDEO' && draft.media[0].path}}" src="{{draft.media[0].path}}" controls object-fit="cover"></video>
+      <view wx:else class="preview-art"></view>
+      <text wx:if="{{draft.mediaType === 'IMAGE' && draft.media.length > 1}}" class="media-count">{{previewIndex + 1}} / {{draft.media.length}}</text>
       <view class="preview-film-label"><text>{{draft.template}}</text><text>{{date.date}}</text></view>
     </view>
     <view class="preview-content"><text class="preview-date">{{date.date}} · {{date.time}}</text><text class="preview-title">{{draft.title || '一个普通却想记住的时刻'}}</text><text class="preview-copy">{{draft.body}}</text><view class="preview-tags"><text class="tag">{{draft.mood}}</text><text wx:for="{{draft.events}}" wx:key="*this" class="tag">{{item}}</text></view></view>

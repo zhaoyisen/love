@@ -5,11 +5,43 @@ import { appService } from "../../services/app-service";
 let saveTimer: any;
 let discardOnUnload = false;
 let originalDraft: Draft | undefined;
+const IMAGE_MAX_BYTES = 20 * 1024 * 1024;
+const VIDEO_MAX_BYTES = 200 * 1024 * 1024;
+const VIDEO_MAX_SECONDS = 60;
+const IMAGE_MIME: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
+const VIDEO_MIME: Record<string, string> = { mp4: "video/mp4", mov: "video/quicktime" };
 
 function selectedFileSize(path: string, provided: any) {
   if (Number(provided) > 0) return Number(provided);
   try { return Number(wx.getFileSystemManager().statSync(path).size || 0); }
   catch (_) { return 0; }
+}
+
+function selectedFile(file: any, mediaType: MediaType, index: number) {
+  const path = file.tempFilePath || file.path || "";
+  const fileName = String(path || `memory_${index}`).split(/[\\/]/).pop() || `memory_${index}`;
+  const extension = fileName.split(".").pop()?.toLowerCase() || "";
+  const mimeType = mediaType === "VIDEO" ? VIDEO_MIME[extension] : IMAGE_MIME[extension];
+  const size = selectedFileSize(path, file.size);
+  if (!mimeType) return { error: mediaType === "VIDEO" ? "仅支持 MP4、MOV 视频" : "仅支持 JPG、PNG、WEBP 图片" };
+  if (size <= 0) return { error: "无法读取文件大小，请重新选择" };
+  if (mediaType === "IMAGE" && size > IMAGE_MAX_BYTES) return { error: "单张图片不能超过 20 MB" };
+  if (mediaType === "VIDEO" && size > VIDEO_MAX_BYTES) return { error: "视频不能超过 200 MB" };
+  if (mediaType === "VIDEO" && Number(file.duration || 0) <= 0) return { error: "无法读取视频时长，请重新选择" };
+  if (mediaType === "VIDEO" && Number(file.duration || 0) > VIDEO_MAX_SECONDS) return { error: "视频时长不能超过 60 秒" };
+  return {
+    media: {
+      id: `local_${Date.now()}_${index}`,
+      type: mediaType,
+      path,
+      fileName,
+      mimeType,
+      size,
+      durationSeconds: mediaType === "VIDEO" ? Math.ceil(Number(file.duration || 0)) : undefined,
+      progress: 100,
+      status: "READY"
+    }
+  };
 }
 
 Page({
@@ -61,28 +93,15 @@ Page({
     try {
       const result = await new Promise<any>((resolve, reject) => {
         const remaining = limit - this.data.draft.media.length;
-        if (mediaType === "VIDEO" && wx.chooseVideo) wx.chooseVideo({ sourceType: ["album", "camera"], compressed: true, success: (res: any) => resolve({ tempFiles: [{ tempFilePath: res.tempFilePath, fileType: "video", size: res.size }] }), fail: reject });
+        if (mediaType === "VIDEO" && wx.chooseVideo) wx.chooseVideo({ sourceType: ["album", "camera"], compressed: true, maxDuration: VIDEO_MAX_SECONDS, success: (res: any) => resolve({ tempFiles: [{ tempFilePath: res.tempFilePath, fileType: "video", size: res.size, duration: res.duration }] }), fail: reject });
         else if (wx.chooseMedia) wx.chooseMedia({ count: remaining, mediaType: ["image"], sourceType: ["album", "camera"], success: resolve, fail: reject });
         else wx.chooseImage({ count: remaining, success: (res: any) => resolve({ tempFiles: res.tempFilePaths.map((path: string) => ({ tempFilePath: path, fileType: "image" })) }), fail: reject });
       });
-      const media = result.tempFiles.map((file: any, index: number) => {
-        const path = file.tempFilePath || file.path;
-        const extension = String(path || "").split(".").pop()?.toLowerCase();
-        const mimeType = mediaType === "VIDEO"
-          ? (extension === "mov" ? "video/quicktime" : "video/mp4")
-          : (extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : "image/jpeg");
-        return {
-          id: `local_${Date.now()}_${index}`,
-          type: mediaType,
-          path,
-          fileName: String(path || `memory_${index}`).split("/").pop() || `memory_${index}`,
-          mimeType,
-          size: selectedFileSize(path, file.size),
-          progress: 100,
-          status: "READY"
-        };
-      });
-      this.patchDraft({ media: [...this.data.draft.media, ...media].slice(0, limit) });
+      const selections = result.tempFiles.map((file: any, index: number) => selectedFile(file, mediaType, index));
+      const media = selections.filter((item: any) => item.media).map((item: any) => item.media);
+      const invalid = selections.find((item: any) => item.error);
+      if (invalid) wx.showToast({ title: invalid.error, icon: "none", duration: 3000 });
+      if (media.length) this.patchDraft({ media: [...this.data.draft.media, ...media].slice(0, limit) });
     } catch (_) { /* user cancelled */ }
   },
   removeMedia(event: any) { const index = Number(event.currentTarget.dataset.index); const media = this.data.draft.media.filter((_: any, i: number) => i !== index); this.patchDraft({ media }); },

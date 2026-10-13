@@ -8,6 +8,7 @@ import java.util.*;
 
 public interface AppMessageRepository extends JpaRepository<AppMessageEntity, UUID> {
     List<AppMessageEntity> findByRecipientIdOrderByCreatedAtDesc(UUID recipientId, Pageable pageable);
+    long countByRecipientId(UUID recipientId);
     long countByRecipientIdAndReadAtIsNull(UUID recipientId);
     List<AppMessageEntity> findByRecipientIdAndReadAtIsNull(UUID recipientId);
     Optional<AppMessageEntity> findByRecipientIdAndId(UUID recipientId, UUID id);

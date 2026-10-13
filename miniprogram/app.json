@@ -29,9 +29,12 @@
     },
     {
       "root": "pkg-profile",
-      "pages": ["edit/index", "delete-account/index"]
+      "pages": ["edit/index", "delete-account/index", "agreement/index"]
     }
   ],
+  "usingComponents": {
+    "privacy-consent": "/components/privacy-consent/index"
+  },
   "window": {
     "navigationBarTitleText": "恋爱笔记",
     "navigationBarBackgroundColor": "#F7EDE2",

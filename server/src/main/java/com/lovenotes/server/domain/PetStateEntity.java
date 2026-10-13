@@ -11,6 +11,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "pet_state", uniqueConstraints = @UniqueConstraint(name = "uk_pet_state_couple", columnNames = "couple_id"))
 public class PetStateEntity {
+    public static final int MAX_LEVEL = 10;
     @Id
     @JdbcTypeCode(SqlTypes.BINARY)
     private UUID id;
@@ -56,13 +57,24 @@ public class PetStateEntity {
     public int getGrowth() { return growth; }
     public Instant getLastRenamedAt() { return lastRenamedAt; }
 
-    public void addGrowth(int delta) {
+    public int addGrowth(int delta) {
+        if (delta <= 0 || level >= MAX_LEVEL) return 0;
+        int beforeScore = (level - 1) * 100 + growth;
         int total = growth + delta;
-        while (total >= 100) {
+        while (total >= 100 && level < MAX_LEVEL) {
             level += 1;
             total -= 100;
         }
-        growth = Math.max(0, total);
+        growth = level >= MAX_LEVEL ? 0 : Math.max(0, total);
+        int afterScore = (level - 1) * 100 + growth;
+        return Math.max(0, afterScore - beforeScore);
+    }
+
+    public int removeGrowthPreservingLevel(int delta) {
+        if (delta <= 0) return 0;
+        int removed = Math.min(growth, delta);
+        growth -= removed;
+        return removed;
     }
 
     public void rename(String name) {

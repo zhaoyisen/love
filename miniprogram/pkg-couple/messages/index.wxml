@@ -14,5 +14,6 @@
       <view wx:if="{{!item.read}}" class="unread-dot"></view><text wx:else class="message-arrow">›</text>
     </view>
   </view>
-  <view wx:else class="message-empty"><view class="empty-icon"><view></view></view><text>暂时没有新消息</text><text>共同记录有新回应时，会出现在这里。</text></view>
+  <button wx:if="{{hasMore}}" class="message-load-more press" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">{{loadingMore ? '正在展开' : '查看更多信笺'}}</button>
+  <view wx:if="{{!messages.length}}" class="message-empty"><view class="empty-icon"><view></view></view><text>暂时没有新消息</text><text>共同记录有新回应时，会出现在这里。</text></view>
 </view>

@@ -1,11 +1,12 @@
 import { API_CONFIG } from "../core/api-config";
+import { reportClientIssue } from "./client-monitor";
 
 const ACCESS_TOKEN_KEY = "love-notes:access-token";
 const REFRESH_TOKEN_KEY = "love-notes:refresh-token";
 let refreshPromise: Promise<boolean> | null = null;
 
 interface Envelope<T> { data: T; meta: { request_id: string; server_time: string } }
-interface ErrorEnvelope { error?: { code?: string; user_message?: string; request_id?: string } }
+interface ErrorEnvelope { error?: { code?: string; user_message?: string; request_id?: string; details?: { retry_after?: number } } }
 
 export interface RequestOptions {
   path: string;
@@ -35,17 +36,27 @@ export async function apiRequest<T>(options: RequestOptions, allowRefresh = true
   try {
     response = await rawRequest<Envelope<T>>({ url: `${API_CONFIG.baseUrl}${options.path}`, method: options.method || "GET", data: options.data, header: headers });
   } catch (_) {
+    reportClientIssue("API_NETWORK_ERROR", { method: options.method || "GET" });
     const exception: any = new Error("网络连接失败，请检查网络后重试。");
     exception.code = "NETWORK_ERROR";
     throw exception;
   }
-  if (response.statusCode >= 200 && response.statusCode < 300) return (response.data as Envelope<T>).data;
+  if (response.statusCode >= 200 && response.statusCode < 300) {
+    const body = response.data;
+    if (response.statusCode === 204 || body === undefined || body === null || body === "") return undefined as T;
+    if (typeof body === "object" && Object.prototype.hasOwnProperty.call(body, "data")) return (body as Envelope<T>).data;
+    return body as T;
+  }
   if (response.statusCode === 401 && allowRefresh && !options.public && await refreshSession()) return apiRequest<T>(options, false);
   if (response.statusCode === 401 && !options.public) clearTokens();
   const error = response.data as ErrorEnvelope;
-  const exception: any = new Error(error.error?.user_message || "服务暂时不可用，请稍后重试。");
+  const retryAfter = Number(error.error?.details?.retry_after || response.header?.["Retry-After"] || 0);
+  const rateLimitedMessage = retryAfter > 0 ? `操作太频繁，请 ${retryAfter} 秒后再试。` : "操作太频繁，请稍后再试。";
+  const exception: any = new Error(error.error?.code === "RATE_LIMITED" ? rateLimitedMessage : (error.error?.user_message || "服务暂时不可用，请稍后重试。"));
   exception.code = error.error?.code || "REQUEST_FAILED";
   exception.requestId = error.error?.request_id;
+  exception.retryAfter = retryAfter;
+  if (response.statusCode >= 500) reportClientIssue("API_SERVER_ERROR", { statusCode: response.statusCode, code: exception.code, requestId: exception.requestId });
   throw exception;
 }
 

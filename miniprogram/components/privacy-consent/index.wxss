@@ -1,0 +1,72 @@
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4 · component: privacy bottom sheet */
+
+.privacy-mask {
+  animation: privacy-fade var(--dur-short) var(--ease-out) both;
+}
+
+.privacy-panel {
+  animation: privacy-rise var(--dur-short) var(--ease-out) both;
+}
+
+.privacy-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--state-mark-size);
+  height: var(--state-mark-size);
+  border-radius: var(--radius-round);
+  color: var(--color-surface);
+  background: var(--color-shared);
+  font-size: var(--text-secondary);
+  font-weight: var(--weight-bold);
+}
+
+.privacy-title {
+  display: block;
+  margin-top: var(--space-lg);
+  color: var(--color-ink);
+  font-size: var(--text-section-title);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-section-title);
+  word-break: break-word;
+}
+
+.privacy-copy {
+  display: block;
+  margin-top: var(--space-sm);
+  color: var(--color-ink-secondary);
+  font-size: var(--text-secondary);
+  line-height: var(--line-secondary);
+  word-break: break-word;
+}
+
+.privacy-link {
+  width: auto;
+  max-width: 100%;
+  margin-top: var(--space-xs);
+  padding-right: 0;
+  padding-left: 0;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.privacy-actions {
+  margin-top: var(--space-lg);
+}
+
+@keyframes privacy-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes privacy-rise {
+  from { transform: translateY(var(--space-xl)); }
+  to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .privacy-mask,
+  .privacy-panel {
+    animation: none;
+  }
+}

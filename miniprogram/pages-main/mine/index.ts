@@ -9,6 +9,14 @@ Page({
     modeText: appService.isRemote ? "已连接真实服务" : "本地演示模式",
     clientVersion: API_CONFIG.clientVersion,
     loading: false,
+    loaded: false,
+    myInitial: "我",
+    partnerInitial: "TA",
+    partnerAvatarUrl: "",
+    relationshipName: "我们的空间",
+    relationshipStatusText: "尚未配对",
+    relationshipDescription: "先独自记录，配对后再决定哪些内容共同可见",
+    unreadCount: 0,
     error: ""
   },
 
@@ -24,11 +32,29 @@ Page({
       }
     } finally {
       this.render();
-      this.setData({ loading: false });
+      this.setData({ loading: false, loaded: true });
     }
   },
 
-  render() { this.setData({ state: store.getState() }); },
+  render() {
+    const state = store.getState();
+    const paired = state.couple.status === "PAIRED";
+    const ended = state.couple.status === "ENDED";
+    this.setData({
+      state,
+      myInitial: (state.profile.name || "我").slice(0, 1),
+      partnerInitial: (state.couple.partnerName || "TA").slice(0, 1),
+      partnerAvatarUrl: state.couple.partnerAvatarUrl || "",
+      relationshipName: paired ? (state.couple.relationshipName || "我们的空间") : ended ? "情侣空间已结束" : "暂未建立情侣空间",
+      relationshipStatusText: paired ? "已配对" : ended ? "已结束" : "尚未配对",
+      relationshipDescription: paired
+        ? `和 ${state.couple.partnerName || "TA"} 的共同空间`
+        : ended
+          ? "双方内容已停止互访，你创建的记录仍会保留"
+          : "先独自记录，配对后再决定哪些内容共同可见",
+      unreadCount: state.messages.filter((item) => !item.read).length
+    });
+  },
   retry() { this.onShow(); },
   edit() { wx.navigateTo({ url: "/pkg-profile/edit/index" }); },
   privacy() { wx.navigateTo({ url: "/pkg-couple/privacy/index" }); },

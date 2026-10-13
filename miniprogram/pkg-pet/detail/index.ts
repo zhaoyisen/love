@@ -89,7 +89,8 @@ Page({
     try {
       const result = await appService.petAction(event.currentTarget.dataset.action);
       this.render();
-      wx.showToast({ title: result.changed ? `小伙伴很开心 +${result.growthDelta || 8}` : "今天已经做过啦", icon: "none" });
+      const title = !result.changed ? "今天已经做过啦" : result.growthDelta > 0 ? `小伙伴很开心 +${result.growthDelta}` : "今天也陪到它啦";
+      wx.showToast({ title, icon: "none" });
     } catch (error) {
       if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "互动没有完成，请稍后再试。"), icon: "none" });
     } finally { this.setData({ acting: false }); }

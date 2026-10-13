@@ -87,7 +87,7 @@ class OfficialWechatIdentityProviderTest {
         return new LoveNotesProperties(
                 new LoveNotesProperties.Session(Duration.ofMinutes(30), Duration.ofDays(30)),
                 new LoveNotesProperties.Invitation(Duration.ofDays(1)),
-                new LoveNotesProperties.Media(20, 200, 1800, 30, 24),
+                new LoveNotesProperties.Media(20, 200, 60, 1800, 30, 24),
                 new LoveNotesProperties.Timeline("test-secret"),
                 new LoveNotesProperties.Wechat(
                         "wx-test-app-id",

@@ -1,8 +1,20 @@
 import { store } from "../../core/store";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
+import { coupleService } from "../../services/couple-service";
 Page({
   data: { stage: "create", loading: false, hours: 23, minutes: 59, token: "", inviterName: "", inviterInitial: "邀", relationshipName: "我们的空间", error: "", isRemote: appService.isRemote },
   async onLoad(query: any) {
+    if (this.data.isRemote && store.getState().loggedIn) {
+      this.setData({ loading: true, error: "" });
+      try {
+        store.applyRemoteCouple(await coupleService.current());
+      } catch (error) {
+        if (!redirectExpiredSession()) this.setData({ error: userError(error, "关系状态同步失败，请稍后重试。") });
+        return;
+      } finally {
+        this.setData({ loading: false });
+      }
+    }
     if (store.getState().couple.status === "PAIRED") { this.setData({ stage: "done", relationshipName: store.getState().couple.relationshipName }); return; }
     const token = query.token || wx.getStorageSync("love-notes:pending-invitation");
     if (!token) return;

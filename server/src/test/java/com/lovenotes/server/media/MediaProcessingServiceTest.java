@@ -4,6 +4,7 @@ import com.lovenotes.server.domain.DomainEnums;
 import com.lovenotes.server.domain.MediaAssetEntity;
 import com.lovenotes.server.domain.MomentEntity;
 import com.lovenotes.server.message.MessageService;
+import com.lovenotes.server.pet.PetGrowthService;
 import com.lovenotes.server.repository.MediaAssetRepository;
 import com.lovenotes.server.repository.DerivedAssetRepository;
 import com.lovenotes.server.repository.MomentRepository;
@@ -27,7 +28,8 @@ class MediaProcessingServiceTest {
         MomentRepository moments = mock(MomentRepository.class);
         ObjectStorage storage = mock(ObjectStorage.class);
         MessageService messages = mock(MessageService.class);
-        MediaProcessingService service = new MediaProcessingService(assets, derivedAssets, moments, storage, messages);
+        PetGrowthService petGrowth = mock(PetGrowthService.class);
+        MediaProcessingService service = new MediaProcessingService(assets, derivedAssets, moments, storage, messages, petGrowth);
 
         UUID userId = UUID.randomUUID();
         MomentEntity moment = new MomentEntity(userId, null, DomainEnums.MomentType.IMAGE,
@@ -65,7 +67,8 @@ class MediaProcessingServiceTest {
         MomentRepository moments = mock(MomentRepository.class);
         ObjectStorage storage = mock(ObjectStorage.class);
         MessageService messages = mock(MessageService.class);
-        MediaProcessingService service = new MediaProcessingService(assets, derivedAssets, moments, storage, messages);
+        PetGrowthService petGrowth = mock(PetGrowthService.class);
+        MediaProcessingService service = new MediaProcessingService(assets, derivedAssets, moments, storage, messages, petGrowth);
 
         UUID userId = UUID.randomUUID();
         MomentEntity moment = new MomentEntity(userId, null, DomainEnums.MomentType.VIDEO,

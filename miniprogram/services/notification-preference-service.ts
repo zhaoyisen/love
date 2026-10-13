@@ -5,6 +5,7 @@ export interface NotificationPreferencesResponse {
   reaction_notice: boolean;
   pet_notice: boolean;
   recap_notice: boolean;
+  default_visibility?: "PRIVATE" | "SHARED";
 }
 
 export const notificationPreferenceService = {

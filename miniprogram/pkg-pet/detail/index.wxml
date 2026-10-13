@@ -29,8 +29,13 @@
 
     <block wx:else>
       <text class="eyebrow">OUR LITTLE CLOUD</text>
-      <view class="pet-title"><view><text>{{pet.name}}</text><text class="label">{{pet.kind}} · Lv.{{pet.level}}</text></view><text>{{pet.growth}} / 100</text></view>
-      <view class="pet-progress"><view class="decor" style="width: {{pet.growth}}%"></view></view>
+      <view class="pet-title"><view><text>{{pet.name}}</text><text class="label">{{pet.kind}} · Lv.{{pet.level}} / {{pet.maxLevel}}</text></view><text>{{pet.level >= pet.maxLevel ? '已满级' : pet.growth + ' / 100'}}</text></view>
+      <view class="pet-progress"><view class="decor" style="width: {{pet.growthPercent}}%"></view></view>
+      <view class="growth-today"><text>今日共同成长</text><text>{{pet.relationshipGrowthToday}} / {{pet.relationshipDailyCap}}</text></view>
+      <view class="unlock-card">
+        <view class="unlock-heading"><text class="section-title">成长收藏</text><text wx:if="{{pet.nextUnlockItem}}" class="label">Lv.{{pet.nextUnlockLevel}} 解锁 {{pet.nextUnlockItem}}</text><text wx:else class="label">所有纪念都已解锁</text></view>
+        <view class="unlock-list"><text wx:for="{{pet.unlockedItems}}" wx:key="*this">{{item}}</text><text wx:if="{{!pet.unlockedItems.length}}" class="unlock-empty">升到 Lv.2 会收到第一件纪念</text></view>
+      </view>
       <button class="rename-link" bindtap="openRename">改名字</button>
       <view class="pet-actions"><button class="press {{pet.fedToday ? 'done' : ''}}" data-action="feed" bindtap="action" disabled="{{!paired || acting}}"><text>小饼干</text><text class="label">{{pet.fedToday ? '今天喂过了' : '喂食 +8'}}</text></button><button class="press {{pet.playedToday ? 'done' : ''}}" data-action="play" bindtap="action" disabled="{{!paired || acting}}"><text>毛线球</text><text class="label">{{pet.playedToday ? '今天玩过了' : '玩耍 +8'}}</text></button></view>
       <view wx:if="{{renameOpen}}" class="rename-card"><text class="section-title">给 {{pet.name}} 换个名字</text><input class="pet-input" value="{{renameName}}" maxlength="30" bindinput="inputRenameName" /><view class="rename-actions"><button bindtap="closeRename">取消</button><button class="primary-button" loading="{{saving}}" bindtap="rename">保存</button></view><text class="label">每次改名后需等待 7 天才可再次修改。</text></view>

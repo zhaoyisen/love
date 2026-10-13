@@ -3,9 +3,10 @@ import { visibleLabel, splitDate } from "../../core/format";
 import { appService, promptModerationAppeal, redirectExpiredSession, userError } from "../../services/app-service";
 
 Page({
-  data: { draftId: "", draft: {} as any, date: {}, visibilityLabel: "", publishing: false, error: "", publishText: "确认发布" },
+  data: { draftId: "", draft: {} as any, date: {}, visibilityLabel: "", publishing: false, error: "", publishText: "确认发布", previewIndex: 0 },
   onLoad(query: any) { const draft = store.getDraft(query.draftId); if (!draft) { wx.navigateBack(); return; } this.setData({ draftId: draft.id, draft, date: splitDate(draft.occurredAt), visibilityLabel: visibleLabel(draft.visibility) }); },
   edit() { wx.navigateBack(); },
+  previewChange(event: any) { this.setData({ previewIndex: Number(event.detail.current || 0) }); },
   async publish(skipTemplate = false) {
     if (this.data.publishing) return;
     this.setData({ publishing: true, error: "", publishText: this.data.draft.mediaType === "TEXT" ? "正在发布" : "准备安全上传" });

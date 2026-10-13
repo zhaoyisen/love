@@ -1,6 +1,6 @@
-<view class="empty-state">
-  <view class="empty-mark"><view></view></view>
+<view class="empty-state" role="status" aria-live="polite">
+  <view class="empty-mark" aria-hidden="true"><view></view></view>
   <text class="empty-title">{{title}}</text>
   <text class="empty-description">{{description}}</text>
-  <button wx:if="{{action}}" class="empty-action press" bindtap="action">{{action}}</button>
+  <button wx:if="{{action}}" class="empty-action primary-button press" bindtap="action">{{action}}</button>
 </view>

@@ -20,6 +20,8 @@ spring:
       ddl-auto: validate
 
 love-notes:
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
   wechat:
     app-id: ${WECHAT_APP_ID}
     app-secret: ${WECHAT_APP_SECRET}
