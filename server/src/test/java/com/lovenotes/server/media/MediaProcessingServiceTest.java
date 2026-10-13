@@ -19,8 +19,50 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.*;
 
 class MediaProcessingServiceTest {
+    @Test
+    void shouldBackfillAnExistingReadyVideoWithoutRepublishingOrAuditingAgain() {
+        MediaAssetRepository assets = mock(MediaAssetRepository.class);
+        ObjectStorage storage = mock(ObjectStorage.class);
+        MessageService messages = mock(MessageService.class);
+        PetGrowthService petGrowth = mock(PetGrowthService.class);
+        MomentRepository moments = mock(MomentRepository.class);
+        MediaProcessingService service = new MediaProcessingService(assets, mock(DerivedAssetRepository.class), moments, storage, messages, petGrowth);
+        MediaAssetEntity asset = new MediaAssetEntity(UUID.randomUUID(), DomainEnums.MediaKind.VIDEO, "original/video.mp4", null, "video/mp4", 100);
+        asset.markReady("original/video.mp4", null);
+        when(assets.findById(asset.getId())).thenReturn(Optional.of(asset));
+        when(storage.createDerivatives(DomainEnums.MediaKind.VIDEO, "original/video.mp4"))
+                .thenReturn(new ObjectStorage.Derivatives("original/video.mp4", "thumbnail/video.jpg"));
+        when(assets.findTop5ByStatusAndThumbnailStorageKeyIsNullAndUpdatedAtBeforeOrderByUpdatedAtAsc(eq(DomainEnums.MediaStatus.READY), any(Instant.class)))
+                .thenReturn(List.of(asset));
+        assertEquals(List.of(asset.getId()), service.missingThumbnailIds());
+        service.backfillThumbnail(asset.getId());
+        assertEquals("thumbnail/video.jpg", asset.getThumbnailStorageKey());
+        assertEquals(DomainEnums.MediaStatus.READY, asset.getStatus());
+        verifyNoInteractions(messages, petGrowth, moments);
+        verify(storage).createDerivatives(DomainEnums.MediaKind.VIDEO, "original/video.mp4");
+    }
+
+    @Test
+    void shouldSkipBlockedMediaAndRetryCoverFailuresWithoutChangingReadyStatus() {
+        MediaAssetRepository assets = mock(MediaAssetRepository.class);
+        ObjectStorage storage = mock(ObjectStorage.class);
+        MediaProcessingService service = new MediaProcessingService(assets, mock(DerivedAssetRepository.class), mock(MomentRepository.class), storage, mock(MessageService.class), mock(PetGrowthService.class));
+        MediaAssetEntity asset = new MediaAssetEntity(UUID.randomUUID(), DomainEnums.MediaKind.VIDEO, "original/video.mp4", null, "video/mp4", 100);
+        asset.markBlocked();
+        when(assets.findById(asset.getId())).thenReturn(Optional.of(asset));
+        service.backfillThumbnail(asset.getId());
+        verifyNoInteractions(storage);
+        asset.markReady("original/video.mp4", null);
+        when(storage.createDerivatives(DomainEnums.MediaKind.VIDEO, "original/video.mp4")).thenThrow(new IllegalStateException("try later"));
+        service.backfillThumbnail(asset.getId());
+        assertEquals(DomainEnums.MediaStatus.READY, asset.getStatus());
+        assertEquals(null, asset.getThumbnailStorageKey());
+    }
     @Test
     void shouldPublishMomentOnlyAfterAllMediaPassSafetyProcessing() {
         MediaAssetRepository assets = mock(MediaAssetRepository.class);

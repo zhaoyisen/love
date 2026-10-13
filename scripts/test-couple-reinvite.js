@@ -25,7 +25,8 @@ function load(relativePath, dependencies, globals = {}) {
 function invitationPage(currentCouple) {
   const wx = { getStorageSync: () => undefined, setStorageSync() {} };
   const { store } = load("miniprogram/core/store.ts", {
-    "./api-config": { API_CONFIG: { useRemoteApi: true } }
+    "./api-config": { API_CONFIG: { useRemoteApi: true } },
+    "./media-cache": { mediaCache: { clear() {}, retain() {} } }
   }, { wx });
   store.applyRemoteProfile({ id: "me", name: "我" });
   store.applyRemoteCouple({ id: "old-space", status: "PAIRED", relationship_name: "旧空间" });

@@ -1,5 +1,6 @@
 import type { AppState, Draft, Moment, Visibility } from "./types";
 import { API_CONFIG } from "./api-config";
+import { mediaCache } from "./media-cache";
 
 const STORAGE_KEY = API_CONFIG.useRemoteApi ? "love-notes:remote-state:v1" : "love-notes:mock-state:v1";
 const LEGACY_STORAGE_KEY = "love-notes:mvp-state:v1";
@@ -146,6 +147,10 @@ class LoveNotesStore {
   }
 
   applyRemoteProfile(profile: { id: string; name: string; avatarUrl?: string; avatarAssetId?: string; avatarStatus?: string }, optimisticAvatarUrl?: string) {
+    if (this.state.profile.id && this.state.profile.id !== profile.id) {
+      mediaCache.clear();
+      this.state.moments = [];
+    }
     this.update((state) => {
       const sameAvatar = Boolean(profile.avatarAssetId && profile.avatarAssetId === state.profile.avatarAssetId);
       state.loggedIn = true;
@@ -160,6 +165,10 @@ class LoveNotesStore {
   }
 
   applyRemoteCouple(couple: any | null) {
+    if (this.state.couple.id && (couple?.id !== this.state.couple.id || couple?.status !== "PAIRED")) {
+      mediaCache.clear();
+      this.state.moments = this.state.moments.filter((item) => item.author === "我");
+    }
     this.update((state) => {
       if (!couple) {
         state.couple = {
@@ -182,6 +191,7 @@ class LoveNotesStore {
   }
 
   replaceRemoteMoments(moments: Moment[]) {
+    mediaCache.retain(this.state.profile.id || "", moments.flatMap((moment) => moment.media.map((media) => media.assetId || media.id)));
     this.update((state) => { state.moments = moments; });
   }
 
@@ -399,6 +409,7 @@ class LoveNotesStore {
   }
 
   reset() {
+    mediaCache.clear();
     this.state = initialState();
     this.persist();
   }

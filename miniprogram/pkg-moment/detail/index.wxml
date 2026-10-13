@@ -6,7 +6,7 @@
     <swiper wx:if="{{moment.mediaType === 'IMAGE' && moment.media.length}}" class="hero-swiper" current="{{mediaIndex}}" indicator-dots="{{moment.media.length > 1}}" indicator-color="rgba(255,249,242,.55)" indicator-active-color="#FFF9F2" bindchange="mediaChange">
       <swiper-item wx:for="{{moment.media}}" wx:key="id"><image src="{{item.path}}" mode="aspectFill" lazy-load="{{true}}" binderror="imageError"></image></swiper-item>
     </swiper>
-    <video wx:elif="{{moment.media[0].path && moment.mediaType === 'VIDEO'}}" src="{{moment.media[0].path}}" controls show-center-play-btn show-play-btn enable-play-gesture object-fit="cover" binderror="videoError"></video>
+    <video wx:elif="{{moment.media[0].path && moment.mediaType === 'VIDEO'}}" src="{{moment.media[0].path}}" poster="{{moment.media[0].thumbnailPath}}" controls show-center-play-btn show-play-btn enable-play-gesture object-fit="cover" binderror="videoError"></video>
     <view wx:else class="hero-art"><view class="hero-sun"></view><view class="hero-hill"></view></view>
     <text wx:if="{{moment.mediaType === 'IMAGE' && moment.media.length > 1}}" class="hero-count">{{mediaIndex + 1}} / {{moment.media.length}}</text>
     <view wx:if="{{moment.status === 'UPLOADING'}}" class="processing-cover"><text>媒体正在安全处理中</text><text>完成前仅你自己可以查看</text></view>

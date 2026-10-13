@@ -1,4 +1,5 @@
 import { API_CONFIG } from "../core/api-config";
+import { mediaCache } from "../core/media-cache";
 import { reportClientIssue } from "./client-monitor";
 
 const ACCESS_TOKEN_KEY = "love-notes:access-token";
@@ -66,6 +67,7 @@ export function saveTokens(accessToken: string, refreshToken: string) {
 }
 
 export function clearTokens() {
+  mediaCache.clear();
   wx.removeStorageSync(ACCESS_TOKEN_KEY);
   wx.removeStorageSync(REFRESH_TOKEN_KEY);
 }

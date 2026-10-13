@@ -8,8 +8,7 @@
   </view>
 
   <view wx:if="{{display.mediaType !== 'TEXT'}}" class="media-cover tone-{{display.media[0].tone || 'paper'}}">
-    <image wx:if="{{!mediaError && display.mediaType === 'IMAGE' && (display.media[0].thumbnailPath || display.media[0].path)}}" class="media-image" src="{{display.media[0].thumbnailPath || display.media[0].path}}" mode="aspectFill" lazy-load="{{!eager}}" binderror="imageError"></image>
-    <image wx:elif="{{!mediaError && display.mediaType === 'VIDEO' && display.media[0].thumbnailPath}}" class="media-image" src="{{display.media[0].thumbnailPath}}" mode="aspectFill" lazy-load="{{!eager}}" binderror="imageError"></image>
+    <image wx:if="{{!mediaError && coverPath}}" class="media-image" src="{{coverPath}}" mode="aspectFill" lazy-load="{{!eager}}" bindload="coverLoaded" binderror="imageError"></image>
 
     <view wx:elif="{{mediaError}}" class="media-error" role="status">
       <view class="media-error-mark">!</view>
