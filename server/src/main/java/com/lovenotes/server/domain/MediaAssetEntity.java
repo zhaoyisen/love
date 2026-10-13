@@ -80,6 +80,11 @@ public class MediaAssetEntity {
         this.status = DomainEnums.MediaStatus.READY;
     }
     public void markBlocked() { this.status = DomainEnums.MediaStatus.BLOCKED; }
+    public void updateDerivatives(String displayKey, String thumbnailKey) {
+        this.displayStorageKey = displayKey;
+        this.thumbnailStorageKey = thumbnailKey;
+        this.updatedAt = Instant.now();
+    }
     public void markFailed() { this.status = DomainEnums.MediaStatus.FAILED; }
     public void retryProcessing() { this.processingJobId = null; this.status = DomainEnums.MediaStatus.PROCESSING; }
     public void processingJob(String jobId) { this.processingJobId = jobId; this.updatedAt = Instant.now(); }

@@ -10,6 +10,7 @@ public interface ObjectStorage {
     String signedGetUrl(String storageKey, Duration ttl, String contentType);
     boolean requiresProcessing();
     ProcessingResult process(DomainEnums.MediaKind kind, String storageKey, String jobId);
+    Derivatives createDerivatives(DomainEnums.MediaKind kind, String storageKey);
     ProcessingOutcome auditText(String text);
     void deleteObjects(Collection<String> storageKeys);
 
@@ -17,5 +18,6 @@ public interface ObjectStorage {
     record Credentials(String tmpSecretId,String tmpSecretKey,String sessionToken,long startTime,long expiredTime){}
     record ObjectInfo(long size,String etag,String contentType){}
     record ProcessingResult(ProcessingOutcome outcome,String jobId,String displayKey,String thumbnailKey){}
+    record Derivatives(String displayKey, String thumbnailKey) {}
     enum ProcessingOutcome { PENDING, READY, BLOCKED, FAILED }
 }

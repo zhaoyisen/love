@@ -1,4 +1,5 @@
 import { store } from "../../core/store";
+import { mediaCache } from "../../core/media-cache";
 import { decorateMoment } from "../../core/format";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
 
@@ -45,7 +46,9 @@ Page({
       const moment = appService.isRemote ? await appService.detail(this.momentId) : store.getMoment(this.momentId);
       if (!moment) throw new Error("这条记录不存在或已经失效。");
       const partnerName = store.getState().couple.partnerName || "TA";
-      const decorated = decorateMoment(moment);
+      const decorated = decorateMoment({ ...moment, media: moment.media.map((item: any) => ({ ...item,
+        thumbnailPath: mediaCache.get(store.getState().profile.id || "", item.assetId || "", item.thumbnailPath) || item.thumbnailPath
+      })) });
       const failedMediaIds = moment.author === "我" ? decorated.media.filter((item: any) => item.status === "FAILED" && item.assetId).map((item: any) => item.assetId) : [];
       this.setData({ moment: decorated, partnerName, partnerInitial: partnerName.slice(0, 1), failedMediaIds });
       clearTimeout(this.pollTimer);

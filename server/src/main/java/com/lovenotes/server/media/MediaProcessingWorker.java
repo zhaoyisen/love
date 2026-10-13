@@ -27,5 +27,12 @@ public class MediaProcessingWorker {
                 log.warn("Media processing will retry, asset_id={}, reason={}", assetId, exception.getClass().getSimpleName());
             }
         }
+        for (UUID assetId : processing.missingThumbnailIds()) {
+            try {
+                processing.backfillThumbnail(assetId);
+            } catch (Exception exception) {
+                log.warn("Media thumbnail will retry, asset_id={}, reason={}", assetId, exception.getClass().getSimpleName());
+            }
+        }
     }
 }

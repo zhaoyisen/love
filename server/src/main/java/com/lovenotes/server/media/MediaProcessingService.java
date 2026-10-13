@@ -15,9 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class MediaProcessingService {
+    private static final Logger log = LoggerFactory.getLogger(MediaProcessingService.class);
     private final MediaAssetRepository assets;
     private final DerivedAssetRepository derivedAssets;
     private final MomentRepository moments;
@@ -38,6 +42,27 @@ public class MediaProcessingService {
     public List<UUID> pendingIds() {
         return assets.findTop20ByStatusOrderByUpdatedAtAsc(DomainEnums.MediaStatus.PROCESSING)
                 .stream().map(MediaAssetEntity::getId).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UUID> missingThumbnailIds() {
+        return assets.findTop5ByStatusAndThumbnailStorageKeyIsNullAndUpdatedAtBeforeOrderByUpdatedAtAsc(
+                DomainEnums.MediaStatus.READY, Instant.now().minusSeconds(60))
+                .stream().map(MediaAssetEntity::getId).toList();
+    }
+
+    @Transactional
+    public void backfillThumbnail(UUID assetId) {
+        MediaAssetEntity asset = assets.findById(assetId).orElse(null);
+        if (asset == null || asset.getStatus() != DomainEnums.MediaStatus.READY || asset.getThumbnailStorageKey() != null) return;
+        // 即使截帧失败也推进重试时间，避免坏文件长期占据补图队列。
+        asset.updateDerivatives(asset.getDisplayStorageKey(), null);
+        try {
+            ObjectStorage.Derivatives result = storage.createDerivatives(asset.getKind(), asset.getStorageKey());
+            asset.updateDerivatives(result.displayKey(), result.thumbnailKey());
+        } catch (Exception exception) {
+            log.warn("Media thumbnail will retry, asset_id={}, reason={}", assetId, exception.getClass().getSimpleName());
+        }
     }
 
     @Transactional

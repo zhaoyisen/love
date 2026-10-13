@@ -16,6 +16,7 @@ import com.qcloud.cos.model.ciModel.auditing.TextAuditingRequest;
 import com.qcloud.cos.model.ciModel.auditing.TextAuditingResponse;
 import com.qcloud.cos.model.ciModel.common.ImageProcessRequest;
 import com.qcloud.cos.model.ciModel.persistence.PicOperations;
+import com.qcloud.cos.model.ciModel.snapshot.SnapshotRequest;
 import com.qcloud.cos.region.Region;
 import com.tencent.cloud.CosStsClient;
 import com.lovenotes.server.common.ApiException;
@@ -36,11 +37,18 @@ public class CosObjectStorage implements ObjectStorage {
     private static final Logger log = LoggerFactory.getLogger(CosObjectStorage.class);
     private final LoveNotesProperties properties;
     private final COSClient cos;
+    @org.springframework.beans.factory.annotation.Autowired
     public CosObjectStorage(LoveNotesProperties properties){
+        this(properties, createClient(properties));
+    }
+    CosObjectStorage(LoveNotesProperties properties, COSClient cos){
         this.properties=properties;
+        this.cos=cos;
+    }
+    private static COSClient createClient(LoveNotesProperties properties){
         var clientConfig=new com.qcloud.cos.ClientConfig(new Region(properties.storage().region()));
         clientConfig.setHttpProtocol(HttpProtocol.https);
-        this.cos=new COSClient(new BasicCOSCredentials(properties.storage().secretId(),properties.storage().secretKey()),clientConfig);
+        return new COSClient(new BasicCOSCredentials(properties.storage().secretId(),properties.storage().secretKey()),clientConfig);
     }
 
     public UploadCredential issueUploadCredential(String key,Duration ttl){
@@ -102,8 +110,8 @@ public class CosObjectStorage implements ObjectStorage {
                 ImageAuditingResponse response=cos.imageAuditing(request);
                 if(!"0".equals(response.getResult()))return new ProcessingResult(ProcessingOutcome.BLOCKED,response.getJobId(),null,null);
                 try{
-                    String[] derivatives=createImageDerivatives(key);
-                    return new ProcessingResult(ProcessingOutcome.READY,response.getJobId(),derivatives[0],derivatives[1]);
+                    Derivatives derivatives=createDerivatives(kind,key);
+                    return new ProcessingResult(ProcessingOutcome.READY,response.getJobId(),derivatives.displayKey(),derivatives.thumbnailKey());
                 }catch(Exception derivativeFailure){
                     // Derivatives are an optimization, not a moderation boundary. Once the
                     // original image passed auditing, publish it instead of retrying forever.
@@ -122,9 +130,17 @@ public class CosObjectStorage implements ObjectStorage {
             AuditingJobsDetail detail=response.getJobsDetail();
             if(detail==null)return new ProcessingResult(ProcessingOutcome.PENDING,jobId,null,null);
             String currentJob=detail.getJobId()==null?jobId:detail.getJobId();
-            if("Success".equalsIgnoreCase(detail.getState()))return "0".equals(detail.getResult())
-                    ?new ProcessingResult(ProcessingOutcome.READY,currentJob,key,null)
-                    :new ProcessingResult(ProcessingOutcome.BLOCKED,currentJob,null,null);
+            if("Success".equalsIgnoreCase(detail.getState())){
+                if(!"0".equals(detail.getResult()))return new ProcessingResult(ProcessingOutcome.BLOCKED,currentJob,null,null);
+                try{
+                    Derivatives derivatives=createDerivatives(kind,key);
+                    return new ProcessingResult(ProcessingOutcome.READY,currentJob,derivatives.displayKey(),derivatives.thumbnailKey());
+                }catch(Exception derivativeFailure){
+                    // 已审核的视频可以发布；后台补图任务独立重试，避免再次审核和重复通知。
+                    logProviderFailure("video thumbnail",kind,key,currentJob,derivativeFailure);
+                    return new ProcessingResult(ProcessingOutcome.READY,currentJob,key,null);
+                }
+            }
             if("Failed".equalsIgnoreCase(detail.getState()))return new ProcessingResult(ProcessingOutcome.FAILED,currentJob,null,null);
             return new ProcessingResult(ProcessingOutcome.PENDING,currentJob,null,null);
         }catch(Exception exception){
@@ -139,16 +155,29 @@ public class CosObjectStorage implements ObjectStorage {
                 diagnostic.exceptionType(),properties.storage().bucket(),properties.storage().region());
         log.debug("COS "+operation+" exception",exception);
     }
-    private String[] createImageDerivatives(String sourceKey){
+    public Derivatives createDerivatives(DomainEnums.MediaKind kind,String sourceKey){
         String suffix=sourceKey.startsWith("original/")?sourceKey.substring("original/".length()):sourceKey;
         int extension=suffix.lastIndexOf('.');String stem=extension<0?suffix:suffix.substring(0,extension);
+        if(kind==DomainEnums.MediaKind.VIDEO){
+            String thumbnailKey="thumbnail/"+stem+".jpg";
+            SnapshotRequest request=new SnapshotRequest();
+            request.setBucketName(properties.storage().bucket());
+            request.getInput().setObject(sourceKey);
+            request.getOutput().setBucket(properties.storage().bucket());
+            request.getOutput().setRegion(properties.storage().region());
+            request.getOutput().setObject(thumbnailKey);
+            request.setTime("0");request.setWidth("480");request.setHeight("0");
+            request.setFormat("jpg");request.setMode("keyframe");request.setRotate("auto");
+            cos.generateSnapshot(request);
+            return new Derivatives(sourceKey,thumbnailKey);
+        }
         String displayKey="display/"+stem+".webp";String thumbnailKey="thumbnail/"+stem+".webp";
         PicOperations operations=new PicOperations();operations.setIsPicInfo(0);
         PicOperations.Rule display=new PicOperations.Rule();display.setBucket(properties.storage().bucket());display.setFileId(displayKey);display.setRule("imageMogr2/thumbnail/2000x2000>/strip/format/webp");
         PicOperations.Rule thumbnail=new PicOperations.Rule();thumbnail.setBucket(properties.storage().bucket());thumbnail.setFileId(thumbnailKey);thumbnail.setRule("imageMogr2/thumbnail/480x480>/strip/format/webp");
         operations.setRules(List.of(display,thumbnail));
         ImageProcessRequest request=new ImageProcessRequest(properties.storage().bucket(),sourceKey);request.setPicOperations(operations);cos.processImage(request);
-        return new String[]{displayKey,thumbnailKey};
+        return new Derivatives(displayKey,thumbnailKey);
     }
     public ProcessingOutcome auditText(String text){
         try{

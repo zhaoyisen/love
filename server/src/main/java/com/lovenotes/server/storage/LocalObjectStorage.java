@@ -14,13 +14,17 @@ public class LocalObjectStorage implements ObjectStorage {
     public String signedGetUrl(String key,Duration ttl,String contentType){return "local://"+key;}
     public boolean requiresProcessing(){return false;}
     public ProcessingResult process(DomainEnums.MediaKind kind,String key,String jobId){
+        Derivatives derivatives = createDerivatives(kind, key);
+        return new ProcessingResult(ProcessingOutcome.READY,null,derivatives.displayKey(),derivatives.thumbnailKey());
+    }
+    public Derivatives createDerivatives(DomainEnums.MediaKind kind,String key){
+        String suffix=key.startsWith("original/")?key.substring("original/".length()):key;
+        int extension=suffix.lastIndexOf('.');
+        String stem=extension<0?suffix:suffix.substring(0,extension);
         if(kind==DomainEnums.MediaKind.IMAGE){
-            String suffix=key.startsWith("original/")?key.substring("original/".length()):key;
-            int extension=suffix.lastIndexOf('.');
-            String stem=extension<0?suffix:suffix.substring(0,extension);
-            return new ProcessingResult(ProcessingOutcome.READY,null,"display/"+stem+".webp","thumbnail/"+stem+".webp");
+            return new Derivatives("display/"+stem+".webp","thumbnail/"+stem+".webp");
         }
-        return new ProcessingResult(ProcessingOutcome.READY,null,key,null);
+        return new Derivatives(key,"thumbnail/"+stem+".jpg");
     }
     public ProcessingOutcome auditText(String text){return ProcessingOutcome.READY;}
     public void deleteObjects(Collection<String> storageKeys){}

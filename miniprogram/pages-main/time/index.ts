@@ -15,17 +15,37 @@ Page({
   },
   remoteMoments: [] as any[],
   rangeRequestId: 0,
+  mediaPollTimer: null as any,
+  mediaPollCount: 0,
+  visible: false,
   onShow() {
+    this.visible = true;
+    this.mediaPollCount = 0;
+    clearTimeout(this.mediaPollTimer);
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 0 });
+    if (appService.isRemote && appService.hasSession() && store.getState().loggedIn && !this.remoteMoments.length) {
+      this.remoteMoments = store.getState().moments;
+      this.render();
+      this.setData({ loaded: this.remoteMoments.length > 0 });
+    }
     this.refresh();
   },
+  onHide() { this.visible = false; clearTimeout(this.mediaPollTimer); },
+  onUnload() { this.visible = false; clearTimeout(this.mediaPollTimer); },
   onPullDownRefresh() { this.refresh(); },
   onReachBottom() { this.loadMore(); },
   async refresh() {
     this.setData({ loading: true, error: "" });
     try {
-      await appService.refresh();
-      if (appService.isRemote) await this.reloadTimelineRange();
+      const timeline = await appService.refresh();
+      if (appService.isRemote && this.data.viewType === "day" && timeline) {
+        // 首次同步已取回“最新”列表，复用结果，避免再发一次相同的时间线请求。
+        this.remoteMoments = store.getState().moments;
+        this.setData({ timelineFrom: timeline.from, timelineTo: timeline.to, nextCursor: timeline.nextCursor,
+          hasMore: timeline.hasMore, summaryComplete: !timeline.hasMore });
+        this.render();
+      }
+      else if (appService.isRemote) await this.reloadTimelineRange();
       else this.render();
       this.setData({ loaded: true });
     } catch (error) {
@@ -36,6 +56,7 @@ Page({
     } finally {
       this.setData({ loading: false });
       wx.stopPullDownRefresh();
+      this.scheduleMediaRefresh();
     }
   },
   async loadMore() {
@@ -91,6 +112,19 @@ Page({
       summaryComplete: !page.has_more
     });
     this.render();
+  },
+  scheduleMediaRefresh() {
+    clearTimeout(this.mediaPollTimer);
+    const pending = this.remoteMoments.some((moment: any) => moment.status === "UPLOADING"
+      || (moment.status === "PUBLISHED" && moment.media?.some((media: any) => media.status === "READY" && !media.thumbnailPath)));
+    if (!this.visible || !appService.isRemote || !appService.hasSession() || !pending || this.mediaPollCount >= 12) return;
+    this.mediaPollTimer = setTimeout(async () => {
+      if (!this.visible) return;
+      if (this.data.loading || this.data.loadingMore) { this.scheduleMediaRefresh(); return; }
+      this.mediaPollCount++;
+      try { await this.reloadTimelineRange(); } catch (_) { /* 后台同步失败仍保留当前记录，用户可下拉重试。 */ }
+      this.scheduleMediaRefresh();
+    }, 5000);
   },
   render() {
     const state = store.getState();
