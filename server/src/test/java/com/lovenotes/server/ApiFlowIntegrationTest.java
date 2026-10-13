@@ -422,7 +422,7 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
-    void shouldReplayInvitationAndEnforceUnbindIsolation() throws Exception {
+    void shouldReplayInvitationAndAllowRePairingWithoutRestoringOldSpace() throws Exception {
         Login alpha = login("alpha");
         Login beta = login("beta");
         String idempotencyKey = UUID.randomUUID().toString();
@@ -470,6 +470,39 @@ class ApiFlowIntegrationTest {
 
         mvc.perform(get("/moments/{id}", momentId).header("Authorization", bearer(beta.accessToken())))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.error.code").value("RESOURCE_FORBIDDEN"));
+        mvc.perform(get("/moments/{id}", momentId).header("Authorization", bearer(alpha.accessToken())))
+                .andExpect(status().isOk());
+
+        for (Login user : new Login[]{alpha, beta}) {
+            mvc.perform(get("/couples/current").header("Authorization", bearer(user.accessToken())))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data").doesNotExist());
+            mvc.perform(get("/me").header("Authorization", bearer(user.accessToken())))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.relationship_status").value("UNPAIRED"));
+        }
+        String renewed = mvc.perform(post("/couple-invitations").header("Authorization", bearer(alpha.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID()))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String renewedToken = mapper.readTree(renewed).at("/data/token").asText();
+        Assertions.assertNotEquals(token, renewedToken);
+        mvc.perform(post("/couple-invitations/{token}/accept", token).header("Authorization", bearer(beta.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"rules_confirmed\":true}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("INVITATION_NOT_ACTIVE"));
+        String rePaired = mvc.perform(post("/couple-invitations/{token}/accept", renewedToken)
+                        .header("Authorization", bearer(beta.accessToken())).header("Idempotency-Key", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"rules_confirmed\":true}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.status").value("PAIRED"))
+                .andReturn().getResponse().getContentAsString();
+        String oldCoupleId = mapper.readTree(current).at("/data/id").asText();
+        String newCoupleId = mapper.readTree(rePaired).at("/data/id").asText();
+        Assertions.assertNotEquals(oldCoupleId, newCoupleId);
+        Assertions.assertEquals(DomainEnums.CoupleStatus.FROZEN, couples.findById(UUID.fromString(oldCoupleId)).orElseThrow().getStatus());
+        for (Login user : new Login[]{alpha, beta}) {
+            mvc.perform(get("/couples/current").header("Authorization", bearer(user.accessToken())))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.id").value(newCoupleId));
+        }
+        mvc.perform(get("/moments/{id}", momentId).header("Authorization", bearer(beta.accessToken())))
+                .andExpect(status().isForbidden());
         mvc.perform(get("/moments/{id}", momentId).header("Authorization", bearer(alpha.accessToken())))
                 .andExpect(status().isOk());
     }
