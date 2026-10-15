@@ -1,6 +1,6 @@
 /* Hallmark · component: timeline moment · genre: editorial · theme: DESIGN.md
  * states: default · hover · focus · active · disabled · loading · error · success
- * pre-emit critique: P5 H5 E5 S5 R5 V5 · contrast: pass
+ * pre-emit critique: P5 H4 E4 S5 R5 V4 · design-system: DESIGN.md 首页变体
  */
 
 .timeline-moment {
@@ -9,6 +9,12 @@
   border-bottom: var(--rule-thin) solid var(--color-rule);
   color: var(--color-ink);
   background: transparent;
+  transition: opacity var(--dur-micro) var(--ease-out);
+}
+
+.timeline-moment:active {
+  transform: none;
+  opacity: var(--opacity-pressed);
 }
 
 .moment-meta {
@@ -215,20 +221,19 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--line-meta);
-  padding: var(--space-3xs) var(--space-xs);
-  border-radius: var(--radius-pill);
+  padding: 0;
   font-size: var(--text-meta);
   line-height: var(--line-meta);
 }
 
 .lock-label {
   color: var(--color-warning);
-  background: var(--color-warning-bg);
+  background: transparent;
 }
 
 .shared-label {
   color: var(--color-success);
-  background: var(--color-success-bg);
+  background: transparent;
 }
 
 .moment-title,
@@ -238,10 +243,10 @@
 }
 
 .moment-title {
-  margin-top: var(--space-md);
+  margin-top: var(--space-xs);
   color: var(--color-ink);
   font-size: var(--text-list-title);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
   line-height: var(--line-list-title);
 }
 
@@ -249,7 +254,7 @@
   display: -webkit-box;
   overflow: hidden;
   margin-top: var(--space-xs);
-  color: var(--color-ink-secondary);
+  color: var(--color-ink);
   font-size: var(--text-body);
   line-height: var(--line-body);
   -webkit-box-orient: vertical;
@@ -265,11 +270,12 @@
 
 .sweet-response {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-sm);
   margin-top: var(--space-lg);
-  padding-top: var(--space-md);
-  border-top: var(--rule-thin) solid var(--color-rule);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
 }
 
 .response-avatar {
@@ -277,12 +283,12 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: var(--space-2xl);
-  height: var(--space-2xl);
+  width: var(--home-avatar-size);
+  height: var(--home-avatar-size);
   overflow: hidden;
   border-radius: var(--radius-round);
-  color: var(--color-success);
-  background: var(--color-success-bg);
+  color: var(--color-accent-strong);
+  background: var(--color-accent-soft);
   font-size: var(--text-meta);
   font-weight: var(--weight-semibold);
 }

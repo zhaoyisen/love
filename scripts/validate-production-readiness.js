@@ -32,6 +32,7 @@ requireMatch("miniprogram/app.ts", /getUpdateManager\(\)/, "必须在启动时�
 requireMatch("miniprogram/app.ts", /onNeedPrivacyAuthorization/, "必须响应微信隐私授权事件");
 requireMatch("miniprogram/services/client-monitor.ts", /getRealtimeLogManager/, "必须接入微信实时日志用于生产错误排查");
 requireMatch("miniprogram/pkg-compose/preview/index.wxml", /<swiper[\s\S]*wx:for="\{\{draft\.media\}\}"/, "发布前必须能预览全部照片");
+requireMatch("miniprogram/pkg-compose/composer/index.wxml", /<swiper[\s\S]*wx:for="\{\{draft\.media\}\}"/, "同页发布流程必须能预览全部照片");
 requireMatch("miniprogram/pkg-moment/detail/index.wxml", /<swiper[\s\S]*wx:for="\{\{moment\.media\}\}"/, "详情页必须能查看全部照片");
 requireMatch("miniprogram/pkg-compose/composer/index.ts", /IMAGE_MAX_BYTES\s*=\s*20\s*\*\s*1024\s*\*\s*1024/, "客户端图片大小限制必须与服务端一致");
 requireMatch("miniprogram/pkg-compose/composer/index.ts", /VIDEO_MAX_BYTES\s*=\s*200\s*\*\s*1024\s*\*\s*1024/, "客户端视频大小限制必须与服务端一致");

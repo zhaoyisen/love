@@ -4,6 +4,7 @@
 
 page {
   /* Color · canonical */
+  --color-home-paper: #FCFCFA;
   --color-paper: #F7EDE2;
   --color-surface: #FFF9F2;
   --color-surface-muted: #F1E3D9;

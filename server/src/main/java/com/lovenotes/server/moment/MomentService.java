@@ -30,6 +30,11 @@ public class MomentService {
     @Transactional(readOnly=true)
     public MomentView get(UUID actorId,UUID id){MomentEntity moment=moments.findById(id).orElseThrow(()->notFound());authorizeRead(actorId,moment);return view(actorId,moment);}
     @Transactional(readOnly=true)
+    public List<MomentView> album(UUID actorId){
+        return members.findById(actorId).map(member -> moments.album(member.getCoupleId(),PageRequest.of(0,6)).stream().map(moment -> view(actorId,moment,true)).toList()).orElseGet(List::of);
+    }
+
+    @Transactional(readOnly=true)
     public TimelinePage timeline(UUID actorId,Instant from,Instant to,int limit,String cursorToken){
         if(from.isAfter(to)||limit<1||limit>50)throw new ApiException(HttpStatus.BAD_REQUEST,"VALIDATION_ERROR","时间范围或分页大小不正确。");
         String queryHash=Hashing.sha256(actorId+"|"+from+"|"+to);
@@ -79,12 +84,15 @@ public class MomentService {
     private MomentEntity requireAuthor(UUID actorId,UUID id){MomentEntity moment=moments.findById(id).orElseThrow(()->notFound());if(!moment.getAuthorId().equals(actorId))throw forbidden();return moment;}
     private MomentEntity requireInteractable(UUID actorId,UUID id){MomentEntity moment=moments.findById(id).orElseThrow(()->notFound());boolean active=moment.getCoupleId()!=null&&members.findById(actorId).map(m->m.getCoupleId().equals(moment.getCoupleId())).orElse(false);if(moment.getStatus()!=DomainEnums.MomentStatus.PUBLISHED||moment.getVisibility()!=DomainEnums.Visibility.SHARED||!active)throw new ApiException(HttpStatus.FORBIDDEN,"INTERACTION_NOT_ALLOWED","只有当前情侣空间内的共同可见记录可以互动。");return moment;}
     private MomentView view(UUID actorId,MomentEntity m){
+        return view(actorId,m,false);
+    }
+    private MomentView view(UUID actorId,MomentEntity m,boolean originalPhotos){
         List<MomentTagEntity> all=tags.findByIdMomentId(m.getId());String mood=all.stream().filter(t->t.getId().getTagType()==DomainEnums.TagType.MOOD).map(t->t.getId().getTagValue()).findFirst().orElse(null);List<String> events=all.stream().filter(t->t.getId().getTagType()==DomainEnums.TagType.EVENT).map(t->t.getId().getTagValue()).toList();
         List<MediaAssetEntity> attached=assets.findByMomentIdOrderByCreatedAtAsc(m.getId());
         Map<UUID,DerivedAssetEntity> renders=derivedAssets.findByRenderedMediaAssetIdIn(attached.stream().map(MediaAssetEntity::getId).toList()).stream().collect(java.util.stream.Collectors.toMap(DerivedAssetEntity::getRenderedMediaAssetId,asset->asset));
         MediaAssetEntity rendered=attached.stream().filter(asset->renders.containsKey(asset.getId())&&asset.getStatus()==DomainEnums.MediaStatus.READY).max(Comparator.comparing(MediaAssetEntity::getCreatedAt)).orElse(null);
         DerivedAssetEntity template=rendered==null?null:renders.get(rendered.getId());
-        List<MediaAssetEntity> displayAssets=rendered==null?attached.stream().filter(asset->!renders.containsKey(asset.getId())).toList():List.of(rendered);
+        List<MediaAssetEntity> displayAssets=originalPhotos||rendered==null?attached.stream().filter(asset->!renders.containsKey(asset.getId())).toList():List.of(rendered);
         List<MediaView> media=displayAssets.stream().map(this::mediaView).toList();
         TemplateView templateView=template==null?null:new TemplateView(template.getId(),template.getTemplateId(),template.getTemplateVersion(),template.getStatus(),template.getSourceAssetIds());
         List<ReactionView> reactionViews=reactions.findByMomentIdOrderByUpdatedAtAsc(m.getId()).stream().map(reaction->new ReactionView(reaction.getActorId(),reaction.getValue(),reaction.getCreatedAt(),reaction.getUpdatedAt())).toList();ReactionView myReaction=reactionViews.stream().filter(reaction->reaction.actorId().equals(actorId)).findFirst().orElse(null);List<CommentView> commentViews=comments.findByMomentIdOrderByCreatedAtAsc(m.getId()).stream().map(comment->new CommentView(comment.getId(),comment.getAuthorId(),comment.getBody(),comment.getCreatedAt())).toList();return new MomentView(m.getId(),m.getAuthorId(),m.getType(),m.getTitle(),m.getBody(),m.getOccurredAt(),m.getVisibility(),m.getStatus(),m.getVersion(),m.getDeletedAt(),mood,events,media,templateView,myReaction,reactionViews,commentViews);

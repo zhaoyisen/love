@@ -1,33 +1,36 @@
-<view class="page time-page">
+<view class="page time-page home-refined">
   <view class="feed-header">
     <view class="feed-heading">
-      <text class="feed-date numeric">{{dateEyebrow}}</text>
       <text class="display-title">我们的时光</text>
-      <view class="couple-signature">
-        <view class="signature-avatars" aria-hidden="true">
-          <view class="signature-avatar mine">
-            <image wx:if="{{profile.avatarUrl}}" src="{{profile.avatarUrl}}" mode="aspectFill"></image>
-            <text wx:else>{{profile.avatarText || '我'}}</text>
-          </view>
-          <view class="signature-avatar partner">
-            <image wx:if="{{partnerAvatarUrl}}" src="{{partnerAvatarUrl}}" mode="aspectFill" lazy-load="{{true}}"></image>
-            <text wx:else>{{partnerInitial}}</text>
-          </view>
-        </view>
-        <text>{{couple.status === 'PAIRED' ? couple.relationshipName : '等待 TA 加入后，一起保存生活里的片刻'}}</text>
-      </view>
+      <text class="feed-date numeric">{{dateEyebrow}}</text>
     </view>
 
-    <button class="message-button press" bindtap="messages" aria-label="打开消息">
-      <view class="message-envelope" aria-hidden="true"></view>
+    <button size="mini" class="message-button press" bindtap="messages" aria-label="打开消息">
+      <image class="message-envelope" src="/assets/icons/home/mail.png" mode="aspectFit" aria-hidden="true"></image>
       <text wx:if="{{unread}}" class="message-badge">{{unread > 99 ? '99+' : unread}}</text>
     </button>
+  </view>
+
+  <view class="couple-signature">
+    <view class="signature-avatars" aria-hidden="true">
+      <view class="signature-avatar mine">
+        <image wx:if="{{profile.avatarUrl}}" src="{{profile.avatarUrl}}" mode="aspectFill"></image>
+        <text wx:else>{{profile.avatarText || '我'}}</text>
+      </view>
+      <view class="signature-avatar partner">
+        <image wx:if="{{partnerAvatarUrl}}" src="{{partnerAvatarUrl}}" mode="aspectFill" lazy-load="{{true}}"></image>
+        <text wx:else>{{partnerInitial}}</text>
+      </view>
+    </view>
+    <text>{{couple.status === 'PAIRED' ? couple.relationshipName : '等待 TA 加入后，一起保存生活里的片刻'}}</text>
   </view>
 
   <view class="memory-toolbar">
     <scroll-view scroll-x class="memory-tabs" show-scrollbar="false" aria-label="选择时间范围">
       <view class="memory-tabs-inner">
+        <view class="memory-tab-indicator" aria-hidden="true" style="transform: translateX({{viewType === 'day' ? 0 : viewType === 'week' ? 100 : viewType === 'month' ? 200 : viewType === 'year' ? 300 : 400}}%);"></view>
         <button
+          size="mini"
           wx:for="{{views}}"
           wx:key="key"
           class="memory-tab {{viewType === item.key ? 'active' : ''}} press"
@@ -37,16 +40,25 @@
         >{{item.label}}</button>
       </view>
     </scroll-view>
-    <button class="mood-filter {{filterMood !== '全部' ? 'active' : ''}} press" aria-expanded="{{showFilter}}" bindtap="toggleFilter">
-      <text>{{filterMood === '全部' ? '筛选' : filterMood}}</text>
-      <text aria-hidden="true">⌄</text>
-    </button>
   </view>
+
+  <view class="feed-section-head">
+    <text class="feed-section-title">{{viewType === 'day' ? '最近的记录' : viewType === 'week' ? '本周记录' : viewType === 'month' ? '本月记录' : viewType === 'year' ? '今年的记录' : '找到的记录'}}</text>
+    <view class="feed-tools">
+      <text class="moment-count">{{moments.length}} 个瞬间</text>
+      <button size="mini" class="mood-filter {{showFilter || filterMood !== '全部' ? 'active' : ''}} press" aria-expanded="{{showFilter}}" bindtap="toggleFilter">
+        <image class="filter-glyph" src="{{showFilter || filterMood !== '全部' ? '/assets/icons/home/sliders-active.png' : '/assets/icons/home/sliders.png'}}" mode="aspectFit" aria-hidden="true"></image>
+        <text>{{filterMood === '全部' ? '筛选' : filterMood}}</text>
+      </button>
+    </view>
+  </view>
+  <text wx:if="{{viewType !== 'day'}}" class="feed-description">{{currentDateLabel}} · 按发生时间排列</text>
 
   <view wx:if="{{showFilter}}" class="mood-panel">
     <text class="mood-panel-title">想看哪一种心情？</text>
     <view class="filter-chips">
       <button
+        size="mini"
         wx:for="{{['全部','开心','心动','平静','想念','委屈']}}"
         wx:key="*this"
         class="chip {{filterMood === item ? 'chip--active' : ''}} press"
@@ -63,7 +75,7 @@
 
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
     <text>{{error}}</text>
-    <button bindtap="refresh">重试</button>
+    <button size="mini" bindtap="refresh">重试</button>
   </view>
 
   <view wx:if="{{loading && !loaded}}" class="timeline-skeleton" role="status" aria-label="正在读取记录">
@@ -75,7 +87,7 @@
     </view>
   </view>
 
-  <block wx:else>
+  <view wx:else class="timeline-content" style="animation-name: timeline-{{viewType}};">
     <view wx:if="{{viewType === 'week'}}" class="period-panel week-strip">
       <view wx:for="{{weekDays}}" wx:key="day" class="week-day {{item.active ? 'active' : ''}}">
         <text>{{item.label}}</text>
@@ -127,14 +139,6 @@
       </view>
     </view>
 
-    <view class="feed-section-head">
-      <view>
-        <text>{{viewType === 'day' ? '最近的记录' : viewType === 'week' ? '本周记录' : viewType === 'month' ? '本月记录' : viewType === 'year' ? '今年的记录' : '找到的记录'}}</text>
-        <text>{{viewType === 'day' ? '按发生时间，看看彼此最近留下了什么' : currentDateLabel + ' · 按发生时间排列'}}</text>
-      </view>
-      <text class="moment-count">{{moments.length}} 个瞬间</text>
-    </view>
-
     <view wx:if="{{moments.length}}" class="timeline-list">
       <moment-card
         wx:for="{{moments}}"
@@ -155,8 +159,8 @@
       bind:action="emptyAction"
     ></empty-state>
 
-    <button wx:if="{{hasMore}}" class="load-more press" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">
+    <button wx:if="{{hasMore}}" size="mini" class="load-more press" loading="{{loadingMore}}" disabled="{{loadingMore}}" bindtap="loadMore">
       {{loadingMore ? '正在读取更多记录' : '继续翻看'}}
     </button>
-  </block>
+  </view>
 </view>

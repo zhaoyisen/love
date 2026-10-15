@@ -11,12 +11,18 @@ Page({
     loading: false,
     loaded: false,
     myInitial: "我",
+    myAvatarUrl: "",
+    myAvatarError: false,
     partnerInitial: "TA",
     partnerAvatarUrl: "",
+    partnerAvatarError: false,
     relationshipName: "我们的空间",
     relationshipStatusText: "尚未配对",
     relationshipDescription: "先独自记录，配对后再决定哪些内容共同可见",
     unreadCount: 0,
+    noticesOpen: false,
+    noticeCount: 0,
+    savingPreference: false,
     error: ""
   },
 
@@ -43,8 +49,11 @@ Page({
     this.setData({
       state,
       myInitial: (state.profile.name || "我").slice(0, 1),
+      myAvatarError: this.data.myAvatarUrl === (state.profile.avatarUrl || "") && this.data.myAvatarError,
+      myAvatarUrl: state.profile.avatarUrl || "",
       partnerInitial: (state.couple.partnerName || "TA").slice(0, 1),
       partnerAvatarUrl: state.couple.partnerAvatarUrl || "",
+      partnerAvatarError: this.data.partnerAvatarUrl === (state.couple.partnerAvatarUrl || "") && this.data.partnerAvatarError,
       relationshipName: paired ? (state.couple.relationshipName || "我们的空间") : ended ? "情侣空间已结束" : "暂未建立情侣空间",
       relationshipStatusText: paired ? "已配对" : ended ? "已结束" : "尚未配对",
       relationshipDescription: paired
@@ -52,10 +61,18 @@ Page({
         : ended
           ? "双方内容已停止互访，你创建的记录仍会保留"
           : "先独自记录，配对后再决定哪些内容共同可见",
-      unreadCount: state.messages.filter((item) => !item.read).length
+      unreadCount: state.messages.filter((item) => !item.read).length,
+      noticeCount: [state.preferences.momentNotice, state.preferences.reactionNotice, state.preferences.petNotice, state.preferences.recapNotice].filter(Boolean).length
     });
   },
   retry() { this.onShow(); },
+  toggleNotices() { this.setData({ noticesOpen: !this.data.noticesOpen }); },
+  avatarError(event: any) {
+    this.setData(event.currentTarget.dataset.avatar === "my" ? { myAvatarError: true } : { partnerAvatarError: true });
+  },
+  help() {
+    wx.showModal({ title: "身份、关系与设置", content: "这里保管你的资料、分享边界和提醒。\n\n身份与关系\n先确认是谁，再管理共同空间\n\n隐私与记录\n管理分享边界和已删除内容", showCancel: false });
+  },
   edit() { wx.navigateTo({ url: "/pkg-profile/edit/index" }); },
   privacy() { wx.navigateTo({ url: "/pkg-couple/privacy/index" }); },
   recycle() { wx.navigateTo({ url: "/pkg-moment/recycle-bin/index" }); },
@@ -64,6 +81,9 @@ Page({
   recap() { if (!appService.isRemote) wx.switchTab({ url: "/pages-main/recap/index" }); },
 
   async toggle(event: any) {
+    // The service sends all four preferences; serialize saves to avoid overwriting another toggle.
+    if (this.data.loading || this.data.savingPreference) return;
+    this.setData({ savingPreference: true });
     const key = event.currentTarget.dataset.key as keyof ReturnType<typeof store.getState>["preferences"];
     const value = Boolean(event.detail.value);
     const previous = store.getState().preferences[key];
@@ -76,6 +96,8 @@ Page({
       store.updatePreference(key, previous);
       this.render();
       if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "提醒偏好保存失败，请稍后重试。"), icon: "none" });
+    } finally {
+      this.setData({ savingPreference: false });
     }
   },
 

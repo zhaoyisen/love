@@ -1120,6 +1120,81 @@ class ApiFlowIntegrationTest {
                 .andExpect(jsonPath("$.data.accepted").value(true));
     }
 
+    @Test
+    void shouldKeepAlbumInsideCurrentCoupleAndExcludeUnavailablePhotos() throws Exception {
+        Login alpha = login("album-alpha");
+        Login beta = login("album-beta");
+        Login gamma = login("album-gamma");
+        Login stranger = login("album-stranger");
+        mvc.perform(get("/couples/current/album")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/couples/current/album").header("Authorization", bearer(alpha.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(0)));
+        pair(alpha, beta);
+        String oldAsset = uploadImage(alpha, "old-album.jpg");
+        mvc.perform(post("/moments").header("Authorization", bearer(alpha.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                        .content(imageMoment(oldAsset).replace("PRIVATE", "SHARED")))
+                .andExpect(status().isCreated());
+        String current = mvc.perform(get("/couples/current").header("Authorization", bearer(alpha.accessToken())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        int version = mapper.readTree(current).at("/data/version").asInt();
+        mvc.perform(post("/couples/current/unbind").header("Authorization", bearer(alpha.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":" + version + ",\"confirm_text\":\"确认解绑\"}"))
+                .andExpect(status().isOk());
+        pair(alpha, gamma);
+        mvc.perform(get("/couples/current/album").header("Authorization", bearer(alpha.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(0)));
+        String privateAsset = uploadImage(alpha, "private-album.jpg");
+        mvc.perform(post("/moments").header("Authorization", bearer(alpha.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                        .content(imageMoment(privateAsset))).andExpect(status().isCreated());
+        mvc.perform(post("/moments").header("Authorization", bearer(alpha.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                        .content(textMoment("SHARED"))).andExpect(status().isCreated());
+        for (int index = 0; index < 7; index++) {
+            Login author = index % 2 == 0 ? alpha : gamma;
+            String asset = uploadImage(author, "album-" + index + ".jpg");
+            mvc.perform(post("/moments").header("Authorization", bearer(author.accessToken()))
+                            .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                            .content(imageMoment(asset).replace("PRIVATE", "SHARED")))
+                    .andExpect(status().isCreated());
+        }
+        String album = mvc.perform(get("/couples/current/album").header("Authorization", bearer(alpha.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(6)))
+                .andExpect(jsonPath("$.data[*].visibility", everyItem(is("SHARED"))))
+                .andExpect(jsonPath("$.data[*].type", everyItem(is("IMAGE"))))
+                .andReturn().getResponse().getContentAsString();
+        String newestAsset = mapper.readTree(album).at("/data/0/media/0/id").asText();
+        MediaAssetEntity failed = assets.findById(UUID.fromString(newestAsset)).orElseThrow();
+        failed.markFailed(); assets.saveAndFlush(failed);
+        mvc.perform(get("/couples/current/album").header("Authorization", bearer(gamma.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(6)))
+                .andExpect(jsonPath("$.data[*].media[0].id", not(hasItem(newestAsset))))
+                .andExpect(jsonPath("$.data[*].media[0].id", not(hasItem(privateAsset))))
+                .andExpect(jsonPath("$.data[*].media[0].id", not(hasItem(oldAsset))));
+        mvc.perform(get("/couples/current/album").header("Authorization", bearer(stranger.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(0)));
+        String sourceAsset = uploadImage(alpha, "album-source.jpg");
+        String renderedAsset = uploadImage(alpha, "album-template.jpg");
+        mvc.perform(post("/template-renders").header("Authorization", bearer(alpha.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source_asset_ids\":[\"" + sourceAsset + "\"],\"rendered_asset_id\":\"" + renderedAsset
+                                + "\",\"template_id\":\"cream-film\",\"template_version\":1,\"render_config\":\"{}\"}"))
+                .andExpect(status().isCreated());
+        String templateMoment = mvc.perform(post("/moments").header("Authorization", bearer(alpha.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                        .content(imageMoment(sourceAsset, renderedAsset).replace("PRIVATE", "SHARED")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.data.media[0].id").value(renderedAsset))
+                .andReturn().getResponse().getContentAsString();
+        mvc.perform(get("/couples/current/album").header("Authorization", bearer(alpha.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].media[0].id").value(sourceAsset))
+                .andExpect(jsonPath("$.data[*].media[*].id", not(hasItem(renderedAsset))));
+        mvc.perform(get("/moments/{id}", mapper.readTree(templateMoment).at("/data/id").asText())
+                        .header("Authorization", bearer(alpha.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.media[0].id").value(renderedAsset));
+    }
+
     private Login login(String code) throws Exception {
         String body = mvc.perform(post("/auth/wechat/session").contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"" + code + "\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.data.access_token").isNotEmpty())

@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "甜蜜",
+  "navigationBarBackgroundColor": "#FCFCFA",
+  "backgroundColor": "#FCFCFA",
   "enablePullDownRefresh": true,
   "backgroundTextStyle": "dark",
   "usingComponents": {

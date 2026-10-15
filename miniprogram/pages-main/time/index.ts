@@ -157,7 +157,7 @@ Page({
       profile: state.profile, couple: state.couple, moments: filtered,
       unread: state.messages.filter((item) => !item.read).length,
       weekDays: this.buildWeek(now, moments), calendar: this.buildCalendar(now, moments), months: this.buildMonths(now, moments),
-      dateEyebrow: `${now.getFullYear()} · ${now.getMonth() + 1}月`,
+      dateEyebrow: `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 · 星期${"日一二三四五六"[now.getDay()]}`,
       currentDateLabel: `${now.getMonth() + 1} 月 ${now.getDate()} 日`, currentYear: now.getFullYear(),
       currentMonthTitle: `${now.getFullYear()} 年 ${now.getMonth() + 1} 月`, customStart, customEnd,
       partnerInitial: (state.couple.partnerName || "TA").slice(0, 1), partnerAvatarUrl: state.couple.partnerAvatarUrl || ""

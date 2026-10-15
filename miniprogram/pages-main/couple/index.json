@@ -1,1 +1,6 @@
-{ "navigationBarTitleText": "我们" }
+{
+  "navigationBarTitleText": "我们",
+  "navigationBarBackgroundColor": "#FCFCFA",
+  "backgroundColor": "#FCFCFA",
+  "enablePullDownRefresh": true
+}

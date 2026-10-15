@@ -5,6 +5,7 @@ const moodMap: Record<string, string> = { 开心: "HAPPY", 心动: "HEARTBEAT", 
 const eventMap: Record<string, string> = { 日常: "DAILY", 约会: "DATE", 旅行: "TRAVEL", 纪念日: "ANNIVERSARY", 第一次: "FIRST", 争执: "CONFLICT", 和好: "RECONCILED", 礼物: "GIFT", 共同成长: "GROWTH", 其他: "OTHER" };
 
 export const momentService = {
+  album: () => apiRequest<any[]>({ path: "/couples/current/album" }),
   create(draft: Draft, assetIds: string[] = []) {
     return apiRequest<any>({
       path: "/moments", method: "POST", idempotencyKey: idempotencyKey(),
