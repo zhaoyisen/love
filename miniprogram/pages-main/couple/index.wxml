@@ -1,15 +1,15 @@
-<view class="page couple-page">
+<view class="page couple-page home-refined">
   <view class="couple-heading">
     <view class="heading-copy">
       <text class="display-title">我们</text>
       <text class="section-note">两个人的关系、回应和共同生活</text>
     </view>
-    <button class="settings-button press" bindtap="settings">设置</button>
+    <button size="mini" class="settings-button press" bindtap="settings">设置</button>
   </view>
 
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
     <text>{{error}}</text>
-    <button bindtap="retry">重试</button>
+    <button size="mini" bindtap="retry">重试</button>
   </view>
 
   <view wx:if="{{loading && loaded}}" class="sync-status" role="status">
@@ -18,12 +18,16 @@
   </view>
 
   <view wx:if="{{loading && !loaded}}" class="relationship-skeleton" role="status" aria-label="正在读取关系空间">
-    <view class="skeleton-identity">
-      <view class="skeleton-avatar skeleton-block"></view>
-      <view class="skeleton-avatar skeleton-block"></view>
+    <view class="album-grid" aria-hidden="true">
+      <view class="album-column">
+        <view class="skeleton-photo skeleton-photo--portrait skeleton-block"></view>
+        <view class="skeleton-photo skeleton-block"></view>
+      </view>
+      <view class="album-column">
+        <view class="skeleton-photo skeleton-block"></view>
+        <view class="skeleton-photo skeleton-photo--portrait skeleton-block"></view>
+      </view>
     </view>
-    <view class="skeleton-number skeleton-block"></view>
-    <view class="skeleton-line skeleton-block"></view>
     <text>正在确认你们的空间</text>
   </view>
 
@@ -49,8 +53,8 @@
     </view>
 
     <view class="state-actions">
-      <button class="primary-button press" bindtap="invite">邀请另一半</button>
-      <button class="text-button press" bindtap="privacy">了解共享方式</button>
+      <button size="mini" class="primary-button press" bindtap="invite">邀请另一半</button>
+      <button size="mini" class="text-button press" bindtap="privacy">了解共享方式</button>
     </view>
   </view>
 
@@ -60,12 +64,41 @@
     <text class="state-description">你仍可在“甜蜜”中查看自己创建的记录；对方上传的内容和原情侣回顾已隐藏。</text>
     <text class="state-description">重新邀请会建立新的情侣空间，旧空间的记录不会自动共享。</text>
     <view class="state-actions">
-      <button class="primary-button press" bindtap="invite">重新邀请另一半</button>
-      <button class="secondary-button press" bindtap="privacy">查看隐私设置</button>
+      <button size="mini" class="primary-button press" bindtap="invite">重新邀请另一半</button>
+      <button size="mini" class="secondary-button press" bindtap="privacy">查看隐私设置</button>
     </view>
   </view>
 
-  <block wx:else>
+  <block wx:elif="{{couple.status === 'PAIRED'}}">
+    <view class="album-section">
+      <text class="section-title">相册</text>
+      <view wx:if="{{albumCount}}" class="album-grid {{albumCount === 1 ? 'album-grid--single' : ''}}">
+        <view wx:for="{{[0,1]}}" wx:for-item="columnIndex" wx:key="*this" wx:if="{{albumColumns[columnIndex].length}}" class="album-column">
+          <button
+            wx:for="{{albumColumns[columnIndex]}}" wx:for-item="photo" wx:for-index="photoIndex" wx:key="key"
+            size="mini" class="album-photo album-photo--{{photo.aspect}} press"
+            data-column="{{columnIndex}}" data-index="{{photoIndex}}" bindtap="openAlbumPhoto"
+            aria-label="{{photo.title || '共同照片'}}，打开记录"
+          >
+            <image
+              wx:if="{{!photo.error}}" class="album-image" src="{{photo.path}}" mode="aspectFill"
+              lazy-load="{{photoIndex > 0}}" data-column="{{columnIndex}}" data-index="{{photoIndex}}"
+              style="transform: translate3d(0, {{columnIndex === 0 ? albumOffset : -albumOffset}}px, 0);"
+              bindload="albumPhotoLoaded" binderror="albumPhotoError" aria-hidden="true"
+            ></image>
+            <view wx:else class="album-photo-error" role="status">
+              <text>媒体没有加载完成</text>
+              <text>打开记录后可重新尝试</text>
+            </view>
+          </button>
+        </view>
+      </view>
+      <view wx:else class="album-empty" role="status">
+        <text>{{albumLoading ? '正在整理共同照片' : error ? '共同照片暂时无法读取' : '还没有共同照片'}}</text>
+        <text wx:if="{{!albumLoading && !error}}">把照片留在共同可见的记录里，就会出现在这里。</text>
+      </view>
+    </view>
+
     <view class="relationship-summary">
       <view class="relationship-topline">
         <view class="relationship-people" aria-label="你和另一半">
@@ -79,23 +112,21 @@
             <text wx:else>{{partnerInitial}}</text>
           </view>
         </view>
-        <button class="edit-relationship press" bindtap="openProfileEditor">编辑资料</button>
+        <text class="relationship-name">{{couple.relationshipName || '我们的空间'}}</text>
+        <button size="mini" class="edit-relationship press" bindtap="openProfileEditor">编辑资料</button>
       </view>
 
-      <text class="relationship-name">{{couple.relationshipName || '我们的空间'}}</text>
-
-      <view wx:if="{{days}}" class="days-statement">
-        <text class="days-number numeric">{{days}}</text>
-        <view class="days-qualifier">
-          <text>天</text>
+      <view class="relationship-meta">
+        <view wx:if="{{days}}" class="days-statement">
           <text>我们一起走过</text>
+          <text class="days-number numeric">{{days}}</text>
+          <text>天</text>
         </view>
-      </view>
-      <button wx:else class="missing-anniversary press" bindtap="openProfileEditor">还没有设置在一起的日期</button>
-
-      <view class="anniversary-line">
-        <text>纪念日</text>
-        <text class="numeric">{{couple.anniversary || '等你们一起定下'}}</text>
+        <button wx:else size="mini" class="missing-anniversary press" bindtap="openProfileEditor">还没有设置在一起的日期</button>
+        <view class="anniversary-line">
+          <text>纪念日</text>
+          <text class="numeric">{{couple.anniversary || '等你们一起定下'}}</text>
+        </view>
       </view>
     </view>
 
@@ -105,7 +136,7 @@
           <text class="editor-title">编辑关系资料</text>
           <text class="editor-note">保存后会同步给对方</text>
         </view>
-        <button class="text-button" disabled="{{savingProfile}}" bindtap="closeProfileEditor">取消</button>
+        <button size="mini" class="text-button" disabled="{{savingProfile}}" bindtap="closeProfileEditor">取消</button>
       </view>
 
       <view class="form-item">
@@ -134,11 +165,11 @@
         </picker>
         <view class="date-helper">
           <text class="form-helper">用于计算在一起的天数</text>
-          <button class="clear-date" disabled="{{!editAnniversary || savingProfile}}" bindtap="clearAnniversary">清空日期</button>
+          <button size="mini" class="clear-date" disabled="{{!editAnniversary || savingProfile}}" bindtap="clearAnniversary">清空日期</button>
         </view>
       </view>
 
-      <button class="primary-button press" loading="{{savingProfile}}" disabled="{{savingProfile}}" bindtap="saveProfile">
+      <button size="mini" class="primary-button press" loading="{{savingProfile}}" disabled="{{savingProfile}}" bindtap="saveProfile">
         {{savingProfile ? '正在保存' : '保存资料'}}
       </button>
     </view>
@@ -150,7 +181,8 @@
       </view>
 
       <view class="shared-ledger">
-        <button class="ledger-row press" bindtap="messages">
+        <button size="mini" class="ledger-row press" bindtap="messages">
+          <image class="ledger-icon" src="/assets/icons/home/mail.png" mode="aspectFit" aria-hidden="true"></image>
           <view class="ledger-copy">
             <text class="ledger-title">TA 最近的回应</text>
             <text class="ledger-description">{{unread ? '有新的回应和悄悄话等你查看' : '今天的消息已经读完'}}</text>
@@ -162,14 +194,15 @@
         </button>
 
         <view class="shared-count-row">
-          <view>
-            <text class="shared-count numeric">{{sharedCount}}</text>
-            <text>个共同瞬间</text>
+          <image class="ledger-icon" src="/assets/icons/home/images.png" mode="aspectFit" aria-hidden="true"></image>
+          <view class="ledger-copy">
+            <view class="shared-count-line"><text class="shared-count numeric">{{sharedCount}}</text><text>个共同瞬间</text></view>
+            <text class="ledger-description">只统计你们共同可见的记录</text>
           </view>
-          <text>只统计你们共同可见的记录</text>
         </view>
 
-        <button class="ledger-row pet-row press" bindtap="pet">
+        <button size="mini" class="ledger-row pet-row press" bindtap="pet">
+          <image class="ledger-icon" src="/assets/icons/home/cat.png" mode="aspectFit" aria-hidden="true"></image>
           <view class="pet-copy">
             <text class="ledger-title">{{pet.name}} · Lv.{{pet.level}}</text>
             <text class="ledger-description">{{pet.kind}}也在记录你们一起陪伴的时间</text>

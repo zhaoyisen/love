@@ -276,6 +276,12 @@ export const appService = {
     return synchronizeRemoteState();
   },
 
+  async album() {
+    if (!API_CONFIG.useRemoteApi) return store.getState().moments;
+    const items = await momentService.album();
+    return items.map((item) => remoteMoment(item, store.getState().profile.id || ""));
+  },
+
   async updateProfile(nickname: string, avatarAssetId?: string, optimisticAvatarUrl?: string) {
     const normalized = nickname.trim();
     if (!API_CONFIG.useRemoteApi) {

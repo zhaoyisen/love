@@ -6,6 +6,8 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.*;
 public interface MomentRepository extends JpaRepository<MomentEntity, UUID> {
+    @Query("select m from MomentEntity m where m.coupleId=:couple and m.visibility=com.lovenotes.server.domain.DomainEnums$Visibility.SHARED and m.status=com.lovenotes.server.domain.DomainEnums$MomentStatus.PUBLISHED and m.type=com.lovenotes.server.domain.DomainEnums$MomentType.IMAGE and exists (select a.id from MediaAssetEntity a where a.momentId=m.id and a.kind=com.lovenotes.server.domain.DomainEnums$MediaKind.IMAGE and a.status=com.lovenotes.server.domain.DomainEnums$MediaStatus.READY and not exists (select d.id from DerivedAssetEntity d where d.renderedMediaAssetId=a.id)) order by m.occurredAt desc, m.createdAt desc, m.id desc")
+    List<MomentEntity> album(@Param("couple") UUID couple, Pageable pageable);
     List<MomentEntity> findByAuthorIdAndStatusOrderByDeletedAtDesc(UUID authorId, DomainEnums.MomentStatus status);
     List<MomentEntity> findByAuthorIdAndStatusInOrderByCreatedAtAsc(UUID authorId, Collection<DomainEnums.MomentStatus> statuses);
     List<MomentEntity> findByCoupleIdAndVisibilityAndStatusAndOccurredAtBetweenOrderByOccurredAtDescCreatedAtDesc(
