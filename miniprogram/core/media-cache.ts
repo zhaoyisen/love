@@ -1,7 +1,8 @@
 const STORAGE_KEY = "love-notes:cover-cache:v1";
 const MAX_BYTES = 32 * 1024 * 1024;
 const MAX_FILES = 100;
-const MAX_FILE_BYTES = 2 * 1024 * 1024;
+// 详情也复用完整照片；单张与上传的 20MB 上限一致，总缓存仍限制为 32MB。
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface Entry { owner: string; assetId: string; path: string; size: number; usedAt: number }
@@ -65,6 +66,7 @@ function drain() {
 }
 
 export const mediaCache = {
+  isUrlCurrent: unexpiredUrl,
   get(owner: string, assetId: string, url?: string, requireUnexpiredUrl = false): string | undefined {
     if (!owner || !assetId || !url || !wx.env?.USER_DATA_PATH) return;
     // 对方的封面不能借本地缓存延长授权窗口，签名过期后等服务端返回新的可读 URL。

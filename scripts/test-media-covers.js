@@ -99,7 +99,7 @@ test("cover cache stays within byte and file limits and never saves oversized or
   const savedFiles = [...f.files].filter(([file]) => file.includes("media-cover-cache"));
   assert.ok(savedFiles.length <= 100);
   assert.ok(savedFiles.reduce((bytes, [, size]) => bytes + size, 0) <= 32 * 1024 * 1024);
-  const large = fixture({ imageSize: 3 * 1024 * 1024 });
+  const large = fixture({ imageSize: 21 * 1024 * 1024 });
   assert.equal(await large.cache.remember("me", "large", firstUrl), firstUrl);
   assert.equal(large.cache.get("me", "large", firstUrl), undefined);
 });
@@ -190,7 +190,7 @@ test("missing covers refresh automatically, stop once ready, and never poll a hi
   let nextTimer = 0;
   let calls = 0;
   let definition;
-  const pendingMoment = { id: "video", occurredAt: new Date().toISOString(), status: "PUBLISHED", author: "我",
+  const pendingMoment = { id: "video", occurredAt: new Date().toISOString(), status: "PUBLISHED", author: "我", mediaType: "VIDEO",
     media: [{ assetId: "video", status: "READY" }] };
   const readyMoment = { ...pendingMoment, media: [{ assetId: "video", status: "READY", thumbnailPath: firstUrl }] };
   const state = { profile: { id: "me" }, couple: { status: "UNPAIRED", partnerName: "TA" }, moments: [pendingMoment], messages: [] };
@@ -283,4 +283,84 @@ test("an incomplete first timeline page does not delete covers belonging to late
   assert.equal(f.cache.get("me", "older-photo", firstUrl), saved);
   store.replaceRemoteMoments([], true);
   assert.equal(f.cache.get("me", "older-photo", firstUrl), undefined);
+});
+
+test("an ordinary full-size photo over 2MB survives reopening without another download", async () => {
+  const f = fixture({ imageSize: 3 * 1024 * 1024 });
+  const saved = await f.cache.remember("me", "photo", firstUrl);
+  assert.match(saved, /^wxfile:\/\/user\/media-cover-cache\//);
+  const reopened = f.reload();
+  assert.equal(await reopened.remember("me", "photo", rotatedUrl), saved);
+  assert.equal(f.requests.length, 1);
+});
+
+test("a signature-only metadata refresh keeps the displayed cover while its cache is unavailable", () => {
+  let definition, owner = "me";
+  load("miniprogram/components/moment-card/index.ts", {
+    "../../core/media-cache": { mediaCache: { get() {} } },
+    "../../services/request": { hasSession: () => true },
+    "../../core/store": { store: { getState: () => ({ loggedIn: true, profile: { id: owner } }) } },
+    "../../core/format": load("miniprogram/core/format.ts")
+  }, { Component(value) { definition = value; } });
+  const card = { data: { ...definition.data }, setData(patch) { Object.assign(this.data, patch); } };
+  const moment = { id: "photo", author: "我", mediaType: "IMAGE", occurredAt: new Date().toISOString(), media: [{ assetId: "photo", status: "READY", path: firstUrl }] };
+  definition.observers.item.call(card, moment);
+  definition.observers.item.call(card, { ...moment, body: "更新正文", media: [{ ...moment.media[0], path: rotatedUrl }] });
+  assert.equal(card.data.coverPath, firstUrl);
+  assert.equal(card.data.coverSource, rotatedUrl);
+  const replacement = "https://bucket.cos.test/thumbnail/changed.jpg";
+  definition.observers.item.call(card, { ...moment, media: [{ ...moment.media[0], path: replacement }] });
+  assert.equal(card.data.coverPath, replacement);
+  owner = "other";
+  definition.observers.item.call(card, { ...moment, media: [{ ...moment.media[0], path: replacement + "?new-owner" }] });
+  assert.equal(card.data.coverPath, replacement + "?new-owner");
+});
+
+test("published images with a usable original do not schedule a five-second missing-cover refresh", () => {
+  let page;
+  const timers = [];
+  load("miniprogram/pages-main/time/index.ts", {
+    "../../core/store": { store: {} },
+    "../../services/app-service": { appService: { isRemote: true, hasSession: () => true } }
+  }, { Page(value) { page = value; }, setTimeout(callback) { timers.push(callback); return timers.length; }, clearTimeout() {} });
+  page.visible = true;
+  page.remoteMoments = [{ status: "PUBLISHED", mediaType: "IMAGE", media: [{ status: "READY", path: firstUrl }] }];
+  page.scheduleMediaRefresh(); assert.equal(timers.length, 0);
+  page.remoteMoments = [{ status: "UPLOADING", mediaType: "IMAGE", media: [{ status: "PROCESSING" }] }];
+  page.scheduleMediaRefresh(); assert.equal(timers.length, 1);
+});
+
+test("keeping a displayed partner cover never extends an expired signed URL", async () => {
+  const f = fixture(); let definition;
+  const valid = firstUrl + "&q-key-time=1;" + (Math.floor(Date.now() / 1000) + 3600);
+  const expired = rotatedUrl + "&q-key-time=1;1";
+  const saved = await f.cache.remember("me", "photo", valid, true);
+  load("miniprogram/components/moment-card/index.ts", {
+    "../../core/media-cache": { mediaCache: f.cache },
+    "../../services/request": { hasSession: () => true },
+    "../../core/store": { store: { getState: () => ({ loggedIn: true, profile: { id: "me" } }) } },
+    "../../core/format": load("miniprogram/core/format.ts")
+  }, { Component(value) { definition = value; } });
+  const card = { data: { ...definition.data }, setData(patch) { Object.assign(this.data, patch); } };
+  const moment = { id: "photo", author: "TA", mediaType: "IMAGE", occurredAt: new Date().toISOString(), media: [{ assetId: "photo", status: "READY", path: valid }] };
+  definition.observers.item.call(card, moment); assert.equal(card.data.coverPath, saved);
+  definition.observers.item.call(card, { ...moment, media: [{ ...moment.media[0], path: expired }] });
+  assert.equal(card.data.coverPath, expired);
+});
+
+test("a cover finishing after metadata rotates still saves a persistent file for reopening", async () => {
+  const f = fixture(); let definition;
+  load("miniprogram/components/moment-card/index.ts", {
+    "../../core/media-cache": { mediaCache: f.cache },
+    "../../services/request": { hasSession: () => true },
+    "../../core/store": { store: { getState: () => ({ loggedIn: true, profile: { id: "me" } }) } },
+    "../../core/format": load("miniprogram/core/format.ts")
+  }, { Component(value) { definition = value; }, wx: f.wx });
+  const card = { data: { ...definition.data }, setData(patch) { Object.assign(this.data, patch); } };
+  const moment = { id: "photo", author: "我", mediaType: "IMAGE", occurredAt: new Date().toISOString(), media: [{ assetId: "photo", status: "READY", path: firstUrl }] };
+  definition.observers.item.call(card, moment);
+  definition.observers.item.call(card, { ...moment, media: [{ ...moment.media[0], path: rotatedUrl }] });
+  await definition.methods.coverLoaded.call(card);
+  assert.equal(f.requests.length, 1);
+  assert.match(card.data.coverPath, /^wxfile:\/\/user\/media-cover-cache\//);
 });

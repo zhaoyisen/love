@@ -5,7 +5,7 @@
     <view wx:if="{{moment.mediaType !== 'TEXT'}}" class="hero">
       <swiper wx:if="{{moment.mediaType === 'IMAGE' && moment.media.length}}" class="hero-swiper" current="{{mediaIndex}}" bindchange="mediaChange">
         <swiper-item wx:for="{{moment.media}}" wx:key="id">
-          <image src="{{item.path}}" mode="aspectFill" lazy-load="{{true}}" data-index="{{index}}" binderror="imageError" aria-label="{{moment.title || '记录照片'}}"></image>
+          <image src="{{item.path}}" mode="aspectFill" lazy-load="{{index > 0}}" data-index="{{index}}" binderror="imageError" aria-label="{{moment.title || '记录照片'}}"></image>
         </swiper-item>
       </swiper>
       <video wx:elif="{{moment.media[0].path && moment.mediaType === 'VIDEO'}}" src="{{moment.media[0].path}}" poster="{{moment.media[0].thumbnailPath}}" controls show-center-play-btn show-play-btn enable-play-gesture object-fit="contain" binderror="videoError"></video>
