@@ -51,34 +51,56 @@ Page({
   momentId: "",
   pollTimer: null as any,
   commentFocused: false,
+  mediaOwner: "",
+  failedMediaSources: {} as Record<string, string>,
+  mediaSavePending: false,
+  mediaSaveQueued: false,
   renderMoment(moment: any) {
     const state = store.getState();
     const owner = state.profile.id || "";
     const partner = moment.author === "TA";
-    const decorated = decorateMoment({ ...moment, media: moment.media.map((item: any) => ({ ...item,
-      sourcePath: item.path,
-      path: moment.mediaType === "IMAGE" ? mediaCache.get(owner, item.assetId || "", item.path, partner)
-        || mediaCache.get(owner, item.assetId || "", item.thumbnailPath, partner) || item.path : item.path,
-      thumbnailPath: mediaCache.get(owner, item.assetId || "", item.thumbnailPath, partner) || item.thumbnailPath
-    })) });
+    const previous = this.mediaOwner === owner && this.data.moment.id === moment.id ? this.data.moment.media : [];
+    this.mediaOwner = owner;
+    const decorated = decorateMoment({ ...moment, media: moment.media.map((item: any) => {
+      const displayed = item.assetId && item.path && (!partner || mediaCache.isUrlCurrent?.(item.path)) && previous?.find((media: any) => media.assetId === item.assetId
+        && this.failedMediaSources[item.assetId] !== media.path
+        && media.sourcePath?.split("?")[0] === item.path.split("?")[0]);
+      return { ...item, sourcePath: item.path,
+        path: moment.mediaType === "IMAGE" ? mediaCache.get(owner, item.assetId || "", item.path, partner)
+          || displayed?.path || mediaCache.get(owner, item.assetId || "", item.thumbnailPath, partner) || item.path : item.path,
+        thumbnailPath: mediaCache.get(owner, item.assetId || "", item.thumbnailPath, partner) || item.thumbnailPath };
+    }) });
     const partnerName = state.couple.partnerName || "TA";
     const failedMediaIds = moment.author === "我" ? decorated.media.filter((item: any) => item.status === "FAILED" && item.assetId).map((item: any) => item.assetId) : [];
     this.setData({ moment: decorated, partnerName, partnerInitial: partnerName.slice(0, 1), failedMediaIds,
       myAvatarError: this.data.myAvatarUrl === (state.profile.avatarUrl || "") && this.data.myAvatarError,
       partnerAvatarError: this.data.partnerAvatarUrl === (state.couple.partnerAvatarUrl || "") && this.data.partnerAvatarError,
       myAvatarUrl: state.profile.avatarUrl || "", partnerAvatarUrl: state.couple.partnerAvatarUrl || "" });
-    if (!mediaCache.remember) return;
-    for (const item of moment.media) {
-      if (item.status !== "READY" || !item.assetId || !owner) continue;
-      const url = moment.mediaType === "IMAGE" ? item.path : item.thumbnailPath;
-      if (!url) continue;
-      void mediaCache.remember(owner, item.assetId, url, partner).then(() => {
-        if (this.mediaHidden || store.getState().profile.id !== owner || !appService.hasSession()) return;
-        const cached = mediaCache.get(owner, item.assetId, url, partner);
-        const index = this.data.moment.media?.findIndex((media: any) => media.assetId === item.assetId);
-        if (cached && index >= 0) this.setData({ [`moment.media[${index}].${moment.mediaType === "IMAGE" ? "path" : "thumbnailPath"}`]: cached });
-      });
-    }
+    this.cacheCurrentMedia();
+  },
+  cacheCurrentMedia() {
+    if (!mediaCache.remember || this.mediaHidden) return;
+    if (this.mediaSavePending) { this.mediaSaveQueued = true; return; }
+    const moment = this.data.moment;
+    const item = moment.media?.[this.data.mediaIndex] || moment.media?.[0];
+    const owner = this.mediaOwner, partner = moment.author === "TA";
+    if (!item || item.status !== "READY" || !item.assetId || !owner || store.getState().profile.id !== owner || !appService.hasSession()) return;
+    const url = moment.mediaType === "IMAGE" ? item.sourcePath : item.thumbnailPath;
+    if (!url) return;
+    this.mediaSavePending = true;
+    void mediaCache.remember(owner, item.assetId, url, partner).then(() => {
+      if (this.mediaHidden || this.data.moment.id !== moment.id || store.getState().profile.id !== owner || !appService.hasSession()) return;
+      const index = this.data.moment.media?.findIndex((media: any) => media.assetId === item.assetId);
+      const current = this.data.moment.media?.[index];
+      const field = moment.mediaType === "IMAGE" ? "path" : "thumbnailPath";
+      if (!current || current.sourcePath?.split("?")[0] !== item.sourcePath?.split("?")[0]) return;
+      const currentUrl = field === "path" ? current.sourcePath : current.thumbnailPath;
+      const cached = mediaCache.get(owner, item.assetId, currentUrl, this.data.moment.author === "TA");
+      if (cached && current[field] !== cached) this.setData({ [`moment.media[${index}].${field}`]: cached });
+    }).finally(() => {
+      this.mediaSavePending = false;
+      if (this.mediaSaveQueued) { this.mediaSaveQueued = false; this.cacheCurrentMedia(); }
+    });
   },
   mediaHidden: false,
   avatarError(event: any) { this.setData({ [event.currentTarget.dataset.avatar === "my" ? "myAvatarError" : "partnerAvatarError"]: true }); },
@@ -87,6 +109,7 @@ Page({
     console.error("Moment image failed", { errMsg: detail.errMsg, statusCode: detail.statusCode });
     const index = Number(event.currentTarget?.dataset?.index || 0);
     const item = this.data.moment.media?.[index];
+    if (item?.assetId) this.failedMediaSources[item.assetId] = item.path;
     if (item?.sourcePath && item.path !== item.sourcePath) {
       mediaCache.forget(store.getState().profile.id || "", item.assetId || "", item.sourcePath);
       this.setData({ [`moment.media[${index}].path`]: item.sourcePath });
@@ -99,7 +122,7 @@ Page({
     console.error("Video playback failed", { errMsg: detail.errMsg, errCode: detail.errCode });
     wx.showToast({ title: "视频播放失败，请检查视频格式或稍后重试", icon: "none" });
   },
-  mediaChange(event: any) { this.setData({ mediaIndex: Number(event.detail.current || 0) }); },
+  mediaChange(event: any) { this.setData({ mediaIndex: Number(event.detail.current || 0) }); this.cacheCurrentMedia(); },
   async refresh() {
     this.mediaHidden = false;
     const cached = store.getMoment(this.momentId);

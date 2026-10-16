@@ -117,7 +117,7 @@ Page({
   scheduleMediaRefresh() {
     clearTimeout(this.mediaPollTimer);
     const pending = this.remoteMoments.some((moment: any) => moment.status === "UPLOADING"
-      || (moment.status === "PUBLISHED" && moment.media?.some((media: any) => media.status === "READY" && !media.thumbnailPath)));
+      || (moment.status === "PUBLISHED" && moment.mediaType === "VIDEO" && moment.media?.some((media: any) => media.status === "READY" && !media.thumbnailPath)));
     if (!this.visible || !appService.isRemote || !appService.hasSession() || !pending || this.mediaPollCount >= 12) return;
     this.mediaPollTimer = setTimeout(async () => {
       if (!this.visible) return;

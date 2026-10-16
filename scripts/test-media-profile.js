@@ -14,9 +14,82 @@ function detailFixture() {
   const cache = { get(_owner, _id, url) { return url?.includes("display") ? "wxfile://cached-display" : "wxfile://cached-thumb"; }, remember: async (_owner, _id, url) => url, forget() {} };
   let page;
   load("miniprogram/pkg-moment/detail/index.ts", { "../../core/store": { store: { getState: () => state, getMoment: () => moment } }, "../../core/media-cache": { mediaCache: cache }, "../../core/format": load("miniprogram/core/format.ts"), "../../services/app-service": { appService: service, redirectExpiredSession: () => false, userError: error => error.message } }, { Page(value) { page = value; }, wx: { showToast() {}, getWindowInfo: () => ({ windowHeight: 700 }) } });
-  page.data = structuredClone(page.data); page.setData = function (patch) { Object.assign(this.data, patch); }; page.onLoad({ id: "m" });
-  return { page, service, moment };
+  page.data = structuredClone(page.data); page.setData = function (patch) {
+    for (const [key, value] of Object.entries(patch)) {
+      const parts = key.replace(/\[(\d+)\]/g, ".$1").split(".");
+      parts.slice(0, -1).reduce((target, part) => target[part], this.data)[parts.at(-1)] = value;
+    }
+  }; page.onLoad({ id: "m" });
+  return { page, service, moment, cache, state };
 }
+
+test("detail metadata can rotate signatures without restarting the same displayed photo", () => {
+  const f = detailFixture(); f.cache.get = () => undefined;
+  f.page.renderMoment(f.moment);
+  const source = f.moment.media[0].path;
+  f.page.renderMoment({ ...f.moment, body: "新短评", media: [{ ...f.moment.media[0], path: source + "?signature=rotated" }] });
+  assert.equal(f.page.data.moment.media[0].path, source);
+  assert.equal(f.page.data.moment.media[0].sourcePath, source + "?signature=rotated");
+  f.page.renderMoment({ ...f.moment, media: [{ ...f.moment.media[0], path: "https://cos/replaced.webp" }] });
+  assert.equal(f.page.data.moment.media[0].path, "https://cos/replaced.webp");
+});
+
+test("a failed displayed photo can retry with the next signed URL instead of keeping the broken source", () => {
+  const f = detailFixture(); f.cache.get = () => undefined;
+  f.page.renderMoment(f.moment); f.page.imageError({ currentTarget: { dataset: { index: 0 } }, detail: { errMsg: "expired signature" } });
+  const fresh = f.moment.media[0].path + "?signature=fresh";
+  f.page.renderMoment({ ...f.moment, media: [{ ...f.moment.media[0], path: fresh }] });
+  assert.equal(f.page.data.moment.media[0].path, fresh);
+});
+
+test("detail does not retain a partner photo after its current media authorization expires", () => {
+  const f = detailFixture(); f.moment.author = "TA";
+  f.cache.get = (_owner, _id, url) => url && !url.includes("expired") ? "wxfile://saved-photo" : undefined;
+  f.cache.isUrlCurrent = url => !url.includes("expired");
+  f.page.renderMoment(f.moment); assert.equal(f.page.data.moment.media[0].path, "wxfile://saved-photo");
+  f.page.renderMoment({ ...f.moment, media: [{ ...f.moment.media[0], path: f.moment.media[0].path + "?expired", thumbnailPath: "" }] });
+  assert.equal(f.page.data.moment.media[0].path, f.moment.media[0].path + "?expired");
+});
+
+test("detail saves the viewed photo rather than letting unseen originals evict it", async () => {
+  const f = detailFixture(), saved = []; f.cache.get = () => undefined;
+  f.cache.remember = async (_owner, id, url) => { saved.push(id); return url; };
+  f.moment.media = Array.from({ length: 9 }, (_, index) => ({ id: "photo-" + index, assetId: "photo-" + index, status: "READY", path: "https://cos/photo-" + index + ".webp" }));
+  f.page.renderMoment(f.moment); assert.equal(saved.join(), "photo-0");
+  f.page.mediaChange({ detail: { current: 1 } }); await new Promise(resolve => setImmediate(resolve)); assert.equal(saved.join(), "photo-0,photo-1");
+});
+
+test("detail finishes an older save before starting the latest viewed photo so LRU cannot evict the current one out of order", async () => {
+  const f = detailFixture(), started = [], finish = {}; f.cache.get = () => undefined;
+  f.cache.remember = (_owner, id) => { started.push(id); return new Promise(resolve => { finish[id] = resolve; }); };
+  f.moment.media = Array.from({ length: 3 }, (_, index) => ({ id: "photo-" + index, assetId: "photo-" + index, status: "READY", path: "https://cos/photo-" + index + ".webp" }));
+  f.page.renderMoment(f.moment); f.page.mediaChange({ detail: { current: 1 } }); f.page.mediaChange({ detail: { current: 2 } });
+  assert.equal(started.join(), "photo-0");
+  finish["photo-0"]("wxfile://saved-0"); await new Promise(resolve => setImmediate(resolve)); assert.equal(started.join(), "photo-0,photo-2");
+  finish["photo-2"]("wxfile://saved-2"); await new Promise(resolve => setImmediate(resolve));
+});
+
+test("an earlier valid download cannot restore a partner photo after its latest signed URL expires", async () => {
+  const f = detailFixture(); f.moment.author = "TA"; let finish;
+  const source = f.moment.media[0].path;
+  f.cache.get = () => undefined; f.cache.isUrlCurrent = url => url.includes("?valid");
+  f.cache.remember = (_owner, _id, url) => url.includes("?valid") ? new Promise(resolve => { finish = resolve; }) : Promise.resolve(url);
+  f.page.renderMoment({ ...f.moment, media: [{ ...f.moment.media[0], path: source + "?valid", thumbnailPath: "" }] });
+  f.page.renderMoment({ ...f.moment, media: [{ ...f.moment.media[0], path: source + "?expired", thumbnailPath: "" }] });
+  f.cache.get = (_owner, _id, url) => url?.includes("?valid") ? "wxfile://saved-photo" : undefined;
+  finish("wxfile://saved-photo"); await Promise.resolve(); await Promise.resolve();
+  assert.equal(f.page.data.moment.media[0].path, source + "?expired");
+});
+
+test("a queued photo save cannot start after the account or session changes", async () => {
+  const f = detailFixture(), started = []; let finish;
+  f.cache.get = () => undefined;
+  f.cache.remember = (_owner, id) => { started.push(id); return new Promise(resolve => { finish = resolve; }); };
+  f.moment.media.push({ ...f.moment.media[0], id: "next", assetId: "next", path: "https://cos/next.webp" });
+  f.page.renderMoment(f.moment); f.page.mediaChange({ detail: { current: 1 } });
+  f.state.profile.id = "other"; f.service.hasSession = () => false; finish("wxfile://old");
+  await new Promise(resolve => setImmediate(resolve)); assert.equal(started.join(), "photo");
+});
 test("detail displays cached full-size photos while its metadata synchronizes", async () => {
   const f = detailFixture(); let finish;
   f.service.detail = () => new Promise(resolve => { finish = resolve; });
