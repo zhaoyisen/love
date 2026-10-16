@@ -150,6 +150,8 @@ class LoveNotesStore {
     if (this.state.profile.id && this.state.profile.id !== profile.id) {
       mediaCache.clear();
       this.state.moments = [];
+      this.state.album = undefined;
+      this.state.profile.pendingAvatarId = undefined;
     }
     this.update((state) => {
       const sameAvatar = Boolean(profile.avatarAssetId && profile.avatarAssetId === state.profile.avatarAssetId);
@@ -168,6 +170,7 @@ class LoveNotesStore {
     if (this.state.couple.id && (couple?.id !== this.state.couple.id || couple?.status !== "PAIRED")) {
       mediaCache.clear();
       this.state.moments = this.state.moments.filter((item) => item.author === "我");
+      this.state.album = undefined;
     }
     this.update((state) => {
       if (!couple) {
@@ -190,8 +193,9 @@ class LoveNotesStore {
     });
   }
 
-  replaceRemoteMoments(moments: Moment[]) {
-    mediaCache.retain(this.state.profile.id || "", moments.flatMap((moment) => moment.media.map((media) => media.assetId || media.id)));
+  replaceRemoteMoments(moments: Moment[], complete = false) {
+    if (complete) mediaCache.retain(this.state.profile.id || "", [...moments.flatMap((moment) => moment.media.map((media) => media.assetId || media.id)),
+      ...(this.state.album?.photos.map(photo => photo.assetId) || []), ...(this.state.profile.avatarAssetId ? [this.state.profile.avatarAssetId] : [])]);
     this.update((state) => { state.moments = moments; });
   }
 

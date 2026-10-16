@@ -14,11 +14,11 @@
   <view class="couple-signature">
     <view class="signature-avatars" aria-hidden="true">
       <view class="signature-avatar mine">
-        <image wx:if="{{profile.avatarUrl}}" src="{{profile.avatarUrl}}" mode="aspectFill"></image>
+        <image wx:if="{{myAvatarUrl && !myAvatarError}}" src="{{myAvatarUrl}}" mode="aspectFill" data-avatar="my" binderror="avatarError"></image>
         <text wx:else>{{profile.avatarText || '我'}}</text>
       </view>
       <view class="signature-avatar partner">
-        <image wx:if="{{partnerAvatarUrl}}" src="{{partnerAvatarUrl}}" mode="aspectFill" lazy-load="{{true}}"></image>
+        <image wx:if="{{partnerAvatarUrl && !partnerAvatarError}}" src="{{partnerAvatarUrl}}" mode="aspectFill" data-avatar="partner" binderror="avatarError"></image>
         <text wx:else>{{partnerInitial}}</text>
       </view>
     </view>
@@ -147,6 +147,9 @@
         eager="{{index === 0}}"
         partner-name="{{couple.partnerName || 'TA'}}"
         partner-initial="{{partnerInitial}}"
+        partner-avatar-url="{{partnerAvatarUrl}}"
+        my-avatar-url="{{myAvatarUrl}}"
+        my-initial="{{profile.avatarText || '我'}}"
         bind:open="openMoment"
       ></moment-card>
     </view>

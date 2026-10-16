@@ -79,7 +79,9 @@ public class MediaService {
     private String displayContentType(MediaAssetEntity asset){return asset.getKind()==DomainEnums.MediaKind.IMAGE&&asset.getDisplayStorageKey()!=null?"image/webp":asset.getMimeType();}
     private boolean canRead(UUID actorId,MediaAssetEntity asset){
         if(asset.getUploaderId().equals(actorId))return true;
-        if(asset.getStatus()!=DomainEnums.MediaStatus.READY||asset.getMomentId()==null)return false;
+        if(asset.getStatus()!=DomainEnums.MediaStatus.READY)return false;
+        if(asset.getAlbumCoupleId()!=null)return members.findById(actorId).map(member->member.getCoupleId().equals(asset.getAlbumCoupleId())).orElse(false);
+        if(asset.getMomentId()==null)return false;
         MomentEntity moment=moments.findById(asset.getMomentId()).orElse(null);
         if(moment==null||moment.getStatus()!=DomainEnums.MomentStatus.PUBLISHED||moment.getVisibility()!=DomainEnums.Visibility.SHARED)return false;
         return members.findById(actorId).map(member->member.getCoupleId().equals(moment.getCoupleId())).orElse(false);

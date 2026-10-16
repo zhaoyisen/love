@@ -1,7 +1,7 @@
 import { API_CONFIG } from "../core/api-config";
 import { mockApi } from "../core/mock-api";
 import { store } from "../core/store";
-import type { AppState, MessageItem, Moment } from "../core/types";
+import type { AlbumPhoto, AppState, MessageItem, Moment } from "../core/types";
 import { authService } from "./auth-service";
 import { complianceService, type FeedbackCategory } from "./compliance-service";
 import { coupleService } from "./couple-service";
@@ -207,7 +207,7 @@ async function synchronizeRemoteState() {
   const moments = (timeline.items || [])
     .filter((item: any) => item.status !== "TRASHED" && item.status !== "PURGED")
     .map((item: any) => remoteMoment(item, me.id));
-  store.replaceRemoteMoments(moments);
+  store.replaceRemoteMoments(moments, !timeline.has_more);
   store.replaceRemoteMessages((messagePage.items || []).map(remoteMessage));
   store.applyRemotePreferences(remotePreferences(preferences));
   store.updateDefaultVisibility(remoteDefaultVisibility(preferences));
@@ -280,6 +280,48 @@ export const appService = {
     if (!API_CONFIG.useRemoteApi) return store.getState().moments;
     const items = await momentService.album();
     return items.map((item) => remoteMoment(item, store.getState().profile.id || ""));
+  },
+
+  async albumPhotos(): Promise<AlbumPhoto[]> {
+    const state = store.getState(), owner = state.profile.id, coupleId = state.couple.id || "local";
+    if (!API_CONFIG.useRemoteApi) return state.album?.photos || [];
+    const items = await coupleService.albumPhotos();
+    if (store.getState().profile.id !== owner || store.getState().couple.id !== coupleId || store.getState().couple.status !== "PAIRED")
+      throw new Error("情侣空间已变化，请刷新后重试。");
+    const photos: AlbumPhoto[] = items.map(item => ({ key: `album:${item.id}`, assetId: item.id,
+      author: item.uploader_id === owner ? "我" : "TA", title: "相册照片", status: item.status,
+      source: item.thumbnail_url || item.access_url || "", original: item.access_url || "", createdAt: item.created_at }));
+    store.update(state => { state.album = { coupleId, photos }; });
+    return photos;
+  },
+
+  async uploadAlbumPhotos(files: any[], onProgress: (text: string) => void): Promise<AlbumPhoto[]> {
+    const state = store.getState(), coupleId = state.couple.id || "local", owner = state.profile.id;
+    if (state.couple.status !== "PAIRED" || !state.loggedIn || (API_CONFIG.useRemoteApi && !hasSession())) throw new Error("请先登录并完成配对。");
+    if (!files.length || files.length > 9) throw new Error("每次请选择 1～9 张照片。");
+    for (let index = 0; index < files.length; index++) {
+      const selected = files[index], filePath = selected.tempFilePath || selected.path;
+      const image: any = await new Promise((resolve, reject) => wx.getImageInfo({ src: filePath, success: resolve, fail: reject }));
+      const type = String(image.type || "jpeg").toLowerCase();
+      const mimeType = type === "jpeg" || type === "jpg" ? "image/jpeg" : type === "png" ? "image/png" : type === "webp" ? "image/webp" : "";
+      const info: any = Number(selected.size) > 0 ? selected : await new Promise((resolve, reject) => wx.getFileInfo({ filePath, success: resolve, fail: reject }));
+      if (!mimeType || !Number.isFinite(Number(info.size)) || Number(info.size) <= 0 || Number(info.size) > 20 * 1024 * 1024)
+        throw new Error("请选择不超过 20MB 的 JPG、PNG 或 WEBP 图片。");
+      if (store.getState().profile.id !== owner || store.getState().couple.status !== "PAIRED" || (store.getState().couple.id || "local") !== coupleId)
+        throw new Error("情侣空间已变化，已停止上传。");
+      const file = { id: `album_${Date.now()}_${index}`, type: "IMAGE" as const, path: filePath,
+        fileName: `album_${Date.now()}.${type === "jpeg" ? "jpg" : type}`, mimeType, size: Number(info.size), progress: 0, status: "UPLOADING" as const };
+      if (!API_CONFIG.useRemoteApi) {
+        const photo: AlbumPhoto = { key: file.id, assetId: file.id, author: "我", title: "相册照片", source: filePath, original: filePath, createdAt: new Date().toISOString(), status: "READY" };
+        store.update(state => { state.album = { coupleId, photos: [photo, ...(state.album?.photos || [])] }; });
+      } else {
+        const result = await mediaService.upload(file, progress => onProgress(`上传照片 ${index + 1}/${files.length} · ${progress}%`));
+        if (store.getState().profile.id !== owner || store.getState().couple.status !== "PAIRED" || store.getState().couple.id !== coupleId)
+          throw new Error("情侣空间已变化，已停止上传。");
+        await coupleService.addAlbumPhotos(coupleId, [result.asset.id]);
+      }
+    }
+    return this.albumPhotos();
   },
 
   async updateProfile(nickname: string, avatarAssetId?: string, optimisticAvatarUrl?: string) {

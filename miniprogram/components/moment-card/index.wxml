@@ -45,7 +45,7 @@
       <text wx:for="{{display.events}}" wx:key="*this" wx:for-item="tag" wx:if="{{index < 2}}" class="tag">{{tag}}</text>
     </view>
     <view wx:if="{{display.reaction || display.commentCount}}" class="sweet-response">
-      <view class="response-avatar">{{partnerInitial}}</view>
+      <view class="response-avatar"><image wx:if="{{(responseIsMe ? myAvatarUrl : partnerAvatarUrl) && !avatarError}}" src="{{responseIsMe ? myAvatarUrl : partnerAvatarUrl}}" mode="aspectFill" binderror="avatarFailed"></image><text wx:else>{{responseIsMe ? myInitial : partnerInitial}}</text></view>
       <view class="response-copy">
         <text wx:if="{{display.reaction}}">{{display.reaction.actor === '我' ? '我回应了：' : partnerName + ' 回应了：'}}{{display.reaction.value}}</text>
         <text wx:if="{{display.commentCount}}">还有 {{display.commentCount}} 句悄悄话</text>

@@ -68,6 +68,18 @@ export interface Draft {
   updatedAt: string;
 }
 
+export interface AlbumPhoto {
+  key: string;
+  momentId?: string;
+  title: string;
+  author: "我" | "TA";
+  assetId: string;
+  source: string;
+  original: string;
+  createdAt: string;
+  status?: string;
+}
+
 export interface MessageItem {
   id: string;
   type: "MOMENT" | "REACTION" | "COMMENT" | "PET" | "SYSTEM";
@@ -89,6 +101,7 @@ export interface AppState {
     avatarText: string;
     avatarUrl?: string;
     avatarAssetId?: string;
+    pendingAvatarId?: string;
     avatarStatus?: string;
     defaultVisibility: Visibility;
   };
@@ -103,6 +116,7 @@ export interface AppState {
     pairedAt?: string;
   };
   moments: Moment[];
+  album?: { coupleId: string; photos: AlbumPhoto[] };
   drafts: Draft[];
   messages: MessageItem[];
   pet: {

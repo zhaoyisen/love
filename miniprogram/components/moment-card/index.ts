@@ -8,10 +8,15 @@ Component({
     item: { type: Object, value: {} },
     eager: { type: Boolean, value: false },
     partnerName: { type: String, value: "TA" },
+    partnerAvatarUrl: { type: String, value: "" },
+    myAvatarUrl: { type: String, value: "" },
+    myInitial: { type: String, value: "我" },
     partnerInitial: { type: String, value: "TA" }
   },
-  data: { display: {}, mediaError: false, coverPath: "", coverSource: "", coverOwner: "", coverAssetId: "" },
+  data: { display: {}, mediaError: false, coverPath: "", coverSource: "", coverOwner: "", coverAssetId: "", avatarError: false, responseIsMe: false },
+  lifetimes: { detached(this: any) { this.coverDetached = true; } },
   observers: {
+    "myAvatarUrl, partnerAvatarUrl"(this: any) { this.setData({ avatarError: false }); },
     item(this: any, value: any) {
       const normalized = value && value.id ? {
         ...value,
@@ -25,6 +30,7 @@ Component({
       const coverAssetId = media?.status === "READY" ? media.assetId || "" : "";
       this.setData({
         display: normalized ? decorateMoment(normalized) : {},
+        responseIsMe: (normalized?.reaction?.actor || normalized?.comments[normalized.comments.length - 1]?.author) === "我",
         mediaError: false,
         coverPath: mediaCache.get(coverOwner, coverAssetId, coverSource, normalized?.author === "TA") || coverSource,
         coverSource, coverOwner, coverAssetId
@@ -32,11 +38,15 @@ Component({
     }
   },
   methods: {
-    coverLoaded(this: any) {
+    avatarFailed(this: any) { this.setData({ avatarError: true }); },
+    async coverLoaded(this: any) {
       if (!hasSession() || !store.getState().loggedIn || this.data.coverOwner !== store.getState().profile.id) return;
       if (this.data.coverPath !== this.data.coverSource) return;
       // 封面显示后保存为账号隔离的本地文件，下一次进入直接读取，不依赖签名 URL 缓存。
-      void mediaCache.remember(this.data.coverOwner, this.data.coverAssetId, this.data.coverSource, this.data.display.author === "TA");
+      const { coverOwner, coverAssetId, coverSource } = this.data;
+      const path = await mediaCache.remember(coverOwner, coverAssetId, coverSource, this.data.display.author === "TA");
+      if (!this.coverDetached && hasSession() && store.getState().loggedIn && store.getState().profile.id === coverOwner
+          && this.data.coverSource === coverSource && this.data.coverAssetId === coverAssetId && path !== coverSource) this.setData({ coverPath: path });
     },
     open(this: any) {
       if (this.data.display && this.data.display.id) {

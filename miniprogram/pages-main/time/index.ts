@@ -11,7 +11,8 @@ Page({
     weekDays: [], calendar: [], months: [], showFilter: false, filterMood: "全部", unread: 0,
     loading: false, loadingMore: false, loaded: false, error: "", dateEyebrow: "", currentDateLabel: "", currentYear: 0, currentMonthTitle: "",
     nextCursor: "", hasMore: false, timelineFrom: "", timelineTo: "",
-    customStart: "", customEnd: "", isRemote: appService.isRemote, partnerInitial: "TA", partnerAvatarUrl: "", summaryComplete: true
+    customStart: "", customEnd: "", isRemote: appService.isRemote, partnerInitial: "TA", partnerAvatarUrl: "", summaryComplete: true,
+    myAvatarUrl: "", myAvatarError: false, partnerAvatarError: false
   },
   remoteMoments: [] as any[],
   rangeRequestId: 0,
@@ -155,6 +156,9 @@ Page({
     const filtered = this.data.filterMood === "全部" ? ranged : ranged.filter((item) => item.mood === this.data.filterMood);
     this.setData({
       profile: state.profile, couple: state.couple, moments: filtered,
+      myAvatarError: this.data.myAvatarUrl === (state.profile.avatarUrl || "") && this.data.myAvatarError,
+      myAvatarUrl: state.profile.avatarUrl || "",
+      partnerAvatarError: this.data.partnerAvatarUrl === (state.couple.partnerAvatarUrl || "") && this.data.partnerAvatarError,
       unread: state.messages.filter((item) => !item.read).length,
       weekDays: this.buildWeek(now, moments), calendar: this.buildCalendar(now, moments), months: this.buildMonths(now, moments),
       dateEyebrow: `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 · 星期${"日一二三四五六"[now.getDay()]}`,
@@ -164,6 +168,7 @@ Page({
     });
   },
   dateValue(date: Date) { const month = `${date.getMonth() + 1}`.padStart(2, "0"); const day = `${date.getDate()}`.padStart(2, "0"); return `${date.getFullYear()}-${month}-${day}`; },
+  avatarError(event: any) { this.setData({ [event.currentTarget.dataset.avatar === "my" ? "myAvatarError" : "partnerAvatarError"]: true }); },
   buildWeek(now: Date, moments: any[]) {
     const labels = ["一", "二", "三", "四", "五", "六", "日"];
     const monday = new Date(now); monday.setHours(0, 0, 0, 0); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));

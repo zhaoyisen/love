@@ -2,6 +2,10 @@ import { apiRequest, idempotencyKey } from "./request";
 
 export const coupleService = {
   current: () => apiRequest<any>({ path: "/couples/current" }),
+  albumPhotos: () => apiRequest<any[]>({ path: "/couples/current/album-photos" }),
+  addAlbumPhotos: (coupleId: string, assetIds: string[]) => apiRequest<any[]>({
+    path: "/couples/current/album-photos", method: "POST", data: { couple_id: coupleId, asset_ids: assetIds }
+  }),
   update: (version: number, relationshipName: string, anniversary: string | null) => apiRequest<any>({
     path: "/couples/current", method: "PATCH",
     data: { version, relationship_name: relationshipName, anniversary: anniversary || null }

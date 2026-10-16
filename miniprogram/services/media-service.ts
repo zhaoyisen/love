@@ -163,6 +163,17 @@ export const mediaService = {
   accessUrl: (assetId: string) => apiRequest<{ url: string }>({ path: `/media-assets/${assetId}/access-url` }),
   retryProcessing: (assetId: string) => apiRequest<AssetResponse>({ path: `/media-assets/${assetId}/retry-processing`, method: "POST" }),
 
+  async waitUntilReady(assetId: string): Promise<AssetResponse> {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const asset = await this.asset(assetId);
+      if (asset.status === "READY") return asset;
+      if (asset.status === "BLOCKED") throw new Error("图片未通过安全检测，请重新选择。");
+      if (asset.status === "FAILED") throw new Error("图片处理失败，请稍后重试或重新选择。");
+      await new Promise<void>((resolve) => setTimeout(resolve, 1000));
+    }
+    throw new Error("图片仍在安全处理中，请稍后再次保存，无需重新上传。");
+  },
+
   async upload(file: MediaItem, onProgress: (progress: number) => void) {
     if (!file.path || !file.fileName || !file.mimeType || !file.size) throw new Error("媒体文件信息不完整，请重新选择。 ");
     const session = await this.createUploadSession(file.fileName, file.mimeType, file.size, file.durationSeconds);

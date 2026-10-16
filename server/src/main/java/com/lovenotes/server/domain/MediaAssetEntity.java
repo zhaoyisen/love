@@ -3,12 +3,15 @@ package com.lovenotes.server.domain;
 import com.lovenotes.server.common.UuidV7;
 import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
+// Media processing and album attachment can update different fields concurrently.
+@DynamicUpdate
 @Table(name = "media_asset")
 public class MediaAssetEntity {
     @Id @JdbcTypeCode(SqlTypes.BINARY)
@@ -17,6 +20,8 @@ public class MediaAssetEntity {
     private UUID uploaderId;
     @Column(name = "moment_id") @JdbcTypeCode(SqlTypes.BINARY)
     private UUID momentId;
+    @Column(name = "album_couple_id") @JdbcTypeCode(SqlTypes.BINARY)
+    private UUID albumCoupleId;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 10)
     private DomainEnums.MediaKind kind;
     @Column(name = "storage_key", nullable = false, unique = true, length = 300)
@@ -59,6 +64,8 @@ public class MediaAssetEntity {
     public UUID getId() { return id; }
     public UUID getUploaderId() { return uploaderId; }
     public UUID getMomentId() { return momentId; }
+    public UUID getAlbumCoupleId() { return albumCoupleId; }
+    public void attachToAlbum(UUID coupleId) { this.albumCoupleId = coupleId; }
     public String getStorageKey() { return storageKey; }
     public DomainEnums.MediaKind getKind() { return kind; }
     public DomainEnums.MediaStatus getStatus() { return status; }

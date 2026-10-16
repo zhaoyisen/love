@@ -75,7 +75,7 @@ public class MomentService {
         if(type!=DomainEnums.MomentType.IMAGE&&!renders.isEmpty())throw validation("只有图片记录可以使用模板成图。");
         List<MediaAssetEntity> sourceAssets=media.stream().filter(asset->!renders.containsKey(asset.getId())).toList();
         if(type==DomainEnums.MomentType.IMAGE&&(sourceAssets.isEmpty()||sourceAssets.size()>9))throw validation("图片记录需要 1 至 9 张原始图片。");
-        for(var asset:media){if(!asset.getUploaderId().equals(actorId)||asset.getMomentId()!=null||!Set.of(DomainEnums.MediaStatus.READY,DomainEnums.MediaStatus.PROCESSING).contains(asset.getStatus()))throw validation("媒体不存在、尚未上传完成或已经用于其他记录。");if(type==DomainEnums.MomentType.IMAGE&&asset.getKind()!=DomainEnums.MediaKind.IMAGE)throw validation("图片记录只能使用图片。");if(type==DomainEnums.MomentType.VIDEO&&asset.getKind()!=DomainEnums.MediaKind.VIDEO)throw validation("视频记录只能使用视频。");}
+        for(var asset:media){if(!asset.getUploaderId().equals(actorId)||asset.getMomentId()!=null||asset.getAlbumCoupleId()!=null||asset.isProfileAvatar()||!Set.of(DomainEnums.MediaStatus.READY,DomainEnums.MediaStatus.PROCESSING).contains(asset.getStatus()))throw validation("媒体不存在、尚未上传完成或已经用于其他记录。");if(type==DomainEnums.MomentType.IMAGE&&asset.getKind()!=DomainEnums.MediaKind.IMAGE)throw validation("图片记录只能使用图片。");if(type==DomainEnums.MomentType.VIDEO&&asset.getKind()!=DomainEnums.MediaKind.VIDEO)throw validation("视频记录只能使用视频。");}
         for(var render:renders.values()){if(!render.getOwnerId().equals(actorId)||render.getSourceAssetIds().isEmpty()||!safe.containsAll(render.getSourceAssetIds()))throw validation("模板成图和源图片不匹配。");}
         return new MediaSelection(media,sourceAssets);
     }
