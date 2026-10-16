@@ -1,56 +1,61 @@
-<view class="detail-page sweet-detail-page">
-  <view wx:if="{{loading}}" class="detail-loading"><view></view><text>正在读取这段记录</text></view>
-  <view wx:if="{{error}}" class="page detail-error"><view class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button bindtap="refresh">重试</button></view></view>
-  <block wx:if="{{!loading && !error}}">
-  <view wx:if="{{moment.mediaType !== 'TEXT'}}" class="hero tone-{{moment.media[0].tone || 'paper'}}">
-    <swiper wx:if="{{moment.mediaType === 'IMAGE' && moment.media.length}}" class="hero-swiper" current="{{mediaIndex}}" indicator-dots="{{moment.media.length > 1}}" indicator-color="rgba(255,249,242,.55)" indicator-active-color="#FFF9F2" bindchange="mediaChange">
-      <swiper-item wx:for="{{moment.media}}" wx:key="id"><image src="{{item.path}}" mode="aspectFill" lazy-load="{{true}}" binderror="imageError"></image></swiper-item>
-    </swiper>
-    <video wx:elif="{{moment.media[0].path && moment.mediaType === 'VIDEO'}}" src="{{moment.media[0].path}}" poster="{{moment.media[0].thumbnailPath}}" controls show-center-play-btn show-play-btn enable-play-gesture object-fit="cover" binderror="videoError"></video>
-    <view wx:else class="hero-art"><view class="hero-sun"></view><view class="hero-hill"></view></view>
-    <text wx:if="{{moment.mediaType === 'IMAGE' && moment.media.length > 1}}" class="hero-count">{{mediaIndex + 1}} / {{moment.media.length}}</text>
-    <view wx:if="{{moment.status === 'UPLOADING'}}" class="processing-cover"><text>媒体正在安全处理中</text><text>完成前仅你自己可以查看</text></view>
-    <view class="hero-frame"><text>{{moment.template || '原始照片'}}</text><text>{{moment.date}}</text></view>
-  </view>
-  <view class="detail-content">
-    <view class="detail-meta"><view class="author-avatar">{{moment.author === '我' ? '我' : partnerInitial}}</view><view><text>{{moment.author === '我' ? '我留下的心动' : partnerName + ' 留下的心动'}}</text><text class="label">{{moment.date}} · {{moment.time}}</text></view><button class="more-button press" bindtap="menu">•••</button></view>
-    <text class="detail-title">{{moment.title}}</text><text class="detail-copy">{{moment.body}}</text>
-    <view class="detail-tags"><text class="tag">{{moment.mood}}</text><text wx:for="{{moment.events}}" wx:key="*this" class="tag">{{item}}</text></view>
-    <view wx:if="{{failedMediaIds.length}}" class="media-retry-banner" role="alert"><view><text>有媒体处理失败</text><text>内容暂未分享给对方，可重新提交安全处理。</text></view><button wx:for="{{failedMediaIds}}" wx:key="*this" data-id="{{item}}" loading="{{retryingMediaId === item}}" disabled="{{retryingMediaId}}" bindtap="retryMedia">重新处理</button></view>
-    <view class="visibility-banner"><text>{{moment.visibility === 'PRIVATE' ? '◉' : '∞'}}</text><view><text>{{moment.visibilityLabel}}</text><text class="label">{{moment.visibility === 'PRIVATE' ? '这段内容没有与 TA 分享' : '仅在当前情侣关系有效时可访问'}}</text></view></view>
-    <view wx:if="{{moment.visibility === 'SHARED'}}" class="interaction-section">
-      <text class="section-title">{{moment.author === '我' ? '这一刻的回应' : '回应' + partnerName + '的心动'}}</text><text class="section-note">{{moment.author === '我' ? partnerName + '的回应和短评都会留在这里。' : '选一句此刻最想告诉' + partnerName + '的话，可以随时修改。'}}</text>
-      <scroll-view scroll-x class="reaction-scroll" show-scrollbar="false"><view class="reaction-list"><button wx:for="{{reactions}}" wx:key="*this" class="reaction {{moment.reactionValue === item ? 'active' : ''}}" data-value="{{item}}" bindtap="react" disabled="{{reactionSaving}}"><text>{{index === 0 ? '♥' : index === 1 ? '☁' : index === 2 ? '☺' : index === 3 ? '◉' : index === 4 ? '↶' : '☆'}}</text><text class="label">{{item}}</text></button></view></scroll-view>
-      <view class="comments-head"><text class="section-title">短评</text><text>{{moment.comments.length}} 条</text></view>
-      <view wx:if="{{moment.comments.length}}" class="comment-list"><view wx:for="{{moment.comments}}" wx:key="id" class="comment"><view class="comment-avatar">{{item.author === '我' ? '我' : partnerInitial}}</view><view><text>{{item.author === '我' ? '我' : partnerName}} · {{item.createdAt}}</text><text class="label">{{item.body}}</text></view><button wx:if="{{item.author === '我'}}" class="comment-delete press" data-id="{{item.id}}" bindtap="removeComment">删除</button></view></view>
-      <view wx:else class="no-comment">还没有悄悄话。先说一句只有你们懂的话吧。</view>
-      <view class="comment-box"><input value="{{commentText}}" maxlength="300" placeholder="{{moment.author === '我' ? '补充一句…' : '写给' + partnerName + '…'}}" bindinput="commentInput" disabled="{{commentSending}}" /><button class="press" bindtap="sendComment" disabled="{{commentSending}}">{{commentSending ? '发送中' : '发送'}}</button></view>
+<view class="home-refined detail-page {{moment.author === '我' ? 'is-own' : ''}} {{moment.visibility === 'SHARED' ? 'has-composer' : ''}} {{keyboardHeight ? 'has-keyboard' : ''}}">
+  <view wx:if="{{loading && !moment.id}}" class="detail-loading"><view></view><text>正在读取这段记录</text></view>
+  <view wx:if="{{error}}" class="detail-error"><view class="status-banner status-banner--error" role="alert"><text>{{error}}</text><button size="mini" bindtap="refresh">重试</button></view></view>
+  <block wx:if="{{moment.id && !error}}">
+    <view wx:if="{{moment.mediaType !== 'TEXT'}}" class="hero">
+      <swiper wx:if="{{moment.mediaType === 'IMAGE' && moment.media.length}}" class="hero-swiper" current="{{mediaIndex}}" bindchange="mediaChange">
+        <swiper-item wx:for="{{moment.media}}" wx:key="id">
+          <image src="{{item.path}}" mode="aspectFill" lazy-load="{{true}}" data-index="{{index}}" binderror="imageError" aria-label="{{moment.title || '记录照片'}}"></image>
+        </swiper-item>
+      </swiper>
+      <video wx:elif="{{moment.media[0].path && moment.mediaType === 'VIDEO'}}" src="{{moment.media[0].path}}" poster="{{moment.media[0].thumbnailPath}}" controls show-center-play-btn show-play-btn enable-play-gesture object-fit="contain" binderror="videoError"></video>
+      <view wx:else class="media-placeholder"><text>{{moment.status === 'UPLOADING' ? '媒体正在安全处理中' : moment.mediaType === 'VIDEO' ? '视频播放失败，请检查视频格式或稍后重试' : '照片加载失败，请刷新后重试'}}</text></view>
+      <text wx:if="{{moment.mediaType === 'IMAGE' && moment.media.length > 1}}" class="hero-count">{{mediaIndex + 1}} / {{moment.media.length}}</text>
+      <view wx:if="{{moment.status === 'UPLOADING'}}" class="processing-cover"><text>媒体正在安全处理中</text><text>完成前仅你自己可以查看</text></view>
     </view>
-  </view>
-  </block>
-
-  <view wx:if="{{showMenu}}" class="sheet-mask" catchtap="closeMenu">
-    <view class="detail-action-sheet" catchtap="stopPropagation">
-      <view class="sheet-handle"></view>
-      <text class="sheet-title">管理这一刻</text>
-      <button wx:if="{{moment.author === '我'}}" class="sheet-row" bindtap="menuEdit"><view><text>编辑记录</text><text>修改文字、标签和分享范围</text></view><text>›</text></button>
-      <button wx:if="{{moment.author === '我'}}" class="sheet-row sheet-row--danger" bindtap="menuTrash"><view><text>移入回收站</text><text>30 天内可以恢复</text></view><text>›</text></button>
-      <button class="sheet-row" bindtap="menuFeedback"><view><text>内容反馈</text><text>反馈内容、权益或隐私问题</text></view><text>›</text></button>
-      <button wx:if="{{moment.author !== '我'}}" class="sheet-row" bindtap="menuPrivacy"><view><text>隐私与关系设置</text><text>管理分享关系与访问权限</text></view><text>›</text></button>
-      <button class="sheet-cancel" bindtap="closeMenu">取消</button>
-    </view>
-  </view>
-
-  <view wx:if="{{showTrashConfirm}}" class="sheet-mask" catchtap="cancelTrash">
-    <view class="trash-confirm-sheet" catchtap="stopPropagation">
-      <view class="trash-symbol">⌫</view>
-      <text class="trash-title">移入回收站？</text>
-      <text class="trash-copy">对方将立即无法访问这一刻。你可以在 30 天内从回收站恢复。</text>
-      <text wx:if="{{trashError}}" class="trash-error" role="alert">{{trashError}}</text>
-      <view class="trash-actions">
-        <button bindtap="cancelTrash" disabled="{{deleting}}">先保留</button>
-        <button class="trash-submit" bindtap="confirmTrash" disabled="{{deleting}}" loading="{{deleting}}">{{deleting ? '正在移入' : '移入回收站'}}</button>
+    <view class="detail-content">
+      <view class="detail-meta">
+        <view class="author-avatar"><image wx:if="{{moment.author === '我' ? myAvatarUrl && !myAvatarError : partnerAvatarUrl && !partnerAvatarError}}" src="{{moment.author === '我' ? myAvatarUrl : partnerAvatarUrl}}" mode="aspectFill" data-avatar="{{moment.author === '我' ? 'my' : 'partner'}}" binderror="avatarError"></image><text wx:else>{{moment.author === '我' ? '我' : partnerInitial}}</text></view>
+        <view class="author-copy"><text>{{moment.author === '我' ? '我留下的心动' : partnerName + ' 留下的心动'}}</text><text class="detail-date">{{moment.date}} · {{moment.time}}</text></view>
+        <button size="mini" class="more-button press" bindtap="menu" aria-label="管理这一刻">•••</button>
       </view>
+      <text wx:if="{{moment.title}}" class="detail-title">{{moment.title}}</text>
+      <text wx:if="{{moment.body}}" class="detail-copy">{{moment.body}}</text>
+      <view wx:if="{{moment.mood || moment.events.length}}" class="detail-tags"><text wx:if="{{moment.mood}}" class="detail-tag">{{moment.mood}}</text><text wx:for="{{moment.events}}" wx:key="*this" class="detail-tag">{{item}}</text></view>
+      <view wx:if="{{failedMediaIds.length}}" class="media-retry-banner" role="alert"><view><text>有媒体处理失败</text><text>内容暂未分享给对方，可重新提交安全处理。</text></view><view class="media-retry-actions"><button size="mini" wx:for="{{failedMediaIds}}" wx:key="*this" data-id="{{item}}" loading="{{retryingMediaId === item}}" disabled="{{retryingMediaId}}" bindtap="retryMedia">重新处理</button></view></view>
+      <view wx:if="{{moment.visibility === 'SHARED' && moment.author !== '我'}}" class="reaction-list" aria-label="回应这一刻">
+        <button size="mini" wx:for="{{reactions}}" wx:key="*this" class="reaction press {{moment.reactionValue === item ? 'active' : ''}}" data-value="{{item}}" bindtap="react" disabled="{{reactionSaving}}" aria-label="{{item}}" aria-pressed="{{moment.reactionValue === item}}">
+          <view class="reaction-symbol"><image src="/assets/icons/home/{{reactionIcons[index]}}{{moment.reactionValue === item ? '-active' : ''}}.png" mode="aspectFit"></image></view><text>{{item}}</text>
+        </button>
+      </view>
+      <view wx:if="{{moment.visibility === 'SHARED' && moment.comments.length}}" class="comments-section">
+        <view class="comments-head"><text>短评</text><text>{{moment.comments.length}} 条</text></view>
+        <view class="comment-list"><view wx:for="{{moment.comments}}" wx:key="id" class="comment">
+          <view class="comment-avatar"><image wx:if="{{item.author === '我' ? myAvatarUrl && !myAvatarError : partnerAvatarUrl && !partnerAvatarError}}" src="{{item.author === '我' ? myAvatarUrl : partnerAvatarUrl}}" mode="aspectFill" data-avatar="{{item.author === '我' ? 'my' : 'partner'}}" binderror="avatarError"></image><text wx:else>{{item.author === '我' ? '我' : partnerInitial}}</text></view>
+          <view class="comment-content"><view class="comment-meta"><text>{{item.author === '我' ? '我' : partnerName}}</text><text>{{item.createdAt}}</text></view><text class="comment-body">{{item.body}}</text></view>
+          <button size="mini" wx:if="{{item.author === '我'}}" class="comment-delete press" data-id="{{item.id}}" bindtap="removeComment" aria-label="删除这条短评">删除</button>
+        </view></view>
+      </view>
+    </view>
+    <view wx:if="{{moment.visibility === 'SHARED'}}" class="comment-box" style="bottom: {{keyboardOffset}}px;">
+      <view class="comment-box-inner"><input class="comment-input" value="{{commentText}}" maxlength="300" placeholder="{{moment.author === '我' ? '补充一句…' : '写给' + partnerName + '…'}}" placeholder-class="comment-placeholder" aria-label="{{moment.author === '我' ? '补充一句' : '写给' + partnerName}}" bindinput="commentInput" bindfocus="commentFocus" bindkeyboardheightchange="keyboardChange" bindblur="commentBlur" bindconfirm="sendComment" confirm-type="send" adjust-position="{{false}}" disabled="{{commentSending}}" /><button size="mini" class="comment-send press" bindtap="sendComment" disabled="{{commentSending}}" loading="{{commentSending}}">{{commentSending ? '发送中' : '发送'}}</button></view>
+    </view>
+  </block>
+  <view wx:if="{{showMenu}}" class="sheet-mask" catchtap="closeMenu">
+    <view class="detail-action-sheet" catchtap="stopPropagation" role="dialog" aria-label="管理这一刻">
+      <view class="sheet-handle"></view><text class="sheet-title">管理这一刻</text>
+      <button size="mini" wx:if="{{moment.author === '我'}}" class="sheet-row" bindtap="menuEdit"><view><text>编辑记录</text><text>修改文字、标签和分享范围</text></view><text>›</text></button>
+      <button size="mini" wx:if="{{moment.author === '我'}}" class="sheet-row sheet-row--danger" bindtap="menuTrash"><view><text>移入回收站</text><text>30 天内可以恢复</text></view><text>›</text></button>
+      <button size="mini" class="sheet-row" bindtap="menuFeedback"><view><text>内容反馈</text><text>反馈内容、权益或隐私问题</text></view><text>›</text></button>
+      <button size="mini" wx:if="{{moment.author !== '我'}}" class="sheet-row" bindtap="menuPrivacy"><view><text>隐私与关系设置</text><text>管理分享关系与访问权限</text></view><text>›</text></button>
+      <button size="mini" class="sheet-cancel" bindtap="closeMenu">取消</button>
+    </view>
+  </view>
+  <view wx:if="{{showTrashConfirm}}" class="sheet-mask" catchtap="cancelTrash">
+    <view class="trash-confirm-sheet" catchtap="stopPropagation" role="dialog" aria-label="移入回收站确认">
+      <view class="trash-symbol"><image src="/assets/icons/home/trash-2.png" mode="aspectFit"></image></view><text class="trash-title">移入回收站？</text>
+      <text class="trash-copy">对方将立即无法访问这一刻。你可以在 30 天内从回收站恢复。</text><text wx:if="{{trashError}}" class="trash-error" role="alert">{{trashError}}</text>
+      <view class="trash-actions"><button size="mini" bindtap="cancelTrash" disabled="{{deleting}}">先保留</button><button size="mini" class="trash-submit" bindtap="confirmTrash" disabled="{{deleting}}" loading="{{deleting}}">{{deleting ? '正在移入' : '移入回收站'}}</button></view>
     </view>
   </view>
 </view>

@@ -55,11 +55,18 @@ public class MediaCleanupService {
             purgedMoments++;
         }
 
-        var orphans = assets.findTop100ByMomentIdIsNullAndProfileAvatarFalseAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
+        var orphans = assets.findTop100ByMomentIdIsNullAndAlbumCoupleIdIsNullAndProfileAvatarFalseAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
                 ORPHAN_STATUSES,
                 now.minus(properties.media().orphanRetentionHours(), ChronoUnit.HOURS));
         for (MediaAssetEntity orphan : orphans) {
             delete(orphan);
+            deletedAssets++;
+        }
+        var rejectedPhotos = assets.findTop100ByAlbumCoupleIdIsNotNullAndStatusInAndCreatedAtBeforeOrderByCreatedAtAsc(
+                Set.of(DomainEnums.MediaStatus.BLOCKED, DomainEnums.MediaStatus.FAILED),
+                now.minus(properties.media().orphanRetentionHours(), ChronoUnit.HOURS));
+        for (MediaAssetEntity photo : rejectedPhotos) {
+            delete(photo);
             deletedAssets++;
         }
         return new CleanupResult(purgedMoments, deletedAssets);

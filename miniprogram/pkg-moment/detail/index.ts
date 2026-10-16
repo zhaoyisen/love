@@ -8,6 +8,10 @@ Page({
     moment: {} as any,
     reactions: ["心动","抱抱","笑哭","懂你","对不起","收藏"],
     commentText: "",
+    keyboardHeight: 0,
+    keyboardOffset: 0,
+    viewportHeight: 640,
+    reactionIcons: ["reaction-heart", "reaction-hug", "reaction-laugh", "reaction-lightbulb", "reaction-frown", "reaction-bookmark"],
     loading: false,
     error: "",
     isRemote: appService.isRemote,
@@ -20,18 +24,74 @@ Page({
     mediaIndex: 0,
     partnerName: "TA",
     partnerInitial: "TA",
+    myAvatarUrl: "", partnerAvatarUrl: "", myAvatarError: false, partnerAvatarError: false,
     failedMediaIds: [] as string[],
     retryingMediaId: ""
   },
-  onLoad(query: any) { this.momentId = query.id; },
-  onShow() { if (this.momentId) this.refresh(); },
-  onHide() { clearTimeout(this.pollTimer); },
-  onUnload() { clearTimeout(this.pollTimer); },
+  onLoad(query: any) { this.momentId = query.id; this.updateViewport(); },
+  onShow() { this.updateViewport(); if (this.momentId) this.refresh(); },
+  onHide() { this.mediaHidden = true; clearTimeout(this.pollTimer); this.commentBlur(); },
+  onUnload() { this.mediaHidden = true; clearTimeout(this.pollTimer); },
+  onResize(event: any) {
+    if (this.commentFocused || this.data.keyboardHeight) this.keyboardChange({ detail: { height: this.data.keyboardHeight } });
+    else this.updateViewport(event.size);
+  },
+  updateViewport(size?: any) {
+    const info = size || (wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync());
+    this.setData({ viewportHeight: Number(info.windowHeight) || this.data.viewportHeight });
+  },
+  keyboardChange(event: any) {
+    const height = Math.max(0, Number(event.detail.height) || 0);
+    const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const resized = Math.max(0, this.data.viewportHeight - info.windowHeight);
+    this.setData({ keyboardHeight: height, keyboardOffset: Math.max(0, height - resized) });
+  },
+  commentFocus() { this.updateViewport(); this.commentFocused = true; },
+  commentBlur() { this.commentFocused = false; this.setData({ keyboardHeight: 0, keyboardOffset: 0 }); },
   momentId: "",
   pollTimer: null as any,
+  commentFocused: false,
+  renderMoment(moment: any) {
+    const state = store.getState();
+    const owner = state.profile.id || "";
+    const partner = moment.author === "TA";
+    const decorated = decorateMoment({ ...moment, media: moment.media.map((item: any) => ({ ...item,
+      sourcePath: item.path,
+      path: moment.mediaType === "IMAGE" ? mediaCache.get(owner, item.assetId || "", item.path, partner)
+        || mediaCache.get(owner, item.assetId || "", item.thumbnailPath, partner) || item.path : item.path,
+      thumbnailPath: mediaCache.get(owner, item.assetId || "", item.thumbnailPath, partner) || item.thumbnailPath
+    })) });
+    const partnerName = state.couple.partnerName || "TA";
+    const failedMediaIds = moment.author === "我" ? decorated.media.filter((item: any) => item.status === "FAILED" && item.assetId).map((item: any) => item.assetId) : [];
+    this.setData({ moment: decorated, partnerName, partnerInitial: partnerName.slice(0, 1), failedMediaIds,
+      myAvatarError: this.data.myAvatarUrl === (state.profile.avatarUrl || "") && this.data.myAvatarError,
+      partnerAvatarError: this.data.partnerAvatarUrl === (state.couple.partnerAvatarUrl || "") && this.data.partnerAvatarError,
+      myAvatarUrl: state.profile.avatarUrl || "", partnerAvatarUrl: state.couple.partnerAvatarUrl || "" });
+    if (!mediaCache.remember) return;
+    for (const item of moment.media) {
+      if (item.status !== "READY" || !item.assetId || !owner) continue;
+      const url = moment.mediaType === "IMAGE" ? item.path : item.thumbnailPath;
+      if (!url) continue;
+      void mediaCache.remember(owner, item.assetId, url, partner).then(() => {
+        if (this.mediaHidden || store.getState().profile.id !== owner || !appService.hasSession()) return;
+        const cached = mediaCache.get(owner, item.assetId, url, partner);
+        const index = this.data.moment.media?.findIndex((media: any) => media.assetId === item.assetId);
+        if (cached && index >= 0) this.setData({ [`moment.media[${index}].${moment.mediaType === "IMAGE" ? "path" : "thumbnailPath"}`]: cached });
+      });
+    }
+  },
+  mediaHidden: false,
+  avatarError(event: any) { this.setData({ [event.currentTarget.dataset.avatar === "my" ? "myAvatarError" : "partnerAvatarError"]: true }); },
   imageError(event: any) {
     const detail = event && event.detail ? event.detail : {};
     console.error("Moment image failed", { errMsg: detail.errMsg, statusCode: detail.statusCode });
+    const index = Number(event.currentTarget?.dataset?.index || 0);
+    const item = this.data.moment.media?.[index];
+    if (item?.sourcePath && item.path !== item.sourcePath) {
+      mediaCache.forget(store.getState().profile.id || "", item.assetId || "", item.sourcePath);
+      this.setData({ [`moment.media[${index}].path`]: item.sourcePath });
+      return;
+    }
     wx.showToast({ title: "照片加载失败，请刷新后重试", icon: "none" });
   },
   videoError(event: any) {
@@ -41,16 +101,16 @@ Page({
   },
   mediaChange(event: any) { this.setData({ mediaIndex: Number(event.detail.current || 0) }); },
   async refresh() {
+    this.mediaHidden = false;
+    const cached = store.getMoment(this.momentId);
+    if (cached && (!appService.isRemote || appService.hasSession?.())
+        && (cached.author === "我" || store.getState().couple.status === "PAIRED")) this.renderMoment(cached);
     this.setData({ loading: true, error: "" });
     try {
       const moment = appService.isRemote ? await appService.detail(this.momentId) : store.getMoment(this.momentId);
       if (!moment) throw new Error("这条记录不存在或已经失效。");
-      const partnerName = store.getState().couple.partnerName || "TA";
-      const decorated = decorateMoment({ ...moment, media: moment.media.map((item: any) => ({ ...item,
-        thumbnailPath: mediaCache.get(store.getState().profile.id || "", item.assetId || "", item.thumbnailPath) || item.thumbnailPath
-      })) });
-      const failedMediaIds = moment.author === "我" ? decorated.media.filter((item: any) => item.status === "FAILED" && item.assetId).map((item: any) => item.assetId) : [];
-      this.setData({ moment: decorated, partnerName, partnerInitial: partnerName.slice(0, 1), failedMediaIds });
+      if (this.mediaHidden) return;
+      this.renderMoment(moment);
       clearTimeout(this.pollTimer);
       if (appService.isRemote && moment.status === "UPLOADING") this.pollTimer = setTimeout(() => this.refresh(), 5000);
     } catch (error) {
@@ -58,12 +118,13 @@ Page({
     } finally { this.setData({ loading: false }); }
   },
   async react(event: any) {
-    if (this.data.reactionSaving) return;
+    if (this.data.reactionSaving || this.data.loading || this.data.moment.author === "我" || this.data.moment.visibility !== "SHARED") return;
     const value = event.currentTarget.dataset.value;
+    if (!this.data.reactions.includes(value)) return;
     this.setData({ reactionSaving: true, error: "" });
     try {
       const moment = await appService.reactMoment(this.momentId, value);
-      if (moment) this.setData({ moment: decorateMoment(moment) });
+      if (moment) this.renderMoment(moment);
       wx.showToast({ title: "回应已留下", icon: "none" });
     } catch (error) {
       if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "回应没有保存，请稍后重试。"), icon: "none" });
@@ -87,13 +148,13 @@ Page({
   },
   commentInput(event: any) { this.setData({ commentText: event.detail.value }); },
   async sendComment() {
-    if (this.data.commentSending) return;
+    if (this.data.commentSending || this.data.loading || this.data.moment.visibility !== "SHARED") return;
     const body = this.data.commentText.trim();
     if (!body) return;
     this.setData({ commentSending: true, error: "" });
     try {
       const moment = await appService.commentMoment(this.momentId, body);
-      if (moment) this.setData({ moment: decorateMoment(moment), commentText: "" });
+      if (moment) { this.renderMoment(moment); this.setData({ commentText: "" }); }
       wx.showToast({ title: "短评已发送", icon: "none" });
     } catch (error) {
       if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "短评没有发送，请稍后重试。"), icon: "none" });
@@ -111,7 +172,7 @@ Page({
         if (!res.confirm) return;
         try {
           const moment = await appService.deleteComment(this.momentId, commentId);
-          if (moment) this.setData({ moment: decorateMoment(moment) });
+          if (moment) this.renderMoment(moment);
           wx.showToast({ title: "短评已删除", icon: "none" });
         } catch (error) {
           if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "短评删除失败，请刷新后重试。"), icon: "none" });

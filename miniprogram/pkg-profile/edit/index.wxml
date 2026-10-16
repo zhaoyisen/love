@@ -6,7 +6,7 @@
   </view>
 
   <view class="profile-preview card">
-    <button class="avatar-picker press" open-type="chooseAvatar" bindchooseavatar="chooseWechatAvatar" aria-label="选择微信头像">
+    <button class="avatar-picker press" open-type="chooseAvatar" bindchooseavatar="chooseWechatAvatar" disabled="{{submitting}}" aria-label="选择微信头像">
       <image wx:if="{{avatarUrl}}" src="{{avatarUrl}}" mode="aspectFill"></image>
       <text wx:else>{{initial}}</text>
       <view class="avatar-edit-mark">换</view>

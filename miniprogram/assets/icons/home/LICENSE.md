@@ -8,6 +8,9 @@ and cat icons from the same library. The composer adds smile, tag and calendar
 icons at the same 20px display size. Colors follow styles/home-refined.wxss.
 The mine page adds eye, trash-2, bell, info and lock-keyhole, plus a selected
 user-round color variant, at the same 20px display size.
+The detail page adds heart, user-round (hug), laugh, lightbulb, frown and
+bookmark geometry in neutral and selected variants. These reaction PNGs use
+112px exports for a 28px display size; existing page icons are unchanged.
 No icon library or network request is needed at runtime.
 
 Source: https://github.com/lucide-icons/lucide

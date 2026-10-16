@@ -1,1 +1,6 @@
-{ "navigationBarTitleText": "时刻详情" }
+{
+  "navigationBarTitleText": "时刻详情",
+  "navigationBarBackgroundColor": "#FCFCFA",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#FCFCFA"
+}

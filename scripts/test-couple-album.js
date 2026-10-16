@@ -9,7 +9,7 @@ function load(relative, dependencies = {}, globals = {}) {
   const filename = path.resolve(__dirname, "..", relative);
   const exports = {};
   const source = ts.transpileModule(fs.readFileSync(filename, "utf8"), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}}).outputText;
-  vm.runInNewContext(source, {exports, require: name => {assert.ok(name in dependencies, name); return dependencies[name]}, ...globals}, {filename});
+  vm.runInNewContext(source, {exports, setTimeout, clearTimeout, require: name => {assert.ok(name in dependencies, name); return dependencies[name]}, ...globals}, {filename});
   return exports;
 }
 const album = load("miniprogram/core/couple-album.ts");
@@ -20,13 +20,13 @@ function moment(id, patch = {}) {
 function pageFixture() {
   const state={loggedIn:true, profile:{id:"me",name:"我"}, couple:{id:"pair",status:"PAIRED",relationshipName:"关系",anniversary:"2024-05-20"}, moments:[moment("shared")],messages:[],pet:{}};
   const calls={cache:[],forgotten:[],remembered:[],navigation:[]};
-  const service={isRemote:true,hasSession:()=>true,refresh:async()=>undefined,album:async()=>state.moments};
+  const service={isRemote:true,hasSession:()=>true,refresh:async()=>undefined,album:async()=>state.moments,albumPhotos:async()=>state.albumPhotos||[]};
   let page;
   load("miniprogram/pages-main/couple/index.ts", {
     "../../core/store":{store:{getState:()=>state}},"../../core/couple-album":album,
     "../../core/media-cache":{mediaCache:{get(...args){calls.cache.push(args)},remember(...args){calls.remembered.push(args)},forget(...args){calls.forgotten.push(args)}}},
     "../../services/app-service":{appService:service,redirectExpiredSession:()=>false,userError:error=>error.message}
-  }, {Page(value){page=value},wx:{stopPullDownRefresh(){},navigateTo(value){calls.navigation.push(value)}}});
+  }, {setTimeout(callback){calls.timer=callback;return 1},clearTimeout(){calls.timer=undefined},Page(value){page=value},wx:{stopPullDownRefresh(){},navigateTo(value){calls.navigation.push(value)},chooseMedia(options){options.success({tempFiles:[{tempFilePath:"wxfile://album.jpg",size:1024}]})},previewImage(value){calls.preview=value},showToast(value){calls.toast=value}}});
   page.data=structuredClone(page.data);
   page.setData=function(patch){for(const [key,value]of Object.entries(patch)){const parts=key.replace(/\[(\d+)\]/g,".$1").split(".");let target=this.data;for(const part of parts.slice(0,-1))target=target[part];target[parts.at(-1)]=value}};
   return {page,state,calls,service};
@@ -83,4 +83,32 @@ test("unpaired and ended spaces do not request an album",async()=>{
     const {page,state,service}=pageFixture();state.couple.status=status;service.album=async()=>{throw new Error("must not request album")};
     await page.onShow();assert.equal(page.data.error,"");assert.equal(page.data.albumCount,0);
   }
+});
+
+test("standalone album uploads are visible without a timeline moment and can be previewed",async()=>{
+  const {page,state,service,calls}=pageFixture();state.moments=[];
+  state.albumPhotos=[{key:"album:photo",assetId:"photo",author:"我",title:"相册照片",createdAt:new Date().toISOString(),source:"https://cos/thumb",original:"https://cos/photo"}];
+  await page.onShow();
+  assert.equal(page.data.albumCount,1);
+  page.openAlbumPhoto(photoEvent);
+  assert.equal(calls.navigation.length,0);assert.equal(calls.preview.current,"https://cos/photo");
+  let uploads=0;
+  service.uploadAlbumPhotos=async files=>{uploads++;assert.equal(files[0].tempFilePath,"wxfile://album.jpg");return state.albumPhotos};
+  await page.uploadAlbum();assert.equal(uploads,1);assert.equal(state.moments.length,0);assert.equal(page.data.albumUploading,false);
+});
+
+test("a partially failed batch keeps polling its successful pending photos and reopening resets the budget",async()=>{
+  const {page,state,service,calls}=pageFixture();await page.onShow();
+  state.albumPhotos=[{key:"album:pending",assetId:"pending",author:"我",title:"相册照片",status:"PROCESSING",createdAt:new Date().toISOString(),source:"",original:""}];
+  service.uploadAlbumPhotos=async()=>{throw new Error("第二张上传失败")};
+  await page.uploadAlbum();
+  assert.equal(page.data.albumPending,1);assert.equal(typeof calls.timer,"function");
+  page.onHide();page.albumPollCount=12;await page.onShow();
+  assert.equal(page.albumPollCount,0);assert.equal(typeof calls.timer,"function");page.onHide();
+});
+
+test("local demo albums can show and preview photos without remote credentials",async()=>{
+  const {page,state,service,calls}=pageFixture();service.isRemote=false;service.hasSession=()=>false;state.moments=[];
+  state.albumPhotos=[{key:"local",assetId:"local",author:"我",title:"照片",createdAt:new Date().toISOString(),source:"wxfile://photo",original:"wxfile://photo",status:"READY"}];
+  await page.onShow();assert.equal(page.data.albumCount,1);page.openAlbumPhoto(photoEvent);assert.equal(calls.preview.current,"wxfile://photo");
 });

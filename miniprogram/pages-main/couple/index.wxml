@@ -35,7 +35,7 @@
     <view class="pair-preview" aria-label="你已加入，正在等待另一半">
       <view class="preview-person">
         <view class="preview-avatar mine">
-          <image wx:if="{{myAvatarUrl}}" src="{{myAvatarUrl}}" mode="aspectFill"></image>
+          <image wx:if="{{myAvatarUrl && !myAvatarError}}" src="{{myAvatarUrl}}" mode="aspectFill" data-avatar="my" binderror="avatarError"></image>
           <text wx:else>{{myInitial}}</text>
         </view>
         <text>你</text>
@@ -71,14 +71,16 @@
 
   <block wx:elif="{{couple.status === 'PAIRED'}}">
     <view class="album-section">
-      <text class="section-title">相册</text>
+      <view class="album-heading"><text class="section-title">相册</text><view class="album-actions"><button wx:if="{{albumCount}}" size="mini" class="text-button press" bindtap="viewAlbum">查看相册</button><button size="mini" class="text-button press" loading="{{albumUploading}}" disabled="{{albumUploading}}" bindtap="uploadAlbum">{{albumUploadText}}</button></view></view>
+      <text wx:if="{{albumPending}}" class="album-pending" role="status">{{albumPending}} 张照片正在安全处理中，完成后会显示给你们。</text>
+      <text wx:if="{{albumFailed}}" class="album-pending" role="alert">{{albumFailed}} 张照片没有通过安全处理，请重新选择照片上传。</text>
       <view wx:if="{{albumCount}}" class="album-grid {{albumCount === 1 ? 'album-grid--single' : ''}}">
         <view wx:for="{{[0,1]}}" wx:for-item="columnIndex" wx:key="*this" wx:if="{{albumColumns[columnIndex].length}}" class="album-column">
           <button
             wx:for="{{albumColumns[columnIndex]}}" wx:for-item="photo" wx:for-index="photoIndex" wx:key="key"
             size="mini" class="album-photo album-photo--{{photo.aspect}} press"
             data-column="{{columnIndex}}" data-index="{{photoIndex}}" bindtap="openAlbumPhoto"
-            aria-label="{{photo.title || '共同照片'}}，打开记录"
+            aria-label="{{photo.title || '共同照片'}}，{{photo.momentId ? '打开记录' : '查看照片'}}"
           >
             <image
               wx:if="{{!photo.error}}" class="album-image" src="{{photo.path}}" mode="aspectFill"
@@ -95,7 +97,7 @@
       </view>
       <view wx:else class="album-empty" role="status">
         <text>{{albumLoading ? '正在整理共同照片' : error ? '共同照片暂时无法读取' : '还没有共同照片'}}</text>
-        <text wx:if="{{!albumLoading && !error}}">把照片留在共同可见的记录里，就会出现在这里。</text>
+        <text wx:if="{{!albumLoading && !error}}">点击“上传照片”加入共同相册，不会自动发布记录。</text>
       </view>
     </view>
 
@@ -103,12 +105,12 @@
       <view class="relationship-topline">
         <view class="relationship-people" aria-label="你和另一半">
           <view class="person-avatar mine">
-            <image wx:if="{{myAvatarUrl}}" src="{{myAvatarUrl}}" mode="aspectFill"></image>
+            <image wx:if="{{myAvatarUrl && !myAvatarError}}" src="{{myAvatarUrl}}" mode="aspectFill" data-avatar="my" binderror="avatarError"></image>
             <text wx:else>{{myInitial}}</text>
           </view>
           <text class="people-join">和</text>
           <view class="person-avatar partner">
-            <image wx:if="{{partnerAvatarUrl}}" src="{{partnerAvatarUrl}}" mode="aspectFill"></image>
+            <image wx:if="{{partnerAvatarUrl && !partnerAvatarError}}" src="{{partnerAvatarUrl}}" mode="aspectFill" data-avatar="partner" binderror="avatarError"></image>
             <text wx:else>{{partnerInitial}}</text>
           </view>
         </view>

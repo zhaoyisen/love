@@ -17,6 +17,6 @@ export const API_CONFIG = {
   useRemoteApi: true,
   envVersion,
   stableDevIdentity: envVersion === "develop",
-  clientVersion: "1.0.8",
+  clientVersion: "1.0.9",
   channel: "WECHAT_MINI"
 };

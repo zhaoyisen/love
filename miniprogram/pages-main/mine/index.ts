@@ -30,6 +30,7 @@ Page({
     const tab = this.getTabBar && this.getTabBar();
     if (tab) tab.setData({ selected: 3 });
     this.setData({ loading: appService.isRemote, error: "" });
+    this.render();
     try {
       await appService.refresh();
     } catch (error) {

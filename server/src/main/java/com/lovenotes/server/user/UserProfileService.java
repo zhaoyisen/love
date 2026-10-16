@@ -35,8 +35,8 @@ public class UserProfileService {
             if (!avatar.getUploaderId().equals(userId)) {
                 throw new ApiException(HttpStatus.FORBIDDEN, "RESOURCE_FORBIDDEN", "不能使用其他用户上传的头像。");
             }
-            if (avatar.getKind() != DomainEnums.MediaKind.IMAGE) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "头像必须是图片。");
+            if (avatar.getKind() != DomainEnums.MediaKind.IMAGE || avatar.getAlbumCoupleId() != null || avatar.getMomentId() != null) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "请选择新上传的头像图片。");
             }
             if (avatar.getStatus() != DomainEnums.MediaStatus.READY
                     && avatar.getStatus() != DomainEnums.MediaStatus.PROCESSING) {

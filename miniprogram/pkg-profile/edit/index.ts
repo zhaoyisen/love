@@ -19,10 +19,17 @@ Page({
     error: "",
     isRemote: appService.isRemote
   },
+  uploadedAvatarId: "",
+  alive: true,
+  ownerId: "" as string | undefined,
 
   onLoad() {
     const profile = store.getState().profile;
     const nickname = profile.name || "";
+    this.alive = true;
+    this.ownerId = profile.id;
+    const pendingAvatar = profile.pendingAvatarId || (profile.avatarStatus === "PROCESSING" && profile.avatarAssetId);
+    this.uploadedAvatarId = pendingAvatar || "";
     this.setData({
       nickname,
       displayName: nickname || "你的昵称",
@@ -30,9 +37,13 @@ Page({
       avatarUrl: profile.avatarUrl || "",
       originalAvatarUrl: profile.avatarUrl || "",
       initial: nickname.slice(0, 1) || "我",
-      remaining: Math.max(0, 30 - nickname.length)
+      remaining: Math.max(0, 30 - nickname.length),
+      avatarChanged: Boolean(pendingAvatar), canSubmit: Boolean(pendingAvatar),
+      error: pendingAvatar ? "上次头像仍在安全处理中，可再次保存，无需重新上传。"
+        : profile.avatarStatus === "BLOCKED" || profile.avatarStatus === "FAILED" ? "上次头像没有处理成功，请重新选择。" : ""
     });
   },
+  onUnload() { this.alive = false; },
 
   inputNickname(event: any) {
     const nickname = String(event.detail.value || "");
@@ -48,11 +59,14 @@ Page({
   },
 
   chooseWechatAvatar(event: any) {
+    if (this.data.submitting) return;
     const avatarUrl = String(event.detail?.avatarUrl || "");
     if (!avatarUrl) {
       wx.showToast({ title: "没有获取到头像，请重新选择", icon: "none" });
       return;
     }
+    this.uploadedAvatarId = "";
+    store.update(state => { state.profile.pendingAvatarId = undefined; });
     this.setData({ avatarUrl, avatarChanged: avatarUrl !== this.data.originalAvatarUrl, canSubmit: Boolean(this.data.nickname.trim()), error: "" });
   },
 
@@ -60,7 +74,8 @@ Page({
     return new Promise((resolve, reject) => wx.getFileInfo({ filePath, success: resolve, fail: reject }));
   },
 
-  async uploadAvatar(): Promise<string> {
+  async uploadAvatar() {
+    if (this.uploadedAvatarId) return mediaService.waitUntilReady(this.uploadedAvatarId);
     const filePath = this.data.avatarUrl;
     const info = await this.fileInfo(filePath);
     const cleanPath = filePath.split("?")[0];
@@ -79,7 +94,11 @@ Page({
       status: "UPLOADING"
     };
     const result = await mediaService.upload(file, (progress) => this.setData({ savingText: `上传头像 ${progress}%` }));
-    return result.asset.id;
+    if (store.getState().profile.id !== this.ownerId) throw new Error("账号已变化，请重新打开资料页。");
+    this.uploadedAvatarId = result.asset.id;
+    store.update(state => { state.profile.pendingAvatarId = result.asset.id; });
+    this.setData({ savingText: "正在安全处理头像" });
+    return mediaService.waitUntilReady(result.asset.id);
   },
 
   async save() {
@@ -101,20 +120,27 @@ Page({
     this.setData({ submitting: true, error: "" });
     try {
       let avatarAssetId: string | undefined;
+      let avatarUrl: string | undefined;
       if (this.data.avatarChanged && appService.isRemote) {
         this.setData({ savingText: "准备上传头像" });
-        avatarAssetId = await this.uploadAvatar();
+        const avatar = await this.uploadAvatar();
+        if (!this.alive || store.getState().profile.id !== this.ownerId) return;
+        avatarAssetId = avatar.id;
+        avatarUrl = avatar.access_url;
       }
       this.setData({ savingText: "正在保存资料" });
-      await appService.updateProfile(nickname, avatarAssetId, this.data.avatarChanged ? this.data.avatarUrl : undefined);
+      await appService.updateProfile(nickname, avatarAssetId, this.data.avatarChanged ? (appService.isRemote ? avatarUrl : this.data.avatarUrl) : undefined);
+      if (store.getState().profile.id !== this.ownerId) return;
+      store.update(state => { state.profile.pendingAvatarId = undefined; });
+      if (!this.alive) return;
       wx.showToast({ title: "资料已保存", icon: "success" });
-      setTimeout(() => wx.navigateBack(), 350);
+      setTimeout(() => { if (this.alive) wx.navigateBack(); }, 350);
     } catch (error) {
-      if (!redirectExpiredSession()) {
+      if (this.alive && !redirectExpiredSession()) {
         this.setData({ error: userError(error, "保存失败，请检查网络后重试。") });
       }
     } finally {
-      this.setData({ submitting: false, savingText: "正在保存" });
+      if (this.alive) this.setData({ submitting: false, savingText: "正在保存" });
     }
   },
 

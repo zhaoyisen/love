@@ -246,3 +246,41 @@ test("partner covers require an unexpired authorized URL even when their files a
   assert.equal(f.requests.length, 1);
   assert.equal(f.cache.get("me", "partner-video", expired), saved, "own covers can still reuse the stored object");
 });
+
+test("refreshing the same authorized assets does not cancel a cover being saved", async () => {
+  const f = fixture({ deferred: true });
+  const pending = f.cache.remember("me", "video", firstUrl);
+  f.cache.retain("me", ["video"]);
+  f.requests[0].success({ path: "wxfile://temp/0.jpg", type: "jpeg" });
+  const saved = await pending;
+  assert.match(saved, /^wxfile:\/\/user\/media-cover-cache\//);
+  assert.equal(f.cache.get("me", "video", rotatedUrl), saved);
+});
+
+test("a loaded card adopts its saved file before the next signed URL refresh", async () => {
+  const f = fixture(); let definition;
+  load("miniprogram/components/moment-card/index.ts", {
+    "../../core/media-cache": { mediaCache: f.cache },
+    "../../services/request": { hasSession: () => true },
+    "../../core/store": { store: { getState: () => ({ loggedIn: true, profile: { id: "me" } }) } },
+    "../../core/format": load("miniprogram/core/format.ts")
+  }, { Component(value) { definition = value; }, wx: f.wx });
+  const card = { data: { ...definition.data }, setData(patch) { Object.assign(this.data, patch); } };
+  definition.observers.item.call(card, { id: "moment", author: "我", mediaType: "IMAGE", occurredAt: new Date().toISOString(), media: [{ assetId: "photo", status: "READY", thumbnailPath: firstUrl }] });
+  await definition.methods.coverLoaded.call(card);
+  await Promise.resolve();
+  assert.match(card.data.coverPath, /^wxfile:\/\/user\/media-cover-cache\//);
+  definition.observers.item.call(card, { id: "responded", author: "TA", mediaType: "TEXT", occurredAt: new Date().toISOString(), media: [], reaction: { actor: "我", value: "心动" } });
+  assert.equal(card.data.responseIsMe, true, "a response uses its actual author's avatar");
+});
+
+test("an incomplete first timeline page does not delete covers belonging to later pages", async () => {
+  const f = fixture();
+  const saved = await f.cache.remember("me", "older-photo", firstUrl);
+  const { store } = load("miniprogram/core/store.ts", { "./api-config": { API_CONFIG: { useRemoteApi: true } }, "./media-cache": { mediaCache: f.cache } }, { wx: f.wx });
+  store.applyRemoteProfile({ id: "me", name: "我" });
+  store.replaceRemoteMoments([], false);
+  assert.equal(f.cache.get("me", "older-photo", firstUrl), saved);
+  store.replaceRemoteMoments([], true);
+  assert.equal(f.cache.get("me", "older-photo", firstUrl), undefined);
+});

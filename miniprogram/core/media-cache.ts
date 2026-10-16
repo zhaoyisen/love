@@ -104,12 +104,12 @@ export const mediaCache = {
         resolve(path);
         drain();
       };
-      if (started !== generation) { finish(url); return; }
+      if (started !== generation || pending.get(id) !== promise) { finish(url); return; }
       try {
         wx.getImageInfo({ src: url, success: (image: any) => {
           let path = "";
           try {
-            if (started !== generation) { finish(url); return; }
+            if (started !== generation || pending.get(id) !== promise) { finish(url); return; }
             const fs = wx.getFileSystemManager();
             const size = fs.statSync(image.path).size;
             if (!Number.isFinite(size) || size <= 0 || size > MAX_FILE_BYTES) { finish(url); return; }
@@ -133,9 +133,12 @@ export const mediaCache = {
     if (entry) { unlink(entry.path); delete entries![id]; persist(); }
   },
   retain(owner: string, assetIds: string[]) {
-    generation++;
-    pending.clear();
     const allowed = new Set(assetIds);
+    // 普通刷新保留仍有权限的下载，仅取消已失去权限的资产。
+    for (const id of pending.keys()) {
+      const [entryOwner, assetId] = id.split("|");
+      if (entryOwner !== owner || !allowed.has(assetId)) pending.delete(id);
+    }
     Object.keys(load()).forEach((id) => {
       const entry = entries![id];
       if (entry.owner !== owner || !allowed.has(entry.assetId)) { unlink(entry.path); delete entries![id]; }

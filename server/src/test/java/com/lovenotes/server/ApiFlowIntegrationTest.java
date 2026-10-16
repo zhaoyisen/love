@@ -48,11 +48,13 @@ class ApiFlowIntegrationTest {
     @Autowired NotificationPreferenceRepository notificationPreferences;
     @Autowired AuditLogRepository auditLogs;
     @Autowired AccountDeletionProcessingService accountDeletionProcessor;
+    @Autowired com.lovenotes.server.media.MediaCleanupService mediaCleanup;
     @Autowired MomentRepository moments;
     @Autowired ActiveCoupleMemberRepository members;
     @Autowired InvitationRepository invitations;
     @Autowired CoupleSpaceRepository couples;
     @Autowired UserRepository users;
+    @Autowired jakarta.persistence.EntityManagerFactory entityManagers;
 
     @BeforeEach
     void cleanDatabase() {
@@ -1229,6 +1231,118 @@ class ApiFlowIntegrationTest {
     private String imageMoment(String sourceAssetId, String renderedAssetId) {
         return "{\"type\":\"IMAGE\",\"title\":\"一张模板照片\",\"body\":\"真实模板媒体记录\",\"occurred_at\":\"" + Instant.now() + "\",\"visibility\":\"PRIVATE\",\"mood\":\"CALM\",\"events\":[\"DAILY\"],\"asset_ids\":[\"" + sourceAssetId + "\",\"" + renderedAssetId + "\"]}";
     }
+    @Test
+    void shouldKeepUploadedAlbumPhotosSeparateFromMomentsAndRevokePartnerAccess() throws Exception {
+        Login owner = login("direct-album-owner");
+        Login partner = login("direct-album-partner");
+        Login stranger = login("direct-album-stranger");
+        pair(owner, partner);
+        String asset = uploadImage(owner, "album-only.jpg");
+        String coupleId = members.findById(UUID.fromString(owner.userId())).orElseThrow().getCoupleId().toString();
+        String body = "{\"couple_id\":\"" + coupleId + "\",\"asset_ids\":[\"" + asset + "\"]}";
+        for (int repeat = 0; repeat < 2; repeat++) {
+            mvc.perform(post("/couples/current/album-photos").header("Authorization", bearer(owner.accessToken()))
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isOk());
+        }
+        Assertions.assertEquals(0, moments.count(), "Album upload must not publish a timeline moment");
+        var savedPhoto = assets.findById(UUID.fromString(asset)).orElseThrow();
+        org.springframework.test.util.ReflectionTestUtils.setField(savedPhoto, "createdAt", Instant.now().minusSeconds(172800));
+        assets.saveAndFlush(savedPhoto);
+        mediaCleanup.runBatch();
+        Assertions.assertEquals(DomainEnums.MediaStatus.READY, assets.findById(savedPhoto.getId()).orElseThrow().getStatus(),
+                "Album photos must not be deleted as expired orphan uploads");
+        mvc.perform(get("/couples/current/album-photos").header("Authorization", bearer(partner.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(1)))
+                .andExpect(jsonPath("$.data[0].id").value(asset))
+                .andExpect(jsonPath("$.data[0].access_url", startsWith("local://")));
+        mvc.perform(get("/media-assets/{id}/access-url", asset).header("Authorization", bearer(partner.accessToken())))
+                .andExpect(status().isOk());
+        mvc.perform(get("/media-assets/{id}/access-url", asset).header("Authorization", bearer(stranger.accessToken())))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/couples/current/album-photos").header("Authorization", bearer(partner.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isForbidden());
+        mvc.perform(post("/moments").header("Authorization", bearer(owner.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                        .content(imageMoment(asset))).andExpect(status().isBadRequest());
+        mvc.perform(patch("/me").header("Authorization", bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"我\",\"avatar_asset_id\":\"" + asset + "\"}"))
+                .andExpect(status().isBadRequest());
+        int version = couples.findById(UUID.fromString(coupleId)).orElseThrow().getVersion();
+        mvc.perform(post("/couples/current/unbind").header("Authorization", bearer(owner.accessToken()))
+                        .header("Idempotency-Key", UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":" + version + ",\"confirm_text\":\"确认解绑\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/media-assets/{id}/access-url", asset).header("Authorization", bearer(partner.accessToken())))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/media-assets/{id}/access-url", asset).header("Authorization", bearer(owner.accessToken())))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldHideUnreadyAlbumPhotosFromPartnerAndRejectInvalidAttachments() throws Exception {
+        Login owner = login("pending-album-owner");
+        Login partner = login("pending-album-partner");
+        Login solo = login("pending-album-solo");
+        mvc.perform(post("/couples/current/album-photos").header("Authorization", bearer(solo.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"asset_ids\":[]}"))
+                .andExpect(status().isBadRequest());
+        pair(owner, partner);
+        String assetId = uploadImage(owner, "pending.jpg");
+        String coupleId = members.findById(UUID.fromString(owner.userId())).orElseThrow().getCoupleId().toString();
+        var asset = assets.findById(UUID.fromString(assetId)).orElseThrow();
+        asset.retryProcessing(); assets.saveAndFlush(asset);
+        mvc.perform(post("/couples/current/album-photos").header("Authorization", bearer(owner.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"couple_id\":\"" + coupleId + "\",\"asset_ids\":[\"" + assetId + "\"]}"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/couples/current/album-photos").header("Authorization", bearer(partner.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(0)));
+        mvc.perform(get("/media-assets/{id}/access-url", assetId).header("Authorization", bearer(partner.accessToken())))
+                .andExpect(status().isForbidden());
+        String avatar = uploadImage(owner, "already-avatar.jpg");
+        mvc.perform(patch("/me").header("Authorization", bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"我\",\"avatar_asset_id\":\"" + avatar + "\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/couples/current/album-photos").header("Authorization", bearer(owner.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"couple_id\":\"" + coupleId + "\",\"asset_ids\":[\"" + avatar + "\"]}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldPreserveAlbumAttachmentWhenMediaProcessingCommitsConcurrently() throws Exception {
+        Login owner = login("concurrent-album-owner"), partner = login("concurrent-album-partner");
+        pair(owner, partner);
+        UUID coupleId = members.findById(UUID.fromString(owner.userId())).orElseThrow().getCoupleId();
+        for (boolean workerCommitsFirst : new boolean[]{false, true}) {
+            UUID id = UUID.fromString(uploadImage(owner, "concurrent-" + workerCommitsFirst + ".jpg"));
+            var initial = assets.findById(id).orElseThrow(); initial.retryProcessing(); assets.saveAndFlush(initial);
+            try (var worker = entityManagers.createEntityManager(); var attachment = entityManagers.createEntityManager()) {
+                worker.getTransaction().begin(); attachment.getTransaction().begin();
+                var processing = worker.find(MediaAssetEntity.class, id);
+                var attaching = attachment.find(MediaAssetEntity.class, id);
+                processing.markReady("display.jpg", "thumb.jpg"); attaching.attachToAlbum(coupleId);
+                if (workerCommitsFirst) { worker.getTransaction().commit(); attachment.getTransaction().commit(); }
+                else { attachment.getTransaction().commit(); worker.getTransaction().commit(); }
+            }
+            var result = assets.findById(id).orElseThrow();
+            Assertions.assertEquals(coupleId, result.getAlbumCoupleId(), "Processing must preserve the independently committed album association");
+            Assertions.assertEquals(DomainEnums.MediaStatus.READY, result.getStatus(), "Attachment must preserve the independently committed ready status");
+        }
+    }
+
+    @Test
+    void shouldCleanRejectedAlbumUploadsAfterTheRetentionWindow() throws Exception {
+        Login owner = login("rejected-album-owner"), partner = login("rejected-album-partner");pair(owner, partner);
+        UUID coupleId = members.findById(UUID.fromString(owner.userId())).orElseThrow().getCoupleId();
+        for (boolean blocked : new boolean[]{true, false}) {
+            var asset = assets.findById(UUID.fromString(uploadImage(owner, "rejected-" + blocked + ".jpg"))).orElseThrow();
+            asset.attachToAlbum(coupleId);if (blocked) asset.markBlocked();else asset.markFailed();
+            org.springframework.test.util.ReflectionTestUtils.setField(asset, "createdAt", Instant.now().minusSeconds(172800));
+            assets.saveAndFlush(asset);mediaCleanup.runBatch();
+            Assertions.assertEquals(DomainEnums.MediaStatus.DELETED, assets.findById(asset.getId()).orElseThrow().getStatus());
+        }
+    }
+
     private String uploadImage(Login user, String fileName) throws Exception {
         String created = mvc.perform(post("/upload-sessions").header("Authorization", bearer(user.accessToken()))
                         .contentType(MediaType.APPLICATION_JSON)
