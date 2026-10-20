@@ -67,6 +67,11 @@ function drain() {
 
 export const mediaCache = {
   isUrlCurrent: unexpiredUrl,
+  stableUrl(previous?: string, next?: string, failed = false): string {
+    if (!failed && previous && next && previous.split("?")[0] === next.split("?")[0]
+      && (previous === next || unexpiredUrl(previous))) return previous;
+    return next || "";
+  },
   get(owner: string, assetId: string, url?: string, requireUnexpiredUrl = false): string | undefined {
     if (!owner || !assetId || !url || !wx.env?.USER_DATA_PATH) return;
     // 对方的封面不能借本地缓存延长授权窗口，签名过期后等服务端返回新的可读 URL。

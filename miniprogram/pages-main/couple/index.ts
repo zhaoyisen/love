@@ -15,7 +15,8 @@ Page({
   albumTimer: null as any,
   albumPollCount: 0,
   albumVisible: false,
-  async onShow() {
+  syncVersion: "",
+  async onShow(force = false) {
     this.albumVisible = true;
     this.albumPollCount = 0;
     clearTimeout(this.albumTimer);
@@ -24,12 +25,17 @@ Page({
     const saved = store.getState().album;
     if (saved && saved.coupleId === store.getState().couple.id) this.remotePhotos = saved.photos;
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 1 });
-    this.setData({ loading: true, error: "", albumRetrying: false });
-    this.render();
-    if (this.data.albumCount) this.setData({ loaded: true });
+    const initial = !this.data.loaded || this.albumScope !== this.currentAlbumScope();
+    let updated = initial;
+    if (initial || force === true) {
+      this.setData({ loading: true, error: "", albumRetrying: false }); this.render();
+    }
     try {
-      await appService.refresh();
+      const synced = await appService.refreshIfChanged(force === true);
       if (requestId !== this.requestId) return;
+      if (this.data.error) this.setData({ error: "" });
+      if (!initial && force !== true && this.syncVersion === synced.version) return;
+      updated = true;
       this.render();
       if (store.getState().couple.status === "PAIRED") {
         const scope = this.currentAlbumScope();
@@ -40,11 +46,12 @@ Page({
         this.remotePhotos = photos;
         this.albumScope = scope;
       }
+      this.syncVersion = synced.version;
     } catch (error) {
       if (requestId === this.requestId && !redirectExpiredSession()) this.setData({ error: userError(error, "情侣空间同步失败，当前展示最近一次保存的状态。") });
     } finally {
       if (requestId === this.requestId) {
-        this.render(); this.setData({ loading: false, loaded: true, albumLoading: false });
+        if (updated) this.render(); this.setData({ loading: false, loaded: true, albumLoading: false });
         wx.stopPullDownRefresh();
         this.scheduleAlbumRefresh();
       }
@@ -52,7 +59,7 @@ Page({
   },
   onHide() { this.requestId++; this.albumVisible = false; clearTimeout(this.albumTimer); },
   onUnload() { this.onHide(); },
-  onPullDownRefresh() { void this.onShow(); },
+  onPullDownRefresh() { return this.onShow(true); },
   onPageScroll(event: any) {
     const albumOffset = Math.min(12, Math.max(0, Math.round(event.scrollTop * .035)));
     if (albumOffset !== this.data.albumOffset) this.setData({ albumOffset });
@@ -63,6 +70,8 @@ Page({
   },
   render() {
     const state = store.getState();
+    const myAvatarUrl = mediaCache.stableUrl(this.data.myAvatarUrl, state.profile.avatarUrl, this.data.myAvatarError);
+    const partnerAvatarUrl = mediaCache.stableUrl(this.data.partnerAvatarUrl, state.couple.partnerAvatarUrl, this.data.partnerAvatarError);
     const source = appService.isRemote ? this.albumScope === this.currentAlbumScope() && state.loggedIn && appService.hasSession() ? this.remoteAlbum : [] : state.moments;
     const authenticated = state.loggedIn && (!appService.isRemote || appService.hasSession());
     const owner = authenticated ? state.profile.id || "" : "";
@@ -98,11 +107,11 @@ Page({
       unread: state.messages.filter((item) => !item.read).length,
       days: this.daysSince(state.couple.anniversary),
       myInitial: (state.profile.name || "我").slice(0, 1),
-      myAvatarError: this.data.myAvatarUrl === (state.profile.avatarUrl || "") && this.data.myAvatarError,
-      myAvatarUrl: state.profile.avatarUrl || "",
+      myAvatarError: this.data.myAvatarUrl === myAvatarUrl && this.data.myAvatarError,
+      ...(myAvatarUrl !== this.data.myAvatarUrl ? { myAvatarUrl } : {}),
       partnerInitial: (state.couple.partnerName || "TA").slice(0, 1),
-      partnerAvatarError: this.data.partnerAvatarUrl === (state.couple.partnerAvatarUrl || "") && this.data.partnerAvatarError,
-      partnerAvatarUrl: state.couple.partnerAvatarUrl || ""
+      partnerAvatarError: this.data.partnerAvatarUrl === partnerAvatarUrl && this.data.partnerAvatarError,
+      ...(partnerAvatarUrl !== this.data.partnerAvatarUrl ? { partnerAvatarUrl } : {})
     });
   },
   albumPhoto(event: any) {
@@ -134,7 +143,7 @@ Page({
       || (appService.isRemote && (!appService.hasSession() || !store.getState().loggedIn || this.albumScope !== this.currentAlbumScope()))) return;
     if (photo.momentId) wx.navigateTo({ url: `/pkg-moment/detail/index?id=${encodeURIComponent(photo.momentId)}` });
     else if (photo.error) return this.retryAlbumPhoto();
-    else this.previewAlbum(photo.original);
+    else return this.previewAlbum(photo.original);
   },
   async retryAlbumPhoto() {
     if (this.data.albumRetrying || !this.albumVisible) return;
@@ -150,14 +159,31 @@ Page({
       if (!redirectExpiredSession() && current()) this.setData({ error: userError(error, "照片地址没有刷新成功，请稍后重试。") });
     } finally { if (current()) this.setData({ albumRetrying: false }); }
   },
-  previewAlbum(current?: string) {
+  async previewAlbum(current?: string) {
     const state = store.getState();
     if (state.couple.status !== "PAIRED" || !state.loggedIn || (appService.isRemote && !appService.hasSession()) || this.albumScope !== this.currentAlbumScope()) return;
-    const urls = [...this.remotePhotos.filter(photo => photo.status === "READY" || !photo.status).map(photo => photo.original),
-      ...albumPhotos(this.remoteAlbum, state.couple.status).map(photo => photo.original)].filter(Boolean);
+    const scope = this.currentAlbumScope(), requestId = this.requestId;
+    const available = () => [...this.remotePhotos.filter(photo => photo.status === "READY" || !photo.status), ...albumPhotos(this.remoteAlbum, state.couple.status)];
+    if (appService.isRemote && available().some(photo => /[?&]q-key-time=/.test(photo.original) && !mediaCache.isUrlCurrent(photo.original))) {
+      const selected = available().find(photo => photo.original === current)?.assetId;
+      try {
+        const [moments, photos] = await Promise.all([appService.album(), appService.albumPhotos()]);
+        if (!this.albumVisible || requestId !== this.requestId || scope !== this.currentAlbumScope() || !appService.hasSession()) return;
+        this.remoteAlbum = moments; this.remotePhotos = photos; this.render();
+        if (selected) {
+          const photo = available().find(value => value.assetId === selected);
+          if (!photo) throw new Error("照片不存在或当前不可访问。");
+          current = photo.original;
+        }
+      } catch (error) {
+        if (requestId === this.requestId && scope === this.currentAlbumScope() && !redirectExpiredSession()) this.setData({ error: userError(error, "照片地址没有刷新成功，请重试。") });
+        return;
+      }
+    }
+    const urls = available().map(photo => photo.original).filter(Boolean);
     if (urls.length) wx.previewImage({ current: current || urls[0], urls: [...new Set(urls)] });
   },
-  viewAlbum() { this.previewAlbum(); },
+  viewAlbum() { return this.previewAlbum(); },
   toggleAlbumManage() {
     if (this.data.albumDeleting) return;
     this.setData({ albumManaging: !this.data.albumManaging }); this.render();
@@ -221,7 +247,7 @@ Page({
     }, 5000);
   },
   avatarError(event: any) { this.setData({ [event.currentTarget.dataset.avatar === "my" ? "myAvatarError" : "partnerAvatarError"]: true }); },
-  retry() { this.onShow(); },
+  retry() { return this.onShow(true); },
   daysSince(value: string) { if (!value) return 0; return Math.max(1, Math.floor((Date.now() - new Date(`${value}T00:00:00+08:00`).getTime()) / 86400000)); },
   invite() { wx.navigateTo({ url: "/pkg-couple/invite/index" }); },
   privacy() { wx.navigateTo({ url: "/pkg-couple/privacy/index" }); },

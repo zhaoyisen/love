@@ -6,6 +6,7 @@ const test = require("node:test");
 const ts = require("typescript");
 
 function load(relativePath, dependencies = {}, globals = {}) {
+  if (relativePath.startsWith("miniprogram/pages-main/")) dependencies = { "../../core/media-cache": { mediaCache: load("miniprogram/core/media-cache.ts").mediaCache }, ...dependencies };
   const filename = path.resolve(__dirname, "..", relativePath);
   const source = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
@@ -148,6 +149,7 @@ test("home shows cached moments before synchronization and does not fetch the la
   const state = { loggedIn: true, profile: { id: "me" }, couple: { status: "UNPAIRED", partnerName: "TA" }, moments: [moment], messages: [] };
   const appService = {
     isRemote: true, hasSession: () => true,
+    async refreshIfChanged() { return { version: "initial", timeline: await this.refresh() }; },
     refresh: () => new Promise((resolve) => { resolveRefresh = resolve; }),
     timelinePage() { extraTimelineCalls++; throw new Error("should reuse initial sync"); }
   };
@@ -391,7 +393,7 @@ test("returning from detail or another tab does not resend an unchanged timeline
   let definition; const patches=[];
   const moment={id:"photo",author:"我",status:"PUBLISHED",mediaType:"IMAGE",occurredAt:new Date().toISOString(),media:[{id:"image",assetId:"image",status:"READY",path:firstUrl}],comments:[],events:[]};
   const state={loggedIn:true,profile:{id:"me"},couple:{id:"pair",status:"PAIRED"},moments:[moment],messages:[]};
-  const service={isRemote:true,hasSession:()=>true,async refresh(){return {from:"2000-01-01",to:"2026-10-20",hasMore:false,nextCursor:""}}};
+  const service={isRemote:true,hasSession:()=>true,async refresh(){return {from:"2000-01-01",to:"2026-10-20",hasMore:false,nextCursor:""}},async refreshIfChanged(){return {version:JSON.stringify(state.moments),timeline:await this.refresh()}}};
   load("miniprogram/pages-main/time/index.ts",{
     "../../core/store":{store:{getState:()=>state}},"../../services/app-service":{appService:service,redirectExpiredSession:()=>false,userError:error=>error.message}
   },{Page(value){definition=value},wx:{stopPullDownRefresh(){}},setTimeout:()=>1,clearTimeout(){}});
@@ -454,7 +456,7 @@ test("poll errors keep content on a network failure and refresh authorization af
     const state = { profile: { id: "me" }, couple: { id: "pair", status: "PAIRED" }, moments: [item], messages: [] };
     load("miniprogram/pages-main/time/index.ts", {
       "../../core/store": { store: { getState: () => state, removeRemoteMoment(id) { state.moments = state.moments.filter(value => value.id !== id); } } },
-      "../../services/app-service": { appService: { isRemote: true, hasSession: () => true, async refresh() { refreshes++; throw new Error("offline sync"); }, async detail() { throw Object.assign(new Error(code), { code }); } }, redirectExpiredSession: () => false, userError: error => error.message }
+      "../../services/app-service": { appService: { isRemote: true, hasSession: () => true, async refreshIfChanged() { refreshes++; throw new Error("offline sync"); }, async detail() { throw Object.assign(new Error(code), { code }); } }, redirectExpiredSession: () => false, userError: error => error.message }
     }, { Page(value) { definition = value; }, wx: { stopPullDownRefresh() {} }, setTimeout(callback) { timers.set(1, callback); return 1; }, clearTimeout(id) { timers.delete(id); } });
     const page = { ...definition, visible: true, remoteMoments: [item], data: { ...definition.data, moments: [item] }, setData(patch) { Object.assign(this.data, patch); } };
     page.scheduleMediaRefresh(); const callback = timers.get(1); timers.delete(1); await callback();

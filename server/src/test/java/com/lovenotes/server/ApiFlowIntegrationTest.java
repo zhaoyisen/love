@@ -1252,6 +1252,45 @@ class ApiFlowIntegrationTest {
         return "{\"type\":\"IMAGE\",\"title\":\"一张模板照片\",\"body\":\"真实模板媒体记录\",\"occurred_at\":\"" + Instant.now() + "\",\"visibility\":\"PRIVATE\",\"mood\":\"CALM\",\"events\":[\"DAILY\"],\"asset_ids\":[\"" + sourceAssetId + "\",\"" + renderedAssetId + "\"]}";
     }
     @Test
+    void shouldVersionVisibleDataWithoutSigningOrLeakingOtherUsersContent() throws Exception {
+        Login owner=login("sync-owner"), partner=login("sync-partner"), stranger=login("sync-stranger");pair(owner,partner);
+        String baseline=syncVersion(owner);Assertions.assertEquals(baseline,syncVersion(owner));Assertions.assertEquals(64,baseline.length());
+        mvc.perform(post("/moments").header("Authorization",bearer(partner.accessToken())).header("Idempotency-Key",UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON).content(recapMoment("PRIVATE","HAPPY","DAILY","私密记录"))).andExpect(status().isCreated());
+        Assertions.assertEquals(baseline,syncVersion(owner),"Partner private moments must not invalidate the visible cache");
+        mvc.perform(patch("/me").header("Authorization",bearer(stranger.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nickname\":\"陌生人的新名字\"}")).andExpect(status().isOk());
+        Assertions.assertEquals(baseline,syncVersion(owner));
+        mvc.perform(patch("/me").header("Authorization",bearer(partner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"nickname\":\"另一半的新名字\"}")).andExpect(status().isOk());
+        String profileChanged=syncVersion(owner);Assertions.assertNotEquals(baseline,profileChanged);
+        String shared=mvc.perform(post("/moments").header("Authorization",bearer(partner.accessToken())).header("Idempotency-Key",UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON).content(recapMoment("SHARED","HAPPY","DAILY","共同记录"))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String momentChanged=syncVersion(owner);Assertions.assertNotEquals(profileChanged,momentChanged);Assertions.assertEquals(momentChanged,syncVersion(owner));
+        var sharedData=mapper.readTree(shared).get("data");
+        mvc.perform(patch("/moments/{id}",sharedData.get("id").asText()).header("Authorization",bearer(partner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"version\":"+sharedData.get("version").asInt()+",\"title\":\"共同记录\",\"body\":\"适合放进年度回顾的一天\",\"occurred_at\":\"2026-06-20T12:00:00Z\",\"visibility\":\"SHARED\",\"mood\":\"CALM\",\"events\":[\"DAILY\"]}"))
+                .andExpect(status().isOk());
+        Assertions.assertNotEquals(momentChanged,syncVersion(owner),"Tag-only changes must be detected");
+        String photo=uploadImage(partner,"sync-album.jpg");String beforeAttach=syncVersion(owner);
+        String coupleId=members.findById(UUID.fromString(owner.userId())).orElseThrow().getCoupleId().toString();
+        mvc.perform(post("/couples/current/album-photos").header("Authorization",bearer(partner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"couple_id\":\""+coupleId+"\",\"asset_ids\":[\""+photo+"\"]}")).andExpect(status().isOk());
+        Assertions.assertNotEquals(beforeAttach,syncVersion(owner));
+        String albumChanged=syncVersion(owner);var media=assets.findById(UUID.fromString(photo)).orElseThrow();
+        media.updateDerivatives(media.getDisplayStorageKey(),media.getThumbnailStorageKey());assets.saveAndFlush(media);
+        Assertions.assertEquals(albumChanged,syncVersion(owner),"Backfill retry timestamps alone are not visible changes");
+        media.updateDerivatives("display/new.webp","thumbnail/new.webp");assets.saveAndFlush(media);
+        Assertions.assertNotEquals(albumChanged,syncVersion(owner),"New derivatives must be detected");
+    }
+
+    private String syncVersion(Login user) throws Exception {
+        String response=mvc.perform(get("/sync/version").header("Authorization",bearer(user.accessToken())))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        var data=mapper.readTree(response).get("data");Assertions.assertEquals(1,data.size());return data.get("version").asText();
+    }
+
+    @Test
     void shouldWaitForInFlightAlbumBackfillAndDeleteItsFinalDerivatives() throws Exception {
         Login owner = login("album-backfill-delete-owner"), partner = login("album-backfill-delete-partner");
         pair(owner, partner);

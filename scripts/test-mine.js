@@ -6,10 +6,12 @@ function fixture(isRemote=true){
  const calls={preferences:[],navigation:[],toasts:[],modals:[],tabs:[],reset:0};let page,expired=false;
  const store={getState:()=>state,updatePreference(key,value){state.preferences[key]=value;},reset(){calls.reset++;}};
  const service={isRemote,async refresh(){},async updateNotificationPreference(key,value){calls.preferences.push({key,value});}};
- const wx={navigateTo(value){calls.navigation.push(value);},switchTab(value){calls.navigation.push(value);},reLaunch(value){calls.navigation.push(value);},showToast(value){calls.toasts.push(value);},showModal(value){calls.modals.push(value);}};
+ service.refreshIfChanged=async()=>({version:JSON.stringify(state),timeline:await service.refresh()});
+ const wx={stopPullDownRefresh(){},navigateTo(value){calls.navigation.push(value);},switchTab(value){calls.navigation.push(value);},reLaunch(value){calls.navigation.push(value);},showToast(value){calls.toasts.push(value);},showModal(value){calls.modals.push(value);}};
  const filename=path.resolve(__dirname,'../miniprogram/pages-main/mine/index.ts');
  const source=ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
  const deps={'../../core/api-config':{API_CONFIG:{clientVersion:'test-version'}},'../../core/store':{store},'../../services/app-service':{appService:service,redirectExpiredSession:()=>expired,userError:(error,fallback)=>error.message||fallback}};
+ const cache={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.resolve(__dirname,'../miniprogram/core/media-cache.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,cache);deps['../../core/media-cache']=cache.exports;
  vm.runInNewContext(source,{exports:{},require(name){assert.ok(name in deps,name);return deps[name];},Page(value){page=value;},wx},{filename});
  page.data=structuredClone(page.data);page.setData=function(patch){Object.assign(this.data,patch);};page.getTabBar=()=>({setData:value=>calls.tabs.push(value)});
  return {page,state,calls,service,expire(){expired=true;}};
