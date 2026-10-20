@@ -34,7 +34,7 @@ class MediaProcessingServiceTest {
         MediaProcessingService service = new MediaProcessingService(assets, mock(DerivedAssetRepository.class), moments, storage, messages, petGrowth);
         MediaAssetEntity asset = new MediaAssetEntity(UUID.randomUUID(), DomainEnums.MediaKind.VIDEO, "original/video.mp4", null, "video/mp4", 100);
         asset.markReady("original/video.mp4", null);
-        when(assets.findById(asset.getId())).thenReturn(Optional.of(asset));
+        when(assets.findLockedById(asset.getId())).thenReturn(Optional.of(asset));
         when(storage.createDerivatives(DomainEnums.MediaKind.VIDEO, "original/video.mp4"))
                 .thenReturn(new ObjectStorage.Derivatives("original/video.mp4", "thumbnail/video.jpg"));
         when(assets.findTop5ByStatusAndThumbnailStorageKeyIsNullAndUpdatedAtBeforeOrderByUpdatedAtAsc(eq(DomainEnums.MediaStatus.READY), any(Instant.class)))
@@ -54,7 +54,7 @@ class MediaProcessingServiceTest {
         MediaProcessingService service = new MediaProcessingService(assets, mock(DerivedAssetRepository.class), mock(MomentRepository.class), storage, mock(MessageService.class), mock(PetGrowthService.class));
         MediaAssetEntity asset = new MediaAssetEntity(UUID.randomUUID(), DomainEnums.MediaKind.VIDEO, "original/video.mp4", null, "video/mp4", 100);
         asset.markBlocked();
-        when(assets.findById(asset.getId())).thenReturn(Optional.of(asset));
+        when(assets.findLockedById(asset.getId())).thenReturn(Optional.of(asset));
         service.backfillThumbnail(asset.getId());
         verifyNoInteractions(storage);
         asset.markReady("original/video.mp4", null);

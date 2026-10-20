@@ -11,11 +11,6 @@
     <button size="mini" bindtap="retry">重试</button>
   </view>
 
-  <view wx:if="{{loading && loaded}}" class="sync-status" role="status">
-    <view aria-hidden="true"></view>
-    <text>正在同步关系空间，已保存的内容仍可查看</text>
-  </view>
-
   <view wx:if="{{loading && !loaded}}" class="relationship-skeleton" role="status" aria-label="正在读取关系空间">
     <view class="album-grid" aria-hidden="true">
       <view class="album-column">
@@ -101,13 +96,14 @@
 
 
     <view class="album-section">
-      <view class="album-heading"><text class="section-title">相册</text><view class="album-actions"><button wx:if="{{albumCount}}" size="mini" class="text-button press" bindtap="viewAlbum">查看相册</button><button size="mini" class="text-button press" loading="{{albumUploading}}" disabled="{{albumUploading}}" bindtap="uploadAlbum">{{albumUploadText}}</button></view></view>
+      <view class="album-heading"><text class="section-title">相册</text><view class="album-actions"><button wx:if="{{albumCanManage || albumManaging}}" size="mini" class="text-button press" disabled="{{!!albumDeleting}}" bindtap="toggleAlbumManage">{{albumManaging ? '完成' : '管理'}}</button><button wx:if="{{albumCount && !albumManaging}}" size="mini" class="text-button press" bindtap="viewAlbum">查看相册</button><button wx:if="{{!albumManaging}}" size="mini" class="text-button press" loading="{{albumUploading}}" disabled="{{albumUploading}}" bindtap="uploadAlbum">{{albumUploadText}}</button></view></view>
+      <text wx:if="{{albumManaging}}" class="album-pending">这里显示你上传的照片。删除后，双方都将无法查看。</text>
       <text wx:if="{{albumPending}}" class="album-pending" role="status">{{albumPending}} 张照片正在安全处理中，完成后会显示给你们。</text>
       <text wx:if="{{albumFailed}}" class="album-pending" role="alert">{{albumFailed}} 张照片没有通过安全处理，请重新选择照片上传。</text>
       <view wx:if="{{albumCount}}" class="album-grid {{albumCount === 1 ? 'album-grid--single' : ''}}">
         <view wx:for="{{[0,1]}}" wx:for-item="columnIndex" wx:key="*this" wx:if="{{albumColumns[columnIndex].length}}" class="album-column">
+          <view wx:for="{{albumColumns[columnIndex]}}" wx:for-item="photo" wx:for-index="photoIndex" wx:key="key" class="album-tile">
           <button
-            wx:for="{{albumColumns[columnIndex]}}" wx:for-item="photo" wx:for-index="photoIndex" wx:key="key"
             size="mini" class="album-photo album-photo--{{photo.aspect}} press"
             data-column="{{columnIndex}}" data-index="{{photoIndex}}" bindtap="openAlbumPhoto"
             disabled="{{!photo.momentId && photo.error && albumRetrying}}" aria-busy="{{!photo.momentId && photo.error && albumRetrying}}"
@@ -124,6 +120,8 @@
               <text>{{photo.momentId ? '打开记录后可重新尝试' : albumRetrying ? '正在重新加载照片' : '点击重新加载照片'}}</text>
             </view>
           </button>
+          <button wx:if="{{albumManaging}}" size="mini" class="album-delete" data-column="{{columnIndex}}" data-index="{{photoIndex}}" loading="{{albumDeleting === photo.assetId}}" disabled="{{!!albumDeleting}}" bindtap="deleteAlbumPhoto" aria-label="删除这张相册照片">删除</button>
+          </view>
         </view>
       </view>
       <view wx:else class="album-empty" role="status">

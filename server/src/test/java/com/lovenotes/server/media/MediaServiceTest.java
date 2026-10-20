@@ -11,9 +11,31 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class MediaServiceTest {
+    @Test
+    void shouldDeleteAlbumOriginalAndDerivativesOnlyAfterAuthorizationAndPreserveFailures() {
+        ObjectStorage storage=mock(ObjectStorage.class);
+        MediaAssetRepository assets=mock(MediaAssetRepository.class);
+        MediaService service=new MediaService(assets,mock(UploadSessionRepository.class),mock(MomentRepository.class),mock(ActiveCoupleMemberRepository.class),storage,null);
+        UUID owner=UUID.randomUUID(),couple=UUID.randomUUID();
+        MediaAssetEntity photo=new MediaAssetEntity(owner,DomainEnums.MediaKind.IMAGE,"original/photo.jpg",null,"image/jpeg",100);
+        photo.attachToAlbum(couple);photo.markReady("display/photo.webp","thumbnail/photo.webp");
+        when(assets.findLockedById(photo.getId())).thenReturn(java.util.Optional.of(photo));
+        assertThrows(com.lovenotes.server.common.ApiException.class,()->service.deleteAlbumPhoto(UUID.randomUUID(),couple,photo.getId()));
+        assertThrows(com.lovenotes.server.common.ApiException.class,()->service.deleteAlbumPhoto(owner,UUID.randomUUID(),photo.getId()));
+        verifyNoInteractions(storage);
+        doThrow(new IllegalStateException("storage unavailable")).when(storage).deleteObjects(photo.objectKeys());
+        assertThrows(IllegalStateException.class,()->service.deleteAlbumPhoto(owner,couple,photo.getId()));
+        assertEquals(DomainEnums.MediaStatus.READY,photo.getStatus());
+        doNothing().when(storage).deleteObjects(photo.objectKeys());
+        service.deleteAlbumPhoto(owner,couple,photo.getId());service.deleteAlbumPhoto(owner,couple,photo.getId());
+        assertEquals(DomainEnums.MediaStatus.DELETED,photo.getStatus());
+        verify(storage,times(2)).deleteObjects(java.util.List.of("original/photo.jpg","display/photo.webp","thumbnail/photo.webp"));
+    }
+
     @Test
     void shouldKeepOriginalImageBytesAndMimeTypeSeparateFromWebpDerivatives() {
         ObjectStorage storage=mock(ObjectStorage.class);

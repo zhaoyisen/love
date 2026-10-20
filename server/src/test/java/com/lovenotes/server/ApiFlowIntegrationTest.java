@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.List;
 
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -1250,6 +1251,77 @@ class ApiFlowIntegrationTest {
     private String imageMoment(String sourceAssetId, String renderedAssetId) {
         return "{\"type\":\"IMAGE\",\"title\":\"一张模板照片\",\"body\":\"真实模板媒体记录\",\"occurred_at\":\"" + Instant.now() + "\",\"visibility\":\"PRIVATE\",\"mood\":\"CALM\",\"events\":[\"DAILY\"],\"asset_ids\":[\"" + sourceAssetId + "\",\"" + renderedAssetId + "\"]}";
     }
+    @Test
+    void shouldWaitForInFlightAlbumBackfillAndDeleteItsFinalDerivatives() throws Exception {
+        Login owner = login("album-backfill-delete-owner"), partner = login("album-backfill-delete-partner");
+        pair(owner, partner);
+        UUID ownerId=UUID.fromString(owner.userId()), coupleId=members.findById(ownerId).orElseThrow().getCoupleId();
+        UUID assetId=UUID.fromString(uploadImage(owner,"backfill-delete.jpg"));
+        var photo=assets.findById(assetId).orElseThrow();photo.attachToAlbum(coupleId);photo.markReady(null,null);assets.saveAndFlush(photo);
+        var storage=org.mockito.Mockito.mock(com.lovenotes.server.storage.ObjectStorage.class);
+        var entered=new java.util.concurrent.CountDownLatch(1);var release=new java.util.concurrent.CountDownLatch(1);
+        org.mockito.Mockito.when(storage.createDerivatives(DomainEnums.MediaKind.IMAGE,photo.getStorageKey())).thenAnswer(call->{
+            entered.countDown();Assertions.assertTrue(release.await(5,java.util.concurrent.TimeUnit.SECONDS));
+            return new com.lovenotes.server.storage.ObjectStorage.Derivatives("display/final.webp","thumbnail/final.webp");
+        });
+        var processing=new com.lovenotes.server.media.MediaProcessingService(assets,null,null,storage,null,null);
+        var deleting=new com.lovenotes.server.media.MediaService(assets,null,null,null,storage,null);
+        var transactions=new org.springframework.transaction.support.TransactionTemplate(new org.springframework.orm.jpa.JpaTransactionManager(entityManagers));
+        try(var workers=java.util.concurrent.Executors.newFixedThreadPool(2)){
+            var backfill=workers.submit(()->transactions.executeWithoutResult(tx->processing.backfillThumbnail(assetId)));
+            Assertions.assertTrue(entered.await(5,java.util.concurrent.TimeUnit.SECONDS));
+            var deleteStarted=new java.util.concurrent.CountDownLatch(1);
+            var deletion=workers.submit(()->{deleteStarted.countDown();transactions.executeWithoutResult(tx->deleting.deleteAlbumPhoto(ownerId,coupleId,assetId));});
+            try {
+                Assertions.assertTrue(deleteStarted.await(5,java.util.concurrent.TimeUnit.SECONDS));
+                Assertions.assertThrows(java.util.concurrent.TimeoutException.class,()->deletion.get(200,java.util.concurrent.TimeUnit.MILLISECONDS));
+            } finally { release.countDown(); }
+            backfill.get(5,java.util.concurrent.TimeUnit.SECONDS);deletion.get(5,java.util.concurrent.TimeUnit.SECONDS);
+        }
+        Assertions.assertEquals(DomainEnums.MediaStatus.DELETED,assets.findById(assetId).orElseThrow().getStatus());
+        org.mockito.Mockito.verify(storage).deleteObjects(List.of(photo.getStorageKey(),"display/final.webp","thumbnail/final.webp"));
+    }
+
+    @Test
+    void shouldDeleteOnlyOwnStandaloneAlbumPhotosFromTheCurrentSharedSpace() throws Exception {
+        Login owner = login("album-delete-owner"), partner = login("album-delete-partner"), stranger = login("album-delete-stranger");
+        pair(owner, partner);
+        String asset = uploadImage(owner, "delete-album.jpg");
+        String coupleId = members.findById(UUID.fromString(owner.userId())).orElseThrow().getCoupleId().toString();
+        mvc.perform(post("/couples/current/album-photos").header("Authorization", bearer(owner.accessToken()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"couple_id\":\"" + coupleId + "\",\"asset_ids\":[\"" + asset + "\"]}"))
+                .andExpect(status().isOk());
+        for (Login viewer : List.of(owner, partner)) {
+            mvc.perform(get("/couples/current/album-photos").header("Authorization", bearer(viewer.accessToken())))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].id").value(asset));
+        }
+        for (Login denied : List.of(partner, stranger)) {
+            mvc.perform(delete("/couples/current/album-photos/{id}", asset).param("couple_id", coupleId)
+                            .header("Authorization", bearer(denied.accessToken())))
+                    .andExpect(status().isForbidden());
+        }
+        mvc.perform(delete("/couples/current/album-photos/{id}", asset).param("couple_id", UUID.randomUUID().toString())
+                        .header("Authorization", bearer(owner.accessToken())))
+                .andExpect(status().isConflict());
+        String unattached = uploadImage(owner, "not-an-album.jpg");
+        mvc.perform(delete("/couples/current/album-photos/{id}", unattached).param("couple_id", coupleId)
+                        .header("Authorization", bearer(owner.accessToken())))
+                .andExpect(status().isNotFound());
+        for (int repeat = 0; repeat < 2; repeat++) {
+            mvc.perform(delete("/couples/current/album-photos/{id}", asset).param("couple_id", coupleId)
+                            .header("Authorization", bearer(owner.accessToken())))
+                    .andExpect(status().isOk());
+        }
+        Assertions.assertEquals(DomainEnums.MediaStatus.DELETED, assets.findById(UUID.fromString(asset)).orElseThrow().getStatus());
+        for (Login viewer : List.of(owner, partner)) {
+            mvc.perform(get("/couples/current/album-photos").header("Authorization", bearer(viewer.accessToken())))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(0)));
+        }
+        mvc.perform(get("/media-assets/{id}/access-url", asset).header("Authorization", bearer(partner.accessToken())))
+                .andExpect(status().isForbidden());
+        Assertions.assertEquals(DomainEnums.MediaStatus.READY, assets.findById(UUID.fromString(unattached)).orElseThrow().getStatus());
+    }
+
     @Test
     void shouldKeepUploadedAlbumPhotosSeparateFromMomentsAndRevokePartnerAccess() throws Exception {
         Login owner = login("direct-album-owner");

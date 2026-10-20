@@ -15,6 +15,7 @@ Page({
     myAvatarUrl: "", myAvatarError: false, partnerAvatarError: false
   },
   remoteMoments: [] as any[],
+  renderedMoments: [] as string[],
   rangeRequestId: 0,
   mediaPollTimer: null as any,
   mediaPollCount: 0,
@@ -29,7 +30,7 @@ Page({
       this.render();
       this.setData({ loaded: this.remoteMoments.length > 0 });
     }
-    this.refresh();
+    return this.refresh();
   },
   onHide() { this.visible = false; this.rangeRequestId++; clearTimeout(this.mediaPollTimer); },
   onUnload() { this.onHide(); },
@@ -180,8 +181,15 @@ Page({
     }
     const ranged = this.data.viewType === "day" ? moments : moments.filter((item) => { const occurredAt = new Date(item.occurredAt).getTime(); return occurredAt >= rangeStart.getTime() && occurredAt <= rangeEnd.getTime(); });
     const filtered = this.data.filterMood === "全部" ? ranged : ranged.filter((item) => item.mood === this.data.filterMood);
+    const rendered = filtered.map(item => JSON.stringify(item));
+    const patch: Record<string, any> = {};
+    if (filtered.length !== this.data.moments.length || filtered.some((item, index) => item.id !== this.data.moments[index]?.id)) patch.moments = filtered;
+    else filtered.forEach((item, index) => {
+      if (rendered[index] !== this.renderedMoments[index]) patch[`moments[${index}]`] = item;
+    });
+    this.renderedMoments = rendered;
     this.setData({
-      profile: state.profile, couple: state.couple, moments: filtered,
+      ...patch, profile: state.profile, couple: state.couple,
       myAvatarError: this.data.myAvatarUrl === (state.profile.avatarUrl || "") && this.data.myAvatarError,
       myAvatarUrl: state.profile.avatarUrl || "",
       partnerAvatarError: this.data.partnerAvatarUrl === (state.couple.partnerAvatarUrl || "") && this.data.partnerAvatarError,

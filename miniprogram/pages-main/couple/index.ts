@@ -6,7 +6,8 @@ import { appService, redirectExpiredSession, userError } from "../../services/ap
 Page({
   data: { couple: {} as any, unread: 0, days: 0, myInitial: "我", myAvatarUrl: "", partnerInitial: "TA", partnerAvatarUrl: "", loading: false, loaded: false, error: "", isRemote: appService.isRemote,
     albumColumns: [[], []] as any[][], albumCount: 0, albumOffset: 0, albumLoading: false, albumOwner: "",
-    albumUploading: false, albumUploadText: "上传照片", albumPending: 0, albumFailed: 0, albumRetrying: false, myAvatarError: false, partnerAvatarError: false },
+    albumUploading: false, albumUploadText: "上传照片", albumPending: 0, albumFailed: 0, albumRetrying: false,
+    albumManaging: false, albumCanManage: false, albumDeleting: "", myAvatarError: false, partnerAvatarError: false },
   requestId: 0,
   albumScope: "",
   remoteAlbum: [] as any[],
@@ -19,6 +20,9 @@ Page({
     this.albumPollCount = 0;
     clearTimeout(this.albumTimer);
     const requestId = ++this.requestId;
+    if (this.albumScope !== this.currentAlbumScope()) this.setData({ albumManaging: false, albumDeleting: "" });
+    const saved = store.getState().album;
+    if (saved && saved.coupleId === store.getState().couple.id) this.remotePhotos = saved.photos;
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 1 });
     this.setData({ loading: true, error: "", albumRetrying: false });
     this.render();
@@ -65,12 +69,29 @@ Page({
     const uploads = this.albumScope === this.currentAlbumScope() ? this.remotePhotos
       : state.album?.coupleId === (state.couple.id || "local") ? state.album.photos : [];
     const allowedUploads = authenticated ? uploads : [];
-    const photos = albumPhotos(source, state.couple.status, allowedUploads).map((photo, index) => ({ ...photo,
-      path: mediaCache.get(owner, photo.assetId, photo.source, photo.author === "TA") || photo.source,
-      error: false, aspect: ["portrait", "landscape", "landscape", "square", "wide", "landscape"][index] }));
+    const ownUploads = allowedUploads.filter(photo => photo.author === "我" && !photo.momentId && (!photo.status || photo.status === "READY"));
+    const previous = this.data.albumOwner === owner && this.albumScope === this.currentAlbumScope() ? this.data.albumColumns.flat() : [];
+    const photos = (this.data.albumManaging && state.couple.status === "PAIRED" ? ownUploads : albumPhotos(source, state.couple.status, allowedUploads)).map((photo, index) => {
+      const shown = previous.find(value => value.key === photo.key && !value.error
+        && (photo.author !== "TA" || mediaCache.isUrlCurrent(photo.source))
+        && value.original.split("?")[0] === photo.original.split("?")[0]
+        && (value.source.split("?")[0] === photo.source.split("?")[0] || value.source.split("?")[0] === photo.original.split("?")[0]));
+      const originalFallback = shown && shown.source.split("?")[0] === photo.original.split("?")[0];
+      return { ...photo, source: originalFallback ? photo.original : photo.source,
+        path: shown?.path || mediaCache.get(owner, photo.assetId, photo.source, photo.author === "TA") || photo.source,
+        error: false, aspect: ["portrait", "landscape", "landscape", "square", "wide", "landscape"][index % 6] };
+    });
+    const columns = [photos.filter((_photo, index) => index % 2 === 0), photos.filter((_photo, index) => index % 2 === 1)];
+    const patch: Record<string, any> = {};
+    if (columns.some((column, index) => column.length !== this.data.albumColumns[index].length
+      || column.some((photo, row) => photo.key !== this.data.albumColumns[index][row]?.key))) patch.albumColumns = columns;
+    else columns.forEach((column, index) => column.forEach((photo, row) => {
+      for (const [field, value] of Object.entries(photo)) {
+        if (value !== this.data.albumColumns[index][row][field]) patch[`albumColumns[${index}][${row}].${field}`] = value;
+      }
+    }));
     this.setData({
-      albumColumns: [photos.filter((_photo, index) => index % 2 === 0), photos.filter((_photo, index) => index % 2 === 1)],
-      albumCount: photos.length, albumOwner: owner,
+      ...patch, albumCount: photos.length, albumOwner: owner, albumCanManage: ownUploads.length > 0,
       albumPending: state.couple.status === "PAIRED" ? allowedUploads.filter(photo => photo.status === "PROCESSING").length : 0,
       albumFailed: state.couple.status === "PAIRED" ? allowedUploads.filter(photo => photo.status === "FAILED" || photo.status === "BLOCKED").length : 0,
       couple: state.couple,
@@ -137,6 +158,31 @@ Page({
     if (urls.length) wx.previewImage({ current: current || urls[0], urls: [...new Set(urls)] });
   },
   viewAlbum() { this.previewAlbum(); },
+  toggleAlbumManage() {
+    if (this.data.albumDeleting) return;
+    this.setData({ albumManaging: !this.data.albumManaging }); this.render();
+  },
+  async deleteAlbumPhoto(event: any) {
+    const photo = this.albumPhoto(event), scope = this.currentAlbumScope();
+    if (!photo || photo.author !== "我" || photo.momentId || this.data.albumDeleting || !this.albumVisible
+      || this.albumScope !== scope || store.getState().couple.status !== "PAIRED"
+      || (appService.isRemote && (!appService.hasSession() || !store.getState().loggedIn))) return;
+    this.setData({ albumDeleting: photo.assetId, error: "" });
+    try {
+      const confirmed = await new Promise<boolean>(resolve => wx.showModal({ title: "删除这张照片？",
+        content: "删除后将从你们的共同相册移除，双方都无法再查看，且无法恢复。", confirmText: "删除", confirmColor: "#A84454",
+        success: (result: any) => resolve(Boolean(result.confirm)), fail: () => resolve(false) }));
+      if (!confirmed || !this.albumVisible || scope !== this.currentAlbumScope()) return;
+      await appService.deleteAlbumPhoto(photo.assetId);
+      if (scope !== this.currentAlbumScope()) return;
+      this.requestId++; clearTimeout(this.albumTimer);
+      this.remotePhotos = this.remotePhotos.filter(value => value.assetId !== photo.assetId);
+      for (const url of [photo.source, photo.original]) mediaCache.forget(this.data.albumOwner, photo.assetId, url);
+      if (this.albumVisible) { this.render(); this.scheduleAlbumRefresh(); wx.showToast({ title: "照片已删除", icon: "none" }); }
+    } catch (error) {
+      if (scope === this.currentAlbumScope() && !redirectExpiredSession()) this.setData({ error: userError(error, "照片没有删除成功，请重试。") });
+    } finally { if (scope === this.currentAlbumScope()) this.setData({ albumDeleting: "" }); }
+  },
   async uploadAlbum() {
     if (this.data.albumUploading || store.getState().couple.status !== "PAIRED") return;
     const scope = this.currentAlbumScope();
@@ -164,12 +210,12 @@ Page({
   scheduleAlbumRefresh() {
     clearTimeout(this.albumTimer);
     if (!this.albumVisible || !this.data.albumPending || this.albumPollCount >= 12 || !appService.isRemote) return;
-    const scope = this.currentAlbumScope();
+    const scope = this.currentAlbumScope(), requestId = this.requestId;
     this.albumTimer = setTimeout(async () => {
       this.albumPollCount++;
       try {
         const photos = await appService.albumPhotos();
-        if (!this.albumVisible || scope !== this.currentAlbumScope()) return;
+        if (!this.albumVisible || requestId !== this.requestId || scope !== this.currentAlbumScope()) return;
         this.remotePhotos = photos; this.render(); this.scheduleAlbumRefresh();
       } catch (_) { this.scheduleAlbumRefresh(); }
     }, 5000);

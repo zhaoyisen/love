@@ -64,6 +64,18 @@ public class CoupleAlbumController {
         return ApiResponse.ok(photos(actor.userId(), coupleId), RequestContext.requestId(request));
     }
 
+    @DeleteMapping("/couples/current/album-photos/{assetId}")
+    @Transactional
+    ApiResponse<Void> delete(@RequestAttribute(AuthFilter.ACTOR_ATTRIBUTE) Actor actor,
+            @PathVariable UUID assetId, @RequestParam("couple_id") UUID expectedCoupleId, HttpServletRequest request) {
+        UUID coupleId = members.findById(actor.userId()).orElseThrow(() -> new ApiException(
+                HttpStatus.FORBIDDEN, "RELATIONSHIP_REQUIRED", "完成配对后才能管理共同相册。")).getCoupleId();
+        if (!coupleId.equals(expectedCoupleId)) throw new ApiException(
+                HttpStatus.CONFLICT, "RELATIONSHIP_CHANGED", "情侣空间已变化，请刷新后重试。");
+        media.deleteAlbumPhoto(actor.userId(), coupleId, assetId);
+        return ApiResponse.ok(null, RequestContext.requestId(request));
+    }
+
     private List<AlbumPhoto> photos(UUID actorId, UUID coupleId) {
         return assets.findTop100ByAlbumCoupleIdAndStatusNotOrderByCreatedAtDesc(coupleId, DomainEnums.MediaStatus.DELETED)
                 .stream().filter(asset -> asset.getUploaderId().equals(actorId) || asset.getStatus() == DomainEnums.MediaStatus.READY)

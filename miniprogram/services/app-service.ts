@@ -14,6 +14,8 @@ import { notificationPreferenceService } from "./notification-preference-service
 import { templateName, templateRenderService } from "./template-render-service";
 import { clearTokens, hasSession } from "./request";
 
+let albumRevision = 0;
+
 const moodLabels: Record<string, string> = {
   HAPPY: "开心", HEARTBEAT: "心动", CALM: "平静", MISS: "想念",
   WRONGED: "委屈", ANGRY: "生气", RECONCILED: "和好", OTHER: "其他"
@@ -285,14 +287,28 @@ export const appService = {
   async albumPhotos(): Promise<AlbumPhoto[]> {
     const state = store.getState(), owner = state.profile.id, coupleId = state.couple.id || "local";
     if (!API_CONFIG.useRemoteApi) return state.album?.photos || [];
+    const revision = albumRevision;
     const items = await coupleService.albumPhotos();
     if (!store.getState().loggedIn || !hasSession() || store.getState().profile.id !== owner || store.getState().couple.id !== coupleId || store.getState().couple.status !== "PAIRED")
       throw new Error("登录状态或情侣空间已变化，请刷新后重试。");
+    if (revision !== albumRevision) throw new Error("相册已更新，请刷新后重试。");
     const photos: AlbumPhoto[] = items.map(item => ({ key: `album:${item.id}`, assetId: item.id,
       author: item.uploader_id === owner ? "我" : "TA", title: "相册照片", status: item.status,
       source: item.thumbnail_url || item.access_url || item.original_url || "", original: item.original_url || item.access_url || "", createdAt: item.created_at }));
     store.update(state => { state.album = { coupleId, photos }; });
     return photos;
+  },
+
+  async deleteAlbumPhoto(assetId: string) {
+    const state = store.getState(), owner = state.profile.id, coupleId = state.couple.id || "local";
+    const photo = state.album?.photos.find(value => value.assetId === assetId);
+    if (!state.loggedIn || state.couple.status !== "PAIRED" || state.album?.coupleId !== coupleId || !photo || photo.author !== "我" || photo.momentId
+      || (API_CONFIG.useRemoteApi && !hasSession())) throw new Error("只能删除当前共同相册中自己上传的照片。");
+    if (API_CONFIG.useRemoteApi) await coupleService.deleteAlbumPhoto(coupleId, assetId);
+    albumRevision++;
+    if (!store.getState().loggedIn || store.getState().profile.id !== owner || (store.getState().couple.id || "local") !== coupleId
+      || store.getState().couple.status !== "PAIRED" || (API_CONFIG.useRemoteApi && !hasSession())) throw new Error("登录状态或情侣空间已变化，请刷新后重试。");
+    store.update(value => { if (value.album?.coupleId === coupleId) value.album.photos = value.album.photos.filter(item => item.assetId !== assetId); });
   },
 
   async uploadAlbumPhotos(files: any[], onProgress: (text: string) => void): Promise<AlbumPhoto[]> {

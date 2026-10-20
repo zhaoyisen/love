@@ -19,16 +19,16 @@ function moment(id, patch = {}) {
 }
 function pageFixture() {
   const state={loggedIn:true, profile:{id:"me",name:"我"}, couple:{id:"pair",status:"PAIRED",relationshipName:"关系",anniversary:"2024-05-20"}, moments:[moment("shared")],messages:[],pet:{}};
-  const calls={cache:[],forgotten:[],remembered:[],navigation:[]};
+  const calls={cache:[],forgotten:[],remembered:[],navigation:[],patches:[],modals:[]};
   const service={isRemote:true,hasSession:()=>true,refresh:async()=>undefined,album:async()=>state.moments,albumPhotos:async()=>state.albumPhotos||[]};
   let page;
   load("miniprogram/pages-main/couple/index.ts", {
     "../../core/store":{store:{getState:()=>state}},"../../core/couple-album":album,
-    "../../core/media-cache":{mediaCache:{get(...args){calls.cache.push(args)},remember(...args){calls.remembered.push(args);return Promise.resolve(calls.savePath||args[2])},forget(...args){calls.forgotten.push(args)}}},
+    "../../core/media-cache":{mediaCache:{get(...args){calls.cache.push(args);return calls.cachedPath},isUrlCurrent:url=>!url.includes("expired"),remember(...args){calls.remembered.push(args);return Promise.resolve(calls.savePath||args[2])},forget(...args){calls.forgotten.push(args)}}},
     "../../services/app-service":{appService:service,redirectExpiredSession:()=>false,userError:error=>error.message}
-  }, {setTimeout(callback){calls.timer=callback;return 1},clearTimeout(){calls.timer=undefined},Page(value){page=value},wx:{stopPullDownRefresh(){},navigateTo(value){calls.navigation.push(value)},chooseMedia(options){options.success({tempFiles:[{tempFilePath:"wxfile://album.jpg",size:1024}]})},previewImage(value){calls.preview=value},showToast(value){calls.toast=value}}});
+  }, {setTimeout(callback){calls.timer=callback;return 1},clearTimeout(){calls.timer=undefined},Page(value){page=value},wx:{stopPullDownRefresh(){},showModal(value){calls.modals.push(value);value.success({confirm:calls.confirmDelete!==false})},navigateTo(value){calls.navigation.push(value)},chooseMedia(options){options.success({tempFiles:[{tempFilePath:"wxfile://album.jpg",size:1024}]})},previewImage(value){calls.preview=value},showToast(value){calls.toast=value}}});
   page.data=structuredClone(page.data);
-  page.setData=function(patch){for(const [key,value]of Object.entries(patch)){const parts=key.replace(/\[(\d+)\]/g,".$1").split(".");let target=this.data;for(const part of parts.slice(0,-1))target=target[part];target[parts.at(-1)]=value}};
+  page.setData=function(patch){calls.patches.push(patch);for(const [key,value]of Object.entries(patch)){const parts=key.replace(/\[(\d+)\]/g,".$1").split(".");let target=this.data;for(const part of parts.slice(0,-1))target=target[part];target[parts.at(-1)]=value}};
   return {page,state,calls,service};
 }
 const photoEvent={currentTarget:{dataset:{column:0,index:0}}};
@@ -150,4 +150,40 @@ test("a late album retry cannot restore photos after leaving, unbinding, switchi
     finish([{...old,source:"https://cos/new",original:"https://cos/new"}]);await retry;
     assert.equal(page.data.albumColumns[0][0].path,"https://cos/old",changed);assert.equal(page.data.albumColumns[0][0].error,true,changed);
   }
+});
+
+test("returning to the album retains visible paths and does not resend unchanged image columns",async()=>{
+  const {page,calls}=pageFixture();await page.onShow();const source=page.data.albumColumns[0][0].path;
+  calls.cachedPath="wxfile://saved-cover";calls.patches.length=0;page.onHide();await page.onShow();
+  assert.equal(page.data.albumColumns[0][0].path,source);
+  assert.equal(calls.patches.filter(patch=>"albumColumns"in patch).length,0);
+});
+
+test("album signature refresh preserves a successful original fallback but expired partner authorization replaces it",async()=>{
+  const {page,state,calls}=pageFixture();state.moments=[moment("partner",{author:"TA"})];await page.onShow();
+  page.albumPhotoError(photoEvent);const displayed=page.data.albumColumns[0][0].path;calls.patches.length=0;
+  page.remoteAlbum=[moment("partner",{author:"TA",media:[{...state.moments[0].media[0],path:"https://test/partner?new",thumbnailPath:"https://test/thumb-partner?new"}]})];page.render();
+  assert.equal(page.data.albumColumns[0][0].path,displayed);assert.equal(calls.patches.filter(patch=>"albumColumns"in patch).length,0);
+  page.remoteAlbum[0].media[0].thumbnailPath="https://test/thumb-partner?expired";page.render();
+  assert.notEqual(page.data.albumColumns[0][0].path,displayed);
+});
+
+test("album management reaches all own uploads and deletes only after confirmation without removing record photos",async()=>{
+  const {page,state,service,calls}=pageFixture();
+  state.albumPhotos=Array.from({length:8},(_,i)=>({key:`album:${i}`,assetId:`photo-${i}`,author:"我",status:"READY",title:"相册照片",createdAt:`2026-10-${String(i+1).padStart(2,"0")}T00:00:00Z`,source:`https://cos/${i}`,original:`https://cos/original-${i}`}));
+  state.albumPhotos.push({...state.albumPhotos[0],key:"album:partner",assetId:"partner",author:"TA"});
+  await page.onShow();page.toggleAlbumManage();assert.equal(page.data.albumColumns.flat().length,8);
+  let deleted=[];service.deleteAlbumPhoto=async id=>{deleted.push(id)};
+  const selected=page.data.albumColumns[0][0].assetId;calls.confirmDelete=false;await page.deleteAlbumPhoto(photoEvent);assert.equal(deleted.length,0);
+  calls.confirmDelete=true;await page.deleteAlbumPhoto(photoEvent);assert.equal(deleted.join(),selected);assert.equal(page.remotePhotos.some(photo=>photo.assetId===selected),false);
+  page.toggleAlbumManage();assert.equal(page.data.albumColumns.flat().some(photo=>photo.momentId==="shared"),true);
+});
+
+test("album deletion keeps a failed photo and rejects duplicate or changed-scope confirmations",async()=>{
+  const {page,state,service,calls}=pageFixture();state.moments=[];state.albumPhotos=[{key:"album:me",assetId:"me-photo",author:"我",status:"READY",createdAt:new Date().toISOString(),source:"https://cos/photo",original:"https://cos/photo"}];
+  await page.onShow();page.toggleAlbumManage();let finish,requests=0;service.deleteAlbumPhoto=()=>{requests++;return new Promise((resolve,reject)=>{finish=reject})};
+  const pending=page.deleteAlbumPhoto(photoEvent);await new Promise(resolve=>setImmediate(resolve));await page.deleteAlbumPhoto(photoEvent);assert.equal(requests,1);
+  finish(new Error("删除失败"));await pending;assert.equal(page.data.albumCount,1);assert.equal(page.data.albumDeleting,"");assert.equal(page.data.error,"删除失败");
+  calls.confirmDelete=false;await page.deleteAlbumPhoto(photoEvent);assert.equal(requests,1);
+  state.couple.id="changed";await page.deleteAlbumPhoto(photoEvent);assert.equal(requests,1);
 });
