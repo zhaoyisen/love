@@ -21,10 +21,11 @@ function pageFixture() {
   const state={loggedIn:true, profile:{id:"me",name:"我"}, couple:{id:"pair",status:"PAIRED",relationshipName:"关系",anniversary:"2024-05-20"}, moments:[moment("shared")],messages:[],pet:{}};
   const calls={cache:[],forgotten:[],remembered:[],navigation:[],patches:[],modals:[]};
   const service={isRemote:true,hasSession:()=>true,refresh:async()=>undefined,album:async()=>state.moments,albumPhotos:async()=>state.albumPhotos||[]};
+  service.refreshIfChanged=async()=>({version:JSON.stringify(state),timeline:await service.refresh()});
   let page;
   load("miniprogram/pages-main/couple/index.ts", {
     "../../core/store":{store:{getState:()=>state}},"../../core/couple-album":album,
-    "../../core/media-cache":{mediaCache:{get(...args){calls.cache.push(args);return calls.cachedPath},isUrlCurrent:url=>!url.includes("expired"),remember(...args){calls.remembered.push(args);return Promise.resolve(calls.savePath||args[2])},forget(...args){calls.forgotten.push(args)}}},
+    "../../core/media-cache":{mediaCache:{stableUrl:load("miniprogram/core/media-cache.ts").mediaCache.stableUrl,get(...args){calls.cache.push(args);return calls.cachedPath},isUrlCurrent:url=>!url.includes("expired"),remember(...args){calls.remembered.push(args);return Promise.resolve(calls.savePath||args[2])},forget(...args){calls.forgotten.push(args)}}},
     "../../services/app-service":{appService:service,redirectExpiredSession:()=>false,userError:error=>error.message}
   }, {setTimeout(callback){calls.timer=callback;return 1},clearTimeout(){calls.timer=undefined},Page(value){page=value},wx:{stopPullDownRefresh(){},showModal(value){calls.modals.push(value);value.success({confirm:calls.confirmDelete!==false})},navigateTo(value){calls.navigation.push(value)},chooseMedia(options){options.success({tempFiles:[{tempFilePath:"wxfile://album.jpg",size:1024}]})},previewImage(value){calls.preview=value},showToast(value){calls.toast=value}}});
   page.data=structuredClone(page.data);
@@ -186,4 +187,12 @@ test("album deletion keeps a failed photo and rejects duplicate or changed-scope
   finish(new Error("删除失败"));await pending;assert.equal(page.data.albumCount,1);assert.equal(page.data.albumDeleting,"");assert.equal(page.data.error,"删除失败");
   calls.confirmDelete=false;await page.deleteAlbumPhoto(photoEvent);assert.equal(requests,1);
   state.couple.id="changed";await page.deleteAlbumPhoto(photoEvent);assert.equal(requests,1);
+});
+
+test("expired album originals renew on preview without changing the displayed cover",async()=>{
+  const {page,state,service,calls}=pageFixture();state.moments=[];
+  const photo={key:"album:me",assetId:"me-photo",author:"我",status:"READY",createdAt:new Date().toISOString(),source:"https://cos/thumb",original:"https://cos/original?q-key-time=1;1&q-signature=expired"};
+  state.albumPhotos=[photo];await page.onShow();const cover=page.data.albumColumns[0][0].path;
+  const fresh="https://cos/original?q-key-time=1;9999999999&q-signature=fresh";let requests=0;service.albumPhotos=async()=>{requests++;return [{...photo,original:fresh}]};
+  await page.openAlbumPhoto(photoEvent);assert.equal(requests,1);assert.equal(calls.preview.current,fresh);assert.equal(page.data.albumColumns[0][0].path,cover);
 });

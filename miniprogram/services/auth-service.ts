@@ -35,6 +35,7 @@ export const authService = {
     return result;
   },
   me: () => apiRequest<MeResponse>({ path: "/me" }),
+  syncVersion: () => apiRequest<{ version: string }>({ path: "/sync/version" }),
   updateProfile: (nickname: string, avatarAssetId?: string) => apiRequest<MeResponse>({
     path: "/me",
     method: "PATCH",

@@ -1,4 +1,5 @@
 import { store } from "../../core/store";
+import { mediaCache } from "../../core/media-cache";
 import type { ViewType } from "../../core/types";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
 
@@ -16,11 +17,20 @@ Page({
   },
   remoteMoments: [] as any[],
   renderedMoments: [] as string[],
+  syncVersion: "",
+  pageScope: "",
+  currentScope() { const state = store.getState(); return `${state.profile.id}:${state.couple.id}:${state.couple.status}:${state.loggedIn}`; },
   rangeRequestId: 0,
   mediaPollTimer: null as any,
   mediaPollCount: 0,
   visible: false,
   onShow() {
+    const scope = this.currentScope();
+    if (this.pageScope && this.pageScope !== scope) {
+      this.remoteMoments = []; this.renderedMoments = []; this.syncVersion = "";
+      this.setData({ moments: [], loaded: false, nextCursor: "", hasMore: false }); this.render();
+    }
+    this.pageScope = scope;
     this.visible = true;
     this.mediaPollCount = 0;
     clearTimeout(this.mediaPollTimer);
@@ -30,36 +40,45 @@ Page({
       this.render();
       this.setData({ loaded: this.remoteMoments.length > 0 });
     }
-    return this.refresh();
+    return this.refresh(false);
   },
   onHide() { this.visible = false; this.rangeRequestId++; clearTimeout(this.mediaPollTimer); },
   onUnload() { this.onHide(); },
-  onPullDownRefresh() { this.refresh(); },
+  onPullDownRefresh() { return this.refresh(); },
   onReachBottom() { this.loadMore(); },
-  async refresh() {
-    this.rangeRequestId++;
-    this.setData({ loading: true, error: "" });
+  async refresh(force = true) {
+    const requestId = ++this.rangeRequestId, manual = force !== false;
+    if (manual || !this.data.loaded) this.setData({ loading: true, error: "" });
     try {
-      const timeline = await appService.refresh();
+      const synced = await appService.refreshIfChanged(manual);
+      if (requestId !== this.rangeRequestId) return;
+      if (this.data.error) this.setData({ error: "" });
+      if (!manual && this.data.loaded && this.syncVersion === synced.version) return;
+      const timeline = synced.timeline;
       if (appService.isRemote && this.data.viewType === "day" && timeline) {
-        // 首次同步已取回“最新”列表，复用结果，避免再发一次相同的时间线请求。
-        this.remoteMoments = store.getState().moments;
-        this.setData({ timelineFrom: timeline.from, timelineTo: timeline.to, nextCursor: timeline.nextCursor,
-          hasMore: timeline.hasMore, summaryComplete: !timeline.hasMore });
-        this.render();
+        if (!manual && this.remoteMoments.length > 50) await this.reloadTimelineRange(Math.ceil(this.remoteMoments.length / 50), requestId);
+        else {
+          this.remoteMoments = store.getState().moments;
+          this.setData({ timelineFrom: timeline.from, timelineTo: timeline.to,
+            nextCursor: timeline.nextCursor, hasMore: timeline.hasMore, summaryComplete: !timeline.hasMore });
+          this.render();
+        }
       }
-      else if (appService.isRemote) await this.reloadTimelineRange();
+      else if (appService.isRemote) await this.reloadTimelineRange(!manual ? Math.max(1, Math.ceil(this.remoteMoments.length / 50)) : 1, requestId);
       else this.render();
-      this.setData({ loaded: true });
+      if (requestId !== this.rangeRequestId) return;
+      this.syncVersion = synced.version; this.setData({ loaded: true, error: "" });
+      this.pageScope = this.currentScope();
     } catch (error) {
+      if (requestId !== this.rangeRequestId) return;
       if (redirectExpiredSession()) return;
       if (appService.isRemote && !this.remoteMoments.length) this.remoteMoments = store.getState().moments;
       this.render();
       this.setData({ loaded: true, error: userError(error, "时光同步失败，当前展示最近一次保存的内容。") });
     } finally {
-      this.setData({ loading: false });
-      wx.stopPullDownRefresh();
-      this.scheduleMediaRefresh();
+      if (requestId === this.rangeRequestId) {
+        this.setData({ loading: false }); wx.stopPullDownRefresh(); this.scheduleMediaRefresh();
+      }
     }
   },
   async loadMore() {
@@ -101,13 +120,19 @@ Page({
     }
     return { from: from.toISOString(), to: to.toISOString() };
   },
-  async reloadTimelineRange() {
-    const requestId = ++this.rangeRequestId;
+  async reloadTimelineRange(pageCount = 1, requestToken?: number) {
+    const requestId = requestToken ?? ++this.rangeRequestId;
     const range = this.timelineRange();
-    const page = await appService.timelinePage(range.from, range.to, 50);
-    if (requestId !== this.rangeRequestId) return;
-    this.remoteMoments = page.items;
-    store.appendRemoteMoments(page.items);
+    const items: any[] = [];
+    let page: any, cursor = "";
+    for (let index = 0; index < pageCount; index++) {
+      page = await appService.timelinePage(range.from, range.to, 50, cursor || undefined);
+      if (requestId !== this.rangeRequestId) return;
+      items.push(...page.items); cursor = page.next_cursor || "";
+      if (!page.has_more || !cursor) break;
+    }
+    this.remoteMoments = items;
+    store.appendRemoteMoments(items);
     this.setData({
       timelineFrom: range.from,
       timelineTo: range.to,
@@ -181,6 +206,8 @@ Page({
     }
     const ranged = this.data.viewType === "day" ? moments : moments.filter((item) => { const occurredAt = new Date(item.occurredAt).getTime(); return occurredAt >= rangeStart.getTime() && occurredAt <= rangeEnd.getTime(); });
     const filtered = this.data.filterMood === "全部" ? ranged : ranged.filter((item) => item.mood === this.data.filterMood);
+    const myAvatarUrl = mediaCache.stableUrl(this.data.myAvatarUrl, state.profile.avatarUrl, this.data.myAvatarError);
+    const partnerAvatarUrl = mediaCache.stableUrl(this.data.partnerAvatarUrl, state.couple.partnerAvatarUrl, this.data.partnerAvatarError);
     const rendered = filtered.map(item => JSON.stringify(item));
     const patch: Record<string, any> = {};
     if (filtered.length !== this.data.moments.length || filtered.some((item, index) => item.id !== this.data.moments[index]?.id)) patch.moments = filtered;
@@ -190,15 +217,16 @@ Page({
     this.renderedMoments = rendered;
     this.setData({
       ...patch, profile: state.profile, couple: state.couple,
-      myAvatarError: this.data.myAvatarUrl === (state.profile.avatarUrl || "") && this.data.myAvatarError,
-      myAvatarUrl: state.profile.avatarUrl || "",
-      partnerAvatarError: this.data.partnerAvatarUrl === (state.couple.partnerAvatarUrl || "") && this.data.partnerAvatarError,
+      myAvatarError: this.data.myAvatarUrl === myAvatarUrl && this.data.myAvatarError,
+      ...(myAvatarUrl !== this.data.myAvatarUrl ? { myAvatarUrl } : {}),
+      partnerAvatarError: this.data.partnerAvatarUrl === partnerAvatarUrl && this.data.partnerAvatarError,
       unread: state.messages.filter((item) => !item.read).length,
       weekDays: this.buildWeek(now, moments), calendar: this.buildCalendar(now, moments), months: this.buildMonths(now, moments),
       dateEyebrow: `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 · 星期${"日一二三四五六"[now.getDay()]}`,
       currentDateLabel: `${now.getMonth() + 1} 月 ${now.getDate()} 日`, currentYear: now.getFullYear(),
       currentMonthTitle: `${now.getFullYear()} 年 ${now.getMonth() + 1} 月`, customStart, customEnd,
-      partnerInitial: (state.couple.partnerName || "TA").slice(0, 1), partnerAvatarUrl: state.couple.partnerAvatarUrl || ""
+      partnerInitial: (state.couple.partnerName || "TA").slice(0, 1),
+      ...(partnerAvatarUrl !== this.data.partnerAvatarUrl ? { partnerAvatarUrl } : {})
     });
   },
   dateValue(date: Date) { const month = `${date.getMonth() + 1}`.padStart(2, "0"); const day = `${date.getDate()}`.padStart(2, "0"); return `${date.getFullYear()}-${month}-${day}`; },

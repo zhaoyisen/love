@@ -15,6 +15,18 @@ import { templateName, templateRenderService } from "./template-render-service";
 import { clearTokens, hasSession } from "./request";
 
 let albumRevision = 0;
+let mainSync: { scope: string; version: string; timeline: any } | undefined;
+let mainSyncPending: { scope: string; promise: Promise<{ version: string; timeline: any }> } | undefined;
+
+function mainScope() {
+  const state = store.getState();
+  return `${state.profile.id || ""}:${state.couple.id || ""}:${state.couple.status}:${state.loggedIn}`;
+}
+
+function mainVersion(scope: string, version: string) {
+  const now = new Date();
+  return `${scope}:${version}:${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+}
 
 const moodLabels: Record<string, string> = {
   HAPPY: "开心", HEARTBEAT: "心动", CALM: "平静", MISS: "想念",
@@ -194,7 +206,10 @@ async function uploadDraftMedia(draftId: string) {
 }
 
 async function synchronizeRemoteState() {
+  const scope = mainScope();
+  const current = () => scope === mainScope() && hasSession() && store.getState().loggedIn;
   const me = await authService.me();
+  if (!current()) throw new Error("账号或情侣空间已变化，请重试。");
   store.applyRemoteProfile({ id: me.id, name: me.nickname, avatarUrl: me.avatar_url, avatarAssetId: me.avatar_asset_id, avatarStatus: me.avatar_status });
   const now = new Date();
   const from = new Date("2000-01-01T00:00:00.000Z").toISOString();
@@ -205,6 +220,7 @@ async function synchronizeRemoteState() {
     messageService.list(50),
     notificationPreferenceService.current()
   ]);
+  if (!current()) throw new Error("账号或情侣空间已变化，请重试。");
   store.applyRemoteCouple(couple);
   const moments = (timeline.items || [])
     .filter((item: any) => item.status !== "TRASHED" && item.status !== "PURGED")
@@ -214,7 +230,9 @@ async function synchronizeRemoteState() {
   store.applyRemotePreferences(remotePreferences(preferences));
   store.updateDefaultVisibility(remoteDefaultVisibility(preferences));
   if (couple && couple.status === "PAIRED") {
-    store.applyRemotePet(remotePet(await petService.current()));
+    const petScope = mainScope(), pet = await petService.current();
+    if (petScope !== mainScope() || !hasSession() || !store.getState().loggedIn) throw new Error("账号或情侣空间已变化，请重试。");
+    store.applyRemotePet(remotePet(pet));
   } else {
     store.applyRemotePet(emptyPet());
   }
@@ -276,6 +294,34 @@ export const appService = {
   async refresh() {
     if (!API_CONFIG.useRemoteApi) return;
     return synchronizeRemoteState();
+  },
+
+  async refreshIfChanged(force = false): Promise<{ version: string; timeline: any }> {
+    if (!API_CONFIG.useRemoteApi) return { version: JSON.stringify(store.getState()), timeline: undefined };
+    if (!hasSession() || !store.getState().loggedIn) throw new Error("登录状态已变化，请重新登录。");
+    const scope = mainScope();
+    if (mainSyncPending?.scope === scope) {
+      const pending = mainSyncPending;
+      if (!force) return pending.promise;
+      try { await pending.promise; } catch (_) {}
+      if (scope !== mainScope() || !hasSession()) throw new Error("账号或情侣空间已变化，请重试。");
+      if (mainSyncPending?.promise === pending.promise) mainSyncPending = undefined;
+      return this.refreshIfChanged(true);
+    }
+    const promise = (async () => {
+      const result = await authService.syncVersion();
+      if (scope !== mainScope() || !hasSession()) throw new Error("账号或情侣空间已变化，请重试。");
+      if (!force && mainSync?.scope === scope && mainSync.version === result.version)
+        return { version: mainVersion(scope, result.version), timeline: mainSync.timeline };
+      const owner = store.getState().profile.id;
+      const timeline = await this.refresh();
+      if (owner !== store.getState().profile.id || !hasSession() || !store.getState().loggedIn) throw new Error("账号或登录状态已变化，请重试。");
+      mainSync = { scope: mainScope(), version: result.version, timeline };
+      return { version: mainVersion(mainSync.scope, result.version), timeline };
+    })();
+    mainSyncPending = { scope, promise };
+    try { return await promise; }
+    finally { if (mainSyncPending?.promise === promise) mainSyncPending = undefined; }
   },
 
   async album() {
@@ -537,7 +583,9 @@ export const appService = {
 
   async recap(year = new Date().getFullYear()) {
     if (!API_CONFIG.useRemoteApi) return { recap: store.getState().recap, selectedMoments: [], candidateCount: 0, excludedCount: 0 };
+    const scope = mainScope();
     const result = await recapService.current(year);
+    if (scope !== mainScope() || !hasSession() || !store.getState().loggedIn) throw new Error("账号或情侣空间已变化，请重试。");
     return applyRecapPayload(result);
   },
 
