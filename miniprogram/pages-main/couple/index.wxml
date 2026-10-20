@@ -2,9 +2,8 @@
   <view class="couple-heading">
     <view class="heading-copy">
       <text class="display-title">我们</text>
-      <text class="section-note">两个人的关系、回应和共同生活</text>
     </view>
-    <button size="mini" class="settings-button press" bindtap="settings">设置</button>
+    <main-actions unread="{{unread}}" show-pet="{{couple.status === 'PAIRED'}}"></main-actions>
   </view>
 
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
@@ -70,37 +69,6 @@
   </view>
 
   <block wx:elif="{{couple.status === 'PAIRED'}}">
-    <view class="album-section">
-      <view class="album-heading"><text class="section-title">相册</text><view class="album-actions"><button wx:if="{{albumCount}}" size="mini" class="text-button press" bindtap="viewAlbum">查看相册</button><button size="mini" class="text-button press" loading="{{albumUploading}}" disabled="{{albumUploading}}" bindtap="uploadAlbum">{{albumUploadText}}</button></view></view>
-      <text wx:if="{{albumPending}}" class="album-pending" role="status">{{albumPending}} 张照片正在安全处理中，完成后会显示给你们。</text>
-      <text wx:if="{{albumFailed}}" class="album-pending" role="alert">{{albumFailed}} 张照片没有通过安全处理，请重新选择照片上传。</text>
-      <view wx:if="{{albumCount}}" class="album-grid {{albumCount === 1 ? 'album-grid--single' : ''}}">
-        <view wx:for="{{[0,1]}}" wx:for-item="columnIndex" wx:key="*this" wx:if="{{albumColumns[columnIndex].length}}" class="album-column">
-          <button
-            wx:for="{{albumColumns[columnIndex]}}" wx:for-item="photo" wx:for-index="photoIndex" wx:key="key"
-            size="mini" class="album-photo album-photo--{{photo.aspect}} press"
-            data-column="{{columnIndex}}" data-index="{{photoIndex}}" bindtap="openAlbumPhoto"
-            aria-label="{{photo.title || '共同照片'}}，{{photo.momentId ? '打开记录' : '查看照片'}}"
-          >
-            <image
-              wx:if="{{!photo.error}}" class="album-image" src="{{photo.path}}" mode="aspectFill"
-              lazy-load="{{photoIndex > 0}}" data-column="{{columnIndex}}" data-index="{{photoIndex}}"
-              style="transform: translate3d(0, {{columnIndex === 0 ? albumOffset : -albumOffset}}px, 0);"
-              bindload="albumPhotoLoaded" binderror="albumPhotoError" aria-hidden="true"
-            ></image>
-            <view wx:else class="album-photo-error" role="status">
-              <text>媒体没有加载完成</text>
-              <text>打开记录后可重新尝试</text>
-            </view>
-          </button>
-        </view>
-      </view>
-      <view wx:else class="album-empty" role="status">
-        <text>{{albumLoading ? '正在整理共同照片' : error ? '共同照片暂时无法读取' : '还没有共同照片'}}</text>
-        <text wx:if="{{!albumLoading && !error}}">点击“上传照片”加入共同相册，不会自动发布记录。</text>
-      </view>
-    </view>
-
     <view class="relationship-summary">
       <view class="relationship-topline">
         <view class="relationship-people" aria-label="你和另一半">
@@ -115,7 +83,6 @@
           </view>
         </view>
         <text class="relationship-name">{{couple.relationshipName || '我们的空间'}}</text>
-        <button size="mini" class="edit-relationship press" bindtap="openProfileEditor">编辑资料</button>
       </view>
 
       <view class="relationship-meta">
@@ -124,7 +91,7 @@
           <text class="days-number numeric">{{days}}</text>
           <text>天</text>
         </view>
-        <button wx:else size="mini" class="missing-anniversary press" bindtap="openProfileEditor">还没有设置在一起的日期</button>
+        <text wx:else>还没有设置在一起的日期</text>
         <view class="anniversary-line">
           <text>纪念日</text>
           <text class="numeric">{{couple.anniversary || '等你们一起定下'}}</text>
@@ -132,94 +99,38 @@
       </view>
     </view>
 
-    <view wx:if="{{editing}}" class="relation-editor" aria-label="编辑关系资料">
-      <view class="editor-head">
-        <view>
-          <text class="editor-title">编辑关系资料</text>
-          <text class="editor-note">保存后会同步给对方</text>
-        </view>
-        <button size="mini" class="text-button" disabled="{{savingProfile}}" bindtap="closeProfileEditor">取消</button>
-      </view>
 
-      <view class="form-item">
-        <text class="form-label">关系昵称</text>
-        <input
-          class="input"
-          value="{{editName}}"
-          maxlength="40"
-          placeholder="例如：满屿之间"
-          aria-label="关系昵称"
-          bindinput="nameInput"
-        />
-        <text class="form-helper">用于标记你们共同的空间</text>
-      </view>
-
-      <view class="form-item">
-        <view class="form-label-row">
-          <text class="form-label">在一起的日期</text>
-          <text class="form-optional">可留空</text>
-        </view>
-        <picker class="date-control" mode="date" value="{{editAnniversary}}" bindchange="anniversaryChange">
-          <view class="date-picker press" role="button" aria-label="选择在一起的日期">
-            <text>{{editAnniversary || '选择日期'}}</text>
-            <text>更改</text>
-          </view>
-        </picker>
-        <view class="date-helper">
-          <text class="form-helper">用于计算在一起的天数</text>
-          <button size="mini" class="clear-date" disabled="{{!editAnniversary || savingProfile}}" bindtap="clearAnniversary">清空日期</button>
-        </view>
-      </view>
-
-      <button size="mini" class="primary-button press" loading="{{savingProfile}}" disabled="{{savingProfile}}" bindtap="saveProfile">
-        {{savingProfile ? '正在保存' : '保存资料'}}
-      </button>
-    </view>
-
-    <view class="shared-section">
-      <view class="section-heading">
-        <text class="section-title">最近的共同生活</text>
-        <text class="section-note">回应、记录和一起养成的日常，都从这里继续</text>
-      </view>
-
-      <view class="shared-ledger">
-        <button size="mini" class="ledger-row press" bindtap="messages">
-          <image class="ledger-icon" src="/assets/icons/home/mail.png" mode="aspectFit" aria-hidden="true"></image>
-          <view class="ledger-copy">
-            <text class="ledger-title">TA 最近的回应</text>
-            <text class="ledger-description">{{unread ? '有新的回应和悄悄话等你查看' : '今天的消息已经读完'}}</text>
-          </view>
-          <view class="ledger-action">
-            <text wx:if="{{unread}}" class="unread-count numeric">{{unread > 99 ? '99+' : unread}}</text>
-            <text>{{unread ? '查看' : '已读'}}</text>
-          </view>
-        </button>
-
-        <view class="shared-count-row">
-          <image class="ledger-icon" src="/assets/icons/home/images.png" mode="aspectFit" aria-hidden="true"></image>
-          <view class="ledger-copy">
-            <view class="shared-count-line"><text class="shared-count numeric">{{sharedCount}}</text><text>个共同瞬间</text></view>
-            <text class="ledger-description">只统计你们共同可见的记录</text>
-          </view>
-        </view>
-
-        <button size="mini" class="ledger-row pet-row press" bindtap="pet">
-          <image class="ledger-icon" src="/assets/icons/home/cat.png" mode="aspectFit" aria-hidden="true"></image>
-          <view class="pet-copy">
-            <text class="ledger-title">{{pet.name}} · Lv.{{pet.level}}</text>
-            <text class="ledger-description">{{pet.kind}}也在记录你们一起陪伴的时间</text>
-            <view class="growth-track" aria-label="成长进度">
-              <view class="growth-value" style="width: {{pet.growthPercent}}%"></view>
+    <view class="album-section">
+      <view class="album-heading"><text class="section-title">相册</text><view class="album-actions"><button wx:if="{{albumCount}}" size="mini" class="text-button press" bindtap="viewAlbum">查看相册</button><button size="mini" class="text-button press" loading="{{albumUploading}}" disabled="{{albumUploading}}" bindtap="uploadAlbum">{{albumUploadText}}</button></view></view>
+      <text wx:if="{{albumPending}}" class="album-pending" role="status">{{albumPending}} 张照片正在安全处理中，完成后会显示给你们。</text>
+      <text wx:if="{{albumFailed}}" class="album-pending" role="alert">{{albumFailed}} 张照片没有通过安全处理，请重新选择照片上传。</text>
+      <view wx:if="{{albumCount}}" class="album-grid {{albumCount === 1 ? 'album-grid--single' : ''}}">
+        <view wx:for="{{[0,1]}}" wx:for-item="columnIndex" wx:key="*this" wx:if="{{albumColumns[columnIndex].length}}" class="album-column">
+          <button
+            wx:for="{{albumColumns[columnIndex]}}" wx:for-item="photo" wx:for-index="photoIndex" wx:key="key"
+            size="mini" class="album-photo album-photo--{{photo.aspect}} press"
+            data-column="{{columnIndex}}" data-index="{{photoIndex}}" bindtap="openAlbumPhoto"
+            disabled="{{!photo.momentId && photo.error && albumRetrying}}" aria-busy="{{!photo.momentId && photo.error && albumRetrying}}"
+            aria-label="{{photo.title || '共同照片'}}，{{photo.momentId ? '打开记录' : photo.error ? '重新加载照片' : '查看照片'}}"
+          >
+            <image
+              wx:if="{{!photo.error}}" class="album-image" src="{{photo.path}}" mode="aspectFill"
+              lazy-load="{{photoIndex > 0}}" data-column="{{columnIndex}}" data-index="{{photoIndex}}"
+              style="transform: translate3d(0, {{columnIndex === 0 ? albumOffset : -albumOffset}}px, 0);"
+              bindload="albumPhotoLoaded" binderror="albumPhotoError" aria-hidden="true"
+            ></image>
+            <view wx:else class="album-photo-error" role="status">
+              <text>媒体没有加载完成</text>
+              <text>{{photo.momentId ? '打开记录后可重新尝试' : albumRetrying ? '正在重新加载照片' : '点击重新加载照片'}}</text>
             </view>
-          </view>
-          <view class="ledger-action"><text>查看</text></view>
-        </button>
+          </button>
+        </view>
+      </view>
+      <view wx:else class="album-empty" role="status">
+        <text>{{albumLoading ? '正在整理共同照片' : error ? '共同照片暂时无法读取' : '还没有共同照片'}}</text>
+        <text wx:if="{{!albumLoading && !error}}">点击“上传照片”加入共同相册，不会自动发布记录。</text>
       </view>
     </view>
 
-    <view class="couple-closing">
-      <text>今天也值得留下</text>
-      <text>想记录什么时，从下方“这一刻”开始。</text>
-    </view>
   </block>
 </view>

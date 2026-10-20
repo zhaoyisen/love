@@ -24,8 +24,8 @@ requirePattern("pkg-compose/composer/index.wxss", /\.compose-page\s*\{[^}]*posit
 requirePattern("pkg-compose/composer/index.wxss", /\.compose-main\s*\{[^}]*flex:\s*1[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s, "当前步骤必须在预留操作栏的区域内收缩");
 requirePattern("pkg-compose/composer/index.wxss", /\.compose-actions\s*\{[^}]*flex:\s*0 0 auto[^}]*safe-area-inset-bottom/s, "固定操作栏必须保留安全区且不覆盖填写区域");
 if (!JSON.parse(read("pkg-compose/composer/index.json")).disableScroll) failures.push("记录页必须禁用外层页面滚动");
-requirePattern("pages-main/mine/index.wxss", /\.edit-button\s*\{[^}]*width:\s*72px\s*!important[^}]*max-width:\s*72px\s*!important/s, "个人资料编辑按钮必须锁定可读宽度，避免挤压昵称");
-requirePattern("pages-main/mine/index.wxml", /wx:if="\{\{noticesOpen\}\}"[^>]*id="notice-options"/, "提醒设置必须在当前页按需展开");
+requirePattern("pages-main/mine/index.wxss", /\.profile-copy[^}]*min-width:\s*0/s, "个人资料必须允许长昵称收缩，不能挤压操作入口");
+requirePattern("pkg-profile/settings/index.wxml", /wx:if="\{\{noticesOpen\}\}"[^>]*id="notice-options"/, "提醒设置必须在独立设置页按需展开");
 
 const composerTemplate = read("pkg-compose/composer/index.wxml");
 if (!/stage moment-editor/.test(composerTemplate) || !/stage preview-stage/.test(composerTemplate) || !/bindtap="publish"/.test(composerTemplate) || !/id="templateRenderCanvas"/.test(composerTemplate)) {

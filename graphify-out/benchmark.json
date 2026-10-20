@@ -1,0 +1,30 @@
+{
+  "corpus_tokens": 103458,
+  "corpus_words": 77594,
+  "nodes": 2270,
+  "edges": 6254,
+  "avg_query_tokens": 24389,
+  "reduction_ratio": 4.2,
+  "per_question": [
+    {
+      "question": "what is the main entry point",
+      "query_tokens": 26231,
+      "reduction": 3.9
+    },
+    {
+      "question": "how are errors handled",
+      "query_tokens": 22825,
+      "reduction": 4.5
+    },
+    {
+      "question": "what connects the data layer to the api",
+      "query_tokens": 28590,
+      "reduction": 3.6
+    },
+    {
+      "question": "what are the core abstractions",
+      "query_tokens": 19912,
+      "reduction": 5.2
+    }
+  ]
+}

@@ -197,13 +197,13 @@ test("missing covers refresh automatically, stop once ready, and never poll a hi
   load("miniprogram/pages-main/time/index.ts", {
     "../../core/store": { store: { getState: () => state, appendRemoteMoments() {} } },
     "../../services/app-service": { appService: { isRemote: true, hasSession: () => true,
-      async timelinePage() { calls++; return { items: [readyMoment], has_more: false }; }
+      async detail() { calls++; return readyMoment; }
     }, redirectExpiredSession: () => false, userError: (error) => error.message }
   }, { Page(value) { definition = value; },
     setTimeout(callback, ms) { assert.equal(ms, 5000); const id = ++nextTimer; timers.set(id, callback); return id; },
     clearTimeout(id) { timers.delete(id); } });
-  const page = { ...definition, visible: true, remoteMoments: [pendingMoment], data: { ...definition.data },
-    setData(patch) { Object.assign(this.data, patch); } };
+  const page = { ...definition, visible: true, remoteMoments: [pendingMoment], data: { ...definition.data, moments: [pendingMoment] },
+    setData(patch) { for (const [key, value] of Object.entries(patch)) { const match = key.match(/^moments\[(\d+)\]$/); if (match) this.data.moments[Number(match[1])] = value; else this.data[key] = value; } } };
   page.scheduleMediaRefresh();
   assert.equal(timers.size, 1);
   const [timerId, callback] = [...timers][0]; timers.delete(timerId);
@@ -257,7 +257,7 @@ test("refreshing the same authorized assets does not cancel a cover being saved"
   assert.equal(f.cache.get("me", "video", rotatedUrl), saved);
 });
 
-test("a loaded card adopts its saved file before the next signed URL refresh", async () => {
+test("a loaded card saves a local copy without replacing the visible image", async () => {
   const f = fixture(); let definition;
   load("miniprogram/components/moment-card/index.ts", {
     "../../core/media-cache": { mediaCache: f.cache },
@@ -269,7 +269,8 @@ test("a loaded card adopts its saved file before the next signed URL refresh", a
   definition.observers.item.call(card, { id: "moment", author: "我", mediaType: "IMAGE", occurredAt: new Date().toISOString(), media: [{ assetId: "photo", status: "READY", thumbnailPath: firstUrl }] });
   await definition.methods.coverLoaded.call(card);
   await Promise.resolve();
-  assert.match(card.data.coverPath, /^wxfile:\/\/user\/media-cover-cache\//);
+  assert.equal(card.data.coverPath, firstUrl);
+  assert.match(f.cache.get("me", "photo", firstUrl), /^wxfile:\/\/user\/media-cover-cache\//);
   definition.observers.item.call(card, { id: "responded", author: "TA", mediaType: "TEXT", occurredAt: new Date().toISOString(), media: [], reaction: { actor: "我", value: "心动" } });
   assert.equal(card.data.responseIsMe, true, "a response uses its actual author's avatar");
 });
@@ -326,6 +327,8 @@ test("published images with a usable original do not schedule a five-second miss
   page.visible = true;
   page.remoteMoments = [{ status: "PUBLISHED", mediaType: "IMAGE", media: [{ status: "READY", path: firstUrl }] }];
   page.scheduleMediaRefresh(); assert.equal(timers.length, 0);
+  page.remoteMoments = [{ status: "PUBLISHED", mediaType: "IMAGE", media: [{ status: "FAILED" }] }, { status: "PUBLISHED", mediaType: "VIDEO", media: [{ status: "FAILED" }] }];
+  page.scheduleMediaRefresh(); assert.equal(timers.length, 0, "lost media must not participate in preparation polling");
   page.remoteMoments = [{ status: "UPLOADING", mediaType: "IMAGE", media: [{ status: "PROCESSING" }] }];
   page.scheduleMediaRefresh(); assert.equal(timers.length, 1);
 });
@@ -362,5 +365,104 @@ test("a cover finishing after metadata rotates still saves a persistent file for
   definition.observers.item.call(card, { ...moment, media: [{ ...moment.media[0], path: rotatedUrl }] });
   await definition.methods.coverLoaded.call(card);
   assert.equal(f.requests.length, 1);
-  assert.match(card.data.coverPath, /^wxfile:\/\/user\/media-cover-cache\//);
+  assert.equal(card.data.coverPath, firstUrl);
+  assert.match(f.cache.get("me", "photo", rotatedUrl), /^wxfile:\/\/user\/media-cover-cache\//);
+});
+
+test("saving and refreshing a visible cover never rebinds its image source", async () => {
+  const f = fixture(); let definition; const patches = [];
+  load("miniprogram/components/moment-card/index.ts", {
+    "../../core/media-cache": { mediaCache: f.cache },
+    "../../services/request": { hasSession: () => true },
+    "../../core/store": { store: { getState: () => ({ loggedIn: true, profile: { id: "me" } }) } },
+    "../../core/format": load("miniprogram/core/format.ts")
+  }, { Component(value) { definition = value; }, wx: f.wx });
+  const card = { data: { ...definition.data }, setData(patch) { patches.push(patch); Object.assign(this.data, patch); } };
+  const moment = { id: "photo", author: "我", mediaType: "IMAGE", occurredAt: new Date().toISOString(), media: [{ assetId: "photo", status: "READY", path: firstUrl }] };
+  definition.observers.item.call(card, moment); patches.length = 0;
+  await definition.methods.coverLoaded.call(card);
+  definition.observers.item.call(card, { ...moment, media: [{ ...moment.media[0], path: rotatedUrl }] });
+  assert.equal(card.data.coverPath, firstUrl);
+  assert.ok(f.cache.get("me", "photo", rotatedUrl), "the persistent copy remains available on the next entry");
+  assert.equal(patches.filter(patch => Object.hasOwn(patch, "coverPath")).length, 0);
+});
+
+test("background media polling updates only pending rows and preserves ready covers and pagination", async () => {
+  const timers = new Map(), patches = [], calls = []; let definition;
+  const image = { id: "photo", status: "PUBLISHED", author: "我", mediaType: "IMAGE", media: [{ status: "READY", path: firstUrl }] };
+  const video = { id: "video", status: "PUBLISHED", author: "我", mediaType: "VIDEO", media: [{ status: "READY", path: "https://cos/video.mp4" }] };
+  const ready = { ...video, media: [{ ...video.media[0], thumbnailPath: firstUrl }] };
+  const state = { loggedIn: true, profile: { id: "me" }, couple: { id: "pair", status: "PAIRED" } };
+  load("miniprogram/pages-main/time/index.ts", {
+    "../../core/store": { store: { getState: () => state } },
+    "../../services/app-service": { appService: { isRemote: true, hasSession: () => true, async detail(id) { calls.push(id); return ready; }, timelinePage() { throw new Error("must not reload ready rows"); } } }
+  }, { Page(value) { definition = value; }, setTimeout(callback) { timers.set(1, callback); return 1; }, clearTimeout(id) { timers.delete(id); } });
+  const page = { ...definition, visible: true, remoteMoments: [image, video], data: { ...definition.data, moments: [image, video], hasMore: true, nextCursor: "older" }, setData(patch) { patches.push(patch); for (const [key, value] of Object.entries(patch)) { const match = key.match(/^moments\[(\d+)\]$/); if (match) this.data.moments[Number(match[1])] = value; else this.data[key] = value; } } };
+  page.scheduleMediaRefresh(); const callback = timers.get(1); timers.delete(1); await callback();
+  assert.deepEqual(calls, ["video"]);
+  assert.equal(page.remoteMoments[0], image); assert.equal(page.data.moments[0], image);
+  assert.equal(page.data.moments[1].media[0].thumbnailPath, firstUrl);
+  assert.ok(patches.some(patch => Object.hasOwn(patch, "moments[1]")));
+  assert.ok(patches.every(patch => !Object.hasOwn(patch, "moments")));
+  assert.equal(page.data.nextCursor, "older"); assert.equal(page.data.hasMore, true); assert.equal(timers.size, 0);
+});
+
+test("a late media poll cannot update a hidden page, another range, account or relationship", async () => {
+  for (const changed of ["hide", "range", "account", "couple", "session"]) {
+    let definition, finish, session = true; const timers = new Map(), patches = [];
+    const item = { id: "video", author: "TA", status: "UPLOADING", mediaType: "VIDEO", media: [] };
+    const state = { profile: { id: "me" }, couple: { id: "pair", status: "PAIRED" } };
+    load("miniprogram/pages-main/time/index.ts", {
+      "../../core/store": { store: { getState: () => state } },
+      "../../services/app-service": { appService: { isRemote: true, hasSession: () => session, detail: () => new Promise(resolve => { finish = resolve; }) } }
+    }, { Page(value) { definition = value; }, setTimeout(callback) { timers.set(1, callback); return 1; }, clearTimeout(id) { timers.delete(id); } });
+    const page = { ...definition, visible: true, remoteMoments: [item], data: { ...definition.data, moments: [item] }, setData(patch) { patches.push(patch); Object.assign(this.data, patch); } };
+    page.scheduleMediaRefresh(); const callback = timers.get(1); timers.delete(1); const polling = callback();
+    if (changed === "hide") page.onHide();
+    if (changed === "range") page.rangeRequestId++;
+    if (changed === "account") state.profile.id = "another";
+    if (changed === "couple") state.couple.id = "new-pair";
+    if (changed === "session") session = false;
+    finish({ ...item, status: "PUBLISHED", media: [{ status: "READY", thumbnailPath: firstUrl }] }); await polling;
+    assert.equal(page.remoteMoments[0], item, changed); assert.equal(patches.length, 0, changed); assert.equal(timers.size, 0, changed);
+  }
+});
+
+test("poll errors keep content on a network failure and refresh authorization after a denied record", async () => {
+  for (const code of ["NETWORK_ERROR", "RESOURCE_FORBIDDEN", "RESOURCE_NOT_FOUND"]) {
+    let definition, refreshes = 0; const timers = new Map();
+    const item = { id: "video", status: "UPLOADING", mediaType: "VIDEO", occurredAt: new Date().toISOString(), media: [] };
+    const state = { profile: { id: "me" }, couple: { id: "pair", status: "PAIRED" }, moments: [item], messages: [] };
+    load("miniprogram/pages-main/time/index.ts", {
+      "../../core/store": { store: { getState: () => state, removeRemoteMoment(id) { state.moments = state.moments.filter(value => value.id !== id); } } },
+      "../../services/app-service": { appService: { isRemote: true, hasSession: () => true, async refresh() { refreshes++; throw new Error("offline sync"); }, async detail() { throw Object.assign(new Error(code), { code }); } }, redirectExpiredSession: () => false, userError: error => error.message }
+    }, { Page(value) { definition = value; }, wx: { stopPullDownRefresh() {} }, setTimeout(callback) { timers.set(1, callback); return 1; }, clearTimeout(id) { timers.delete(id); } });
+    const page = { ...definition, visible: true, remoteMoments: [item], data: { ...definition.data, moments: [item] }, setData(patch) { Object.assign(this.data, patch); } };
+    page.scheduleMediaRefresh(); const callback = timers.get(1); timers.delete(1); await callback();
+    assert.equal(refreshes, code === "NETWORK_ERROR" ? 0 : 1); assert.equal(timers.size, code === "NETWORK_ERROR" ? 1 : 0);
+    if (code === "NETWORK_ERROR") assert.equal(page.data.moments[0], item);
+    else { assert.equal(state.moments.length, 0); assert.equal(page.remoteMoments.length, 0); assert.equal(page.data.moments.length, 0); assert.equal(page.data.error, "offline sync"); }
+  }
+});
+
+test("forgetting an asset cancels an in-flight cover save", async () => {
+  const f = fixture({ deferred: true }); const pending = f.cache.remember("me", "revoked", firstUrl);
+  f.cache.forget("me", "revoked", firstUrl);
+  f.requests[0].success({ path: "wxfile://temp/0.jpg", type: "jpeg" });
+  assert.equal(await pending, firstUrl); assert.equal(f.cache.get("me", "revoked", firstUrl), undefined);
+});
+
+test("removing an unauthorized record forgets only its cached media and saved metadata", async () => {
+  const f = fixture();
+  const { store } = load("miniprogram/core/store.ts", { "./api-config": { API_CONFIG: { useRemoteApi: true } }, "./media-cache": { mediaCache: f.cache } }, { wx: f.wx });
+  store.applyRemoteProfile({ id: "me", name: "我" });
+  const original = "https://bucket.cos.test/original/video.jpg";
+  await f.cache.remember("me", "video", firstUrl); await f.cache.remember("me", "video", original);
+  const other = await f.cache.remember("me", "other", firstUrl);
+  store.upsertRemoteMoment({ id: "revoked", media: [{ id: "video", assetId: "video", path: original, thumbnailPath: firstUrl }] });
+  store.upsertRemoteMoment({ id: "allowed", media: [{ id: "other", assetId: "other", path: firstUrl }] });
+  store.removeRemoteMoment("revoked");
+  assert.equal(store.getMoment("revoked"), undefined); assert.equal(store.getMoment("allowed").id, "allowed");
+  assert.equal(f.cache.get("me", "video", firstUrl), undefined); assert.equal(f.cache.get("me", "video", original), undefined);
+  assert.equal(f.cache.get("me", "other", firstUrl), other);
 });

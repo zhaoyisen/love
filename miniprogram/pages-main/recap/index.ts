@@ -1,10 +1,11 @@
 import { store } from "../../core/store";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
 Page({
-  data: { recap: {} as any, count: 0, selectedCount: 0, coverPath: "", paired: false, loading: true, error: "" },
+  data: { recap: {} as any, count: 0, selectedCount: 0, coverPath: "", paired: false, loading: true, error: "", unread: 0 },
   async onShow() {
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 2 });
     this.setData({ loading: appService.isRemote, error: "" });
+    this.render();
     try {
       if (appService.isRemote) {
         await appService.refresh();
@@ -26,7 +27,7 @@ Page({
       const media = (moment.media || []).find((item: any) => (item.type === "IMAGE" && item.path) || item.thumbnailPath);
       if (media) { coverPath = media.thumbnailPath || media.path || ""; break; }
     }
-    this.setData({ recap: state.recap, count: sharedMoments.length, selectedCount: selectedMoments.length, coverPath, paired: state.couple.status === "PAIRED" });
+    this.setData({ recap: state.recap, count: sharedMoments.length, selectedCount: selectedMoments.length, coverPath, paired: state.couple.status === "PAIRED", unread: state.messages.filter(item => !item.read).length });
   },
   create() { if (!this.data.paired) { wx.showToast({ title: "完成配对后可制作双人回顾", icon: "none" }); return; } wx.navigateTo({ url: "/pkg-recap/editor/index" }); },
   openCover() { if (this.data.recap.status === "READY") this.preview(); else this.create(); },

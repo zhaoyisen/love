@@ -68,9 +68,9 @@ public class CoupleAlbumController {
         return assets.findTop100ByAlbumCoupleIdAndStatusNotOrderByCreatedAtDesc(coupleId, DomainEnums.MediaStatus.DELETED)
                 .stream().filter(asset -> asset.getUploaderId().equals(actorId) || asset.getStatus() == DomainEnums.MediaStatus.READY)
                 .map(asset -> new AlbumPhoto(asset.getId(), asset.getUploaderId(), asset.getStatus().name(), asset.getCreatedAt(),
-                        media.accessUrlIfReady(actorId, asset), media.thumbnailUrlIfReady(actorId, asset))).toList();
+                        media.accessUrlIfReady(actorId, asset), media.thumbnailUrlIfReady(actorId, asset), media.originalUrlIfReady(actorId, asset))).toList();
     }
 
     public record AddPhotos(@NotNull UUID coupleId, @NotEmpty @Size(max = 9) List<@NotNull UUID> assetIds) {}
-    public record AlbumPhoto(UUID id, UUID uploaderId, String status, Instant createdAt, String accessUrl, String thumbnailUrl) {}
+    public record AlbumPhoto(UUID id, UUID uploaderId, String status, Instant createdAt, String accessUrl, String thumbnailUrl, String originalUrl) {}
 }

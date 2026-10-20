@@ -58,7 +58,13 @@ public class MediaService {
     @Transactional(readOnly=true)
     public String accessUrl(UUID actorId,UUID assetId){MediaAssetEntity asset=getAuthorized(actorId,assetId);if(asset.getStatus()!=DomainEnums.MediaStatus.READY)throw new ApiException(HttpStatus.CONFLICT,"MEDIA_NOT_READY","媒体仍在安全处理中，请稍后刷新。");return storage.signedGetUrl(displayKey(asset),Duration.ofMinutes(15),displayContentType(asset));}
     public String accessUrlIfReady(UUID actorId,MediaAssetEntity asset){return asset.getStatus()==DomainEnums.MediaStatus.READY&&canRead(actorId,asset)?storage.signedGetUrl(displayKey(asset),Duration.ofMinutes(15),displayContentType(asset)):null;}
-    public String thumbnailUrlIfReady(UUID actorId,MediaAssetEntity asset){return asset.getStatus()==DomainEnums.MediaStatus.READY&&asset.getThumbnailStorageKey()!=null&&canRead(actorId,asset)?storage.signedGetUrl(asset.getThumbnailStorageKey(),Duration.ofMinutes(15),asset.getThumbnailStorageKey().endsWith(".jpg")?"image/jpeg":"image/webp"):null;}
+    public String originalUrlIfReady(UUID actorId,MediaAssetEntity asset){return asset.getStatus()==DomainEnums.MediaStatus.READY&&canRead(actorId,asset)?storage.signedGetUrl(asset.getStorageKey(),Duration.ofMinutes(15),asset.getMimeType()):null;}
+    public String thumbnailUrlIfReady(UUID actorId,MediaAssetEntity asset){
+        if(asset.getStatus()!=DomainEnums.MediaStatus.READY||!canRead(actorId,asset))return null;
+        String thumbnail=asset.getThumbnailStorageKey();
+        if(thumbnail!=null)return storage.signedGetUrl(thumbnail,Duration.ofMinutes(15),thumbnail.endsWith(".jpg")?"image/jpeg":"image/webp");
+        return asset.getKind()==DomainEnums.MediaKind.VIDEO?storage.signedVideoSnapshotUrl(asset.getStorageKey(),Duration.ofMinutes(15)):null;
+    }
     @Transactional
     public MediaAssetEntity retryProcessing(UUID actorId,UUID assetId){
         MediaAssetEntity asset=assets.findById(assetId).orElseThrow(()->notFound());

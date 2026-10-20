@@ -1,0 +1,67 @@
+# 正式上线差距核查
+
+核查日期：2026-10-13。范围：首版微信小程序正式对外使用。依据：Graphify 图检索、当前源码、现有发布手册、本地测试、公网健康接口只读检查。
+
+## 当前结论
+
+已有体验版联调基础，但仍需修正已确认的代码问题，并完成生产环境、真机和运维验收。
+
+- 当前 `API_CONFIG.useRemoteApi` 为 `true`，`npm run validate:production` 通过。早先读取到的 Mock 配置已不再是当前阻塞项。
+- 公网 HTTPS 健康接口返回 HTTP 200、`UP`。仅证明该地址可达，不能据此确认部署提交、微信登录或 COS 审核/删除功能。
+- 注销、删除进度与重试、审计、反馈与申诉已有实现；剩余是实际云环境验收，不能列作完全未开发。
+
+## 用户补充：解绑后没有重新邀请按钮
+
+用户确认症状为“页面没有重新邀请按钮”。当前已在本地修复：
+
+1. 解绑后的 `ENDED` 页面增加“重新邀请另一半”，说明新空间不会自动共享旧空间记录。
+2. 已登录用户打开邀请页时先读取服务器最新关系，避免缓存的 `PAIRED` 状态直接将页面锁在“已建立空间”。
+3. 发布手册加入重新邀请、同一对账号重新配对及旧空间隔离的验收项。
+
+对应文件：
+
+- [解绑后页面入口](/D:/devlop/love_records/miniprogram/pages-main/couple/index.wxml:57)
+- [邀请页关系刷新](/D:/devlop/love_records/miniprogram/pkg-couple/invite/index.ts:6)
+- [前端回归测试](/D:/devlop/love_records/scripts/test-couple-reinvite.js)
+- [后端重新配对与隔离回归](/D:/devlop/love_records/server/src/test/java/com/lovenotes/server/ApiFlowIntegrationTest.java:425)
+
+验证：前端 3 项回归通过；`npm run typecheck` 和 `npm run validate` 通过；后端目标集成测试 1 项通过。后端测试使用 test 配置和 H2 内存数据库，验证 A 邀请 B、B 解绑、双方恢复未配对、A 生成新邀请、B 再次接受、创建不同 ID 的新空间、旧空间继续冻结、B 仍不能访问 A 的旧共享记录。未发布或提交代码，未完成微信体验版真机复验。
+
+## 已确认的代码缺口
+
+| 优先级 | 缺口 | 上线前需要达到的行为 |
+|---|---|---|
+| P0 | 图片访问接口签发原始文件地址。`MediaService.displayKey` 返回 `storageKey`；时刻和回顾也直接签原图；衍生图失败仍标记 READY | 展示入口统一使用经验证去除元数据的安全衍生图；生成失败不能直接暴露带原始元数据的文件。用含 EXIF 的照片实际检查返回地址和下载文件 |
+| P0 | 应用内提醒开关只保存偏好，消息生成、展示和未读计算未使用这些偏好 | 明确关闭后的行为并贯通相应消息流程，或首版隐藏未生效的开关 |
+| P0，视频启用时 | 上传完成仅核对文件大小，视频时长依赖客户端声明 | 服务端校验实际文件格式和时长，完成 iOS/Android 播放与弱网验收；视频封面/必要转码仍待补齐 |
+| 隐私验收项 | 已发 COS 签名 URL 有 15 分钟有效期；解绑只撤销后续 API 授权 | 明确并收敛旧链接剩余有效窗口，验证其行为与隐私文案一致；当前不能承诺已有链接立即失效 |
+
+源码证据：
+
+- [图片访问取原始键](/D:/devlop/love_records/server/src/main/java/com/lovenotes/server/media/MediaService.java:78)
+- [时刻媒体签名](/D:/devlop/love_records/server/src/main/java/com/lovenotes/server/moment/MomentService.java:92)
+- [回顾媒体签名](/D:/devlop/love_records/server/src/main/java/com/lovenotes/server/recap/RecapService.java:170)
+- [图片衍生处理失败仍发布](/D:/devlop/love_records/server/src/main/java/com/lovenotes/server/storage/CosObjectStorage.java:107)
+- [消息生成未应用偏好](/D:/devlop/love_records/server/src/main/java/com/lovenotes/server/message/MessageService.java:104)
+- [上传完成校验](/D:/devlop/love_records/server/src/main/java/com/lovenotes/server/media/MediaService.java:37)
+- [媒体链接 15 分钟有效期](/D:/devlop/love_records/server/src/main/java/com/lovenotes/server/media/MediaService.java:59)
+
+## 仍需取得验收结果的事项
+
+1. 两账号、iPhone/Android：登录、邀请/过期、解绑/重新邀请、私密隔离、记录编辑/删除/恢复、模板多图、宠物并发、年度回顾长图、权限拒绝、断网/后台恢复。
+2. 真实生产依赖：确认部署版本和 prod 配置、MySQL V1–V19 迁移、Redis 会话/限流、COS 私有访问/STS 最小权限、真实内容安全阻断及申诉、源文件与衍生文件实删、失败重试和审计。
+3. 灾备与运营：完成备份恢复演练，已删除/已解绑/已注销数据不得重新对用户可见；提供反馈与申诉的实际处理路径。已有内部接口，首版无需先做完整可视化管理后台。
+4. 发布保障：健康与 5xx 告警、卡住的媒体/删除任务告警、存储与费用告警、证书到期检查、回滚演练。日志与基础指标已有，统一面板和自动告警尚未在仓库中形成闭环。
+5. 微信平台准备：核验备案、服务类目、合法域名、隐私指引、用户协议、客服及审核体验路径。后台声明应与实际使用的隐私接口/数据一致；参见[腾讯云官方隐私适配说明](https://cloud.tencent.cn/document/product/1301/97930)。本次未登录微信公众平台，不能判断这些项已经通过或尚未办理。
+
+[双账号验收清单](/D:/devlop/love_records/docs/生产上线唯一操作手册.md:1589)
+
+[备份与恢复防回退方案](/D:/devlop/love_records/docs/备份删除策略与恢复防回退.md)
+
+## 首版可明确延期的范围
+
+若首版范围允许，回顾章节/精细编辑/多版本、长图自动分页、小程序外订阅消息、Outbox 和统一任务体系、生成客户端 SDK、自动分阶段放量可以分期实现。它们属于完整 PRD 或规模化能力缺口，延期应记录在发布范围中。图片隐私、实际文件校验、权限隔离、数据恢复防回退和基本告警不能以延期新功能替代。
+
+建议顺序：修复已确认代码问题 → 上传真实 API 体验版 → 双账号真机与真实 COS 验收 → 备份恢复/告警/回滚演练 → 平台审核与小范围发布。
+
+本次未修改生产数据、未部署，未完成真实 COS 操作、微信平台后台或真机验收。健康检查及本地自动测试通过不足以证明正式上线安全。

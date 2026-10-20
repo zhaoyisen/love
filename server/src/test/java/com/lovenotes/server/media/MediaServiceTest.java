@@ -10,9 +10,44 @@ import java.time.Duration;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 class MediaServiceTest {
+    @Test
+    void shouldKeepOriginalImageBytesAndMimeTypeSeparateFromWebpDerivatives() {
+        ObjectStorage storage=mock(ObjectStorage.class);
+        MediaService service=new MediaService(mock(MediaAssetRepository.class),mock(UploadSessionRepository.class),mock(MomentRepository.class),mock(ActiveCoupleMemberRepository.class),storage,null);
+        UUID owner=UUID.randomUUID();
+        MediaAssetEntity image=new MediaAssetEntity(owner,DomainEnums.MediaKind.IMAGE,"original/photo.png",null,"image/png",100);
+        assertNull(service.originalUrlIfReady(owner,image));
+        image.markReady("display/photo.webp","thumbnail/photo.webp");
+        when(storage.signedGetUrl("original/photo.png",Duration.ofMinutes(15),"image/png")).thenReturn("https://cos/original/photo.png");
+        assertEquals("https://cos/original/photo.png",service.originalUrlIfReady(owner,image));
+        assertNull(service.originalUrlIfReady(UUID.randomUUID(),image));
+        image.markBlocked();assertNull(service.originalUrlIfReady(owner,image));
+        verify(storage).signedGetUrl("original/photo.png",Duration.ofMinutes(15),"image/png");verifyNoMoreInteractions(storage);
+    }
+
+    @Test
+    void shouldOfferACoverForAuthorizedReadyVideoBeforeStoredThumbnailExists() {
+        ObjectStorage storage = mock(ObjectStorage.class);
+        MediaService service = new MediaService(mock(MediaAssetRepository.class), mock(UploadSessionRepository.class), mock(MomentRepository.class), mock(ActiveCoupleMemberRepository.class), storage, null);
+        UUID owner = UUID.randomUUID();
+        when(storage.signedVideoSnapshotUrl("original/video.mp4", Duration.ofMinutes(15))).thenReturn("https://cos/video.mp4?ci-process=snapshot&signature=test");
+        MediaAssetEntity video = new MediaAssetEntity(owner, DomainEnums.MediaKind.VIDEO, "original/video.mp4", null, "video/mp4", 100);
+        video.markReady("original/video.mp4", null);
+        assertEquals("https://cos/video.mp4?ci-process=snapshot&signature=test", service.thumbnailUrlIfReady(owner, video));
+        assertNull(service.thumbnailUrlIfReady(UUID.randomUUID(), video));
+        video.markBlocked();
+        assertNull(service.thumbnailUrlIfReady(owner, video));
+        MediaAssetEntity image = new MediaAssetEntity(owner, DomainEnums.MediaKind.IMAGE, "original/missing.jpg", null, "image/jpeg", 100);
+        image.markReady("original/missing.jpg", null);
+        assertNull(service.thumbnailUrlIfReady(owner, image));
+        verify(storage).signedVideoSnapshotUrl("original/video.mp4", Duration.ofMinutes(15));
+        verifyNoMoreInteractions(storage);
+    }
+
     @Test
     void shouldSignTheSmallImageAndJpegVideoCoverWithTheirActualContentTypes() {
         ObjectStorage storage = mock(ObjectStorage.class);

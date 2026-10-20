@@ -160,16 +160,43 @@ function albumServiceFixture() {
   const state = { loggedIn: true, profile: { id: "me" }, couple: { id: "pair", status: "PAIRED" }, moments: [] };
   const calls = { uploaded: [], attached: [] };
   const mediaService = { async upload(file) { calls.uploaded.push(file); return { asset: { id: "photo", status: "PROCESSING" } }; } };
+  const coupleService = { async addAlbumPhotos(coupleId, ids) { calls.attached.push({ coupleId, ids }); }, async albumPhotos() { return [{ id: "photo", uploader_id: "me", status: "PROCESSING", created_at: new Date().toISOString() }]; } };
   const dependencies = {
     "../core/api-config": { API_CONFIG: { useRemoteApi: true } }, "../core/mock-api": {},
     "../core/store": { store: { getState: () => state, update: mutate => mutate(state) } },
     "./request": { hasSession: () => true }, "./media-service": { mediaService },
-    "./couple-service": { coupleService: { async addAlbumPhotos(coupleId, ids) { calls.attached.push({ coupleId, ids }); }, async albumPhotos() { return [{ id: "photo", uploader_id: "me", status: "PROCESSING", created_at: new Date().toISOString() }]; } } }
+    "./couple-service": { coupleService }
   };
   for (const name of ["auth", "compliance", "message", "moment", "pet", "recap", "notification-preference", "template-render"]) dependencies[`./${name}-service`] = {};
   const { appService } = load("miniprogram/services/app-service.ts", dependencies, { wx: { getImageInfo(options) { options.success({ type: "png" }); } } });
-  return { appService, mediaService, state, calls };
+  return { appService, mediaService, coupleService, state, calls };
 }
+
+test("album responses preserve the original upload separately from processed display images", async () => {
+  const f = albumServiceFixture();
+  f.coupleService.albumPhotos = async () => [{ id: "photo", uploader_id: "me", status: "READY", thumbnail_url: "https://cos/thumb.webp", access_url: "https://cos/display.webp", original_url: "https://cos/original.jpg" }];
+  const photos = await f.appService.albumPhotos();
+  assert.equal(photos[0].source, "https://cos/thumb.webp"); assert.equal(photos[0].original, "https://cos/original.jpg");
+  assert.equal(f.state.album.photos[0].original, "https://cos/original.jpg");
+  f.coupleService.albumPhotos = async () => [{ id: "photo", uploader_id: "me", status: "READY", original_url: "https://cos/original-only.jpg" }];
+  assert.equal((await f.appService.albumPhotos())[0].source, "https://cos/original-only.jpg");
+  f.coupleService.albumPhotos = async () => [{ id: "legacy", uploader_id: "me", status: "READY", access_url: "https://cos/legacy-display.webp" }];
+  assert.equal((await f.appService.albumPhotos())[0].original, "https://cos/legacy-display.webp");
+});
+
+test("late album URLs are not stored after an account, relationship or login change", async () => {
+  for (const changed of ["account", "couple", "ended", "logout"]) {
+    const f = albumServiceFixture(); let finish;
+    f.coupleService.albumPhotos = () => new Promise(resolve => { finish = resolve; });
+    const request = f.appService.albumPhotos();
+    if (changed === "account") f.state.profile.id = "other";
+    if (changed === "couple") f.state.couple.id = "new-pair";
+    if (changed === "ended") f.state.couple.status = "ENDED";
+    if (changed === "logout") f.state.loggedIn = false;
+    finish([{ id: "private", uploader_id: "me", status: "READY", original_url: "https://cos/original.jpg" }]);
+    await assert.rejects(request, /空间已变化|登录/, changed); assert.equal(f.state.album, undefined, changed);
+  }
+});
 test("album upload uses the actual image format and stores photos without publishing moments", async () => {
   const f = albumServiceFixture();
   await f.appService.uploadAlbumPhotos([{ tempFilePath: "wxfile://temporary.jpg", size: 1024 }], () => {});
@@ -187,4 +214,21 @@ test("oversized album photos are rejected before uploading", async () => {
   const f = albumServiceFixture();
   await assert.rejects(f.appService.uploadAlbumPhotos([{ tempFilePath: "wxfile://photo.jpg", size: 21 * 1024 * 1024 }], () => {}), /20MB/);
   assert.equal(f.calls.uploaded.length, 0);
+});
+
+test("a detail response cannot be cached under a changed account, relationship or session", async () => {
+  for (const changed of ["account", "couple", "ended", "session", "unchanged"]) {
+    const state = { profile: { id: "me" }, couple: { id: "pair", status: "PAIRED" } }; let finish, session = true; const saved = [];
+    const dependencies = { "../core/api-config": { API_CONFIG: { useRemoteApi: true } }, "../core/mock-api": {}, "../core/store": { store: { getState: () => state, upsertRemoteMoment: value => saved.push(value) } }, "./request": { hasSession: () => session }, "./moment-service": { momentService: { detail: () => new Promise(resolve => { finish = resolve; }) } } };
+    for (const name of ["auth", "compliance", "couple", "media", "message", "pet", "recap", "notification-preference", "template-render"]) dependencies[`./${name}-service`] = {};
+    const { appService } = load("miniprogram/services/app-service.ts", dependencies);
+    const request = appService.detail("video");
+    if (changed === "account") state.profile.id = "other";
+    if (changed === "couple") state.couple.id = "new-pair";
+    if (changed === "ended") state.couple.status = "ENDED";
+    if (changed === "session") session = false;
+    finish({ id: "video", author_id: "me", type: "VIDEO", media: [], occurred_at: new Date().toISOString() });
+    if (changed === "unchanged") { await request; assert.equal(saved.length, 1); assert.equal(saved[0].author, "我"); }
+    else { await assert.rejects(request, /账号或情侣空间已变化/); assert.equal(saved.length, 0, changed); }
+  }
 });

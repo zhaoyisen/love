@@ -286,11 +286,11 @@ export const appService = {
     const state = store.getState(), owner = state.profile.id, coupleId = state.couple.id || "local";
     if (!API_CONFIG.useRemoteApi) return state.album?.photos || [];
     const items = await coupleService.albumPhotos();
-    if (store.getState().profile.id !== owner || store.getState().couple.id !== coupleId || store.getState().couple.status !== "PAIRED")
-      throw new Error("情侣空间已变化，请刷新后重试。");
+    if (!store.getState().loggedIn || !hasSession() || store.getState().profile.id !== owner || store.getState().couple.id !== coupleId || store.getState().couple.status !== "PAIRED")
+      throw new Error("登录状态或情侣空间已变化，请刷新后重试。");
     const photos: AlbumPhoto[] = items.map(item => ({ key: `album:${item.id}`, assetId: item.id,
       author: item.uploader_id === owner ? "我" : "TA", title: "相册照片", status: item.status,
-      source: item.thumbnail_url || item.access_url || "", original: item.access_url || "", createdAt: item.created_at }));
+      source: item.thumbnail_url || item.access_url || item.original_url || "", original: item.original_url || item.access_url || "", createdAt: item.created_at }));
     store.update(state => { state.album = { coupleId, photos }; });
     return photos;
   },
@@ -365,8 +365,11 @@ export const appService = {
 
   async detail(momentId: string) {
     if (!API_CONFIG.useRemoteApi) return store.getMoment(momentId);
+    const state = store.getState(), owner = state.profile.id, coupleId = state.couple.id, status = state.couple.status;
     const result = await momentService.detail(momentId);
-    const moment = remoteMoment(result, store.getState().profile.id || result.author_id);
+    if (!hasSession() || owner !== store.getState().profile.id || coupleId !== store.getState().couple.id || status !== store.getState().couple.status)
+      throw new Error("账号或情侣空间已变化，请重新打开记录。");
+    const moment = remoteMoment(result, owner || result.author_id);
     store.upsertRemoteMoment(moment);
     return moment;
   },

@@ -102,6 +102,17 @@ public class CosObjectStorage implements ObjectStorage {
         return cos.generatePresignedUrl(request).toString();
     }
     public boolean requiresProcessing(){return true;}
+    public String signedVideoSnapshotUrl(String key,Duration ttl){
+        var request=new GeneratePresignedUrlRequest(properties.storage().bucket(),key);
+        request.setExpiration(Date.from(Instant.now().plus(ttl)));
+        request.addRequestParameter("ci-process","snapshot");
+        request.addRequestParameter("time","0");
+        request.addRequestParameter("width","480");
+        request.addRequestParameter("format","jpg");
+        request.addRequestParameter("rotate","auto");
+        request.addRequestParameter("mode","keyframe");
+        return cos.generatePresignedUrl(request).toString();
+    }
     public ProcessingResult process(DomainEnums.MediaKind kind,String key,String jobId){
         try{
             if(kind==DomainEnums.MediaKind.IMAGE){

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import com.lovenotes.server.config.LoveNotesProperties;
 import com.lovenotes.server.domain.DomainEnums;
 import com.qcloud.cos.COSClient;
+import com.qcloud.cos.model.GeneratePresignedUrlRequest;
 import com.qcloud.cos.model.ciModel.snapshot.SnapshotRequest;
 import com.qcloud.cos.model.ciModel.auditing.AuditingJobsDetail;
 import com.qcloud.cos.model.ciModel.auditing.VideoAuditingResponse;
@@ -15,6 +16,32 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class CosObjectStorageTest {
+    @Test
+    void shouldIncludeSnapshotParametersInTheActualSdkSignature() {
+        var client=new COSClient(new com.qcloud.cos.auth.BasicCOSCredentials("test-id","test-secret"),new com.qcloud.cos.ClientConfig(new com.qcloud.cos.region.Region("ap-chengdu")));
+        try {
+            String url=storage(client).signedVideoSnapshotUrl("original/u/video.mp4",java.time.Duration.ofMinutes(15));
+            String query=java.net.URI.create(url).getQuery();
+            org.junit.jupiter.api.Assertions.assertTrue(query.contains("ci-process=snapshot"));
+            org.junit.jupiter.api.Assertions.assertTrue(query.contains("q-url-param-list=ci-process;format;mode;rotate;time;width"));
+            org.junit.jupiter.api.Assertions.assertTrue(query.contains("q-signature="));
+        } finally { client.shutdown(); }
+    }
+
+    @Test
+    void shouldSignSnapshotParametersWithTheVideoObjectAndExpiry() throws Exception {
+        COSClient client = mock(COSClient.class);
+        when(client.generatePresignedUrl(any(GeneratePresignedUrlRequest.class))).thenReturn(java.net.URI.create("https://cos/video.mp4?signature=test").toURL());
+        long before=System.currentTimeMillis();
+        assertEquals("https://cos/video.mp4?signature=test",storage(client).signedVideoSnapshotUrl("original/u/video.mp4",java.time.Duration.ofMinutes(15)));
+        ArgumentCaptor<GeneratePresignedUrlRequest> request=ArgumentCaptor.forClass(GeneratePresignedUrlRequest.class);
+        verify(client).generatePresignedUrl(request.capture());
+        assertEquals("bucket-123",request.getValue().getBucketName());
+        assertEquals("original/u/video.mp4",request.getValue().getKey());
+        assertEquals(java.util.Map.of("ci-process","snapshot","time","0","width","480","format","jpg","rotate","auto","mode","keyframe"),request.getValue().getRequestParameters());
+        org.junit.jupiter.api.Assertions.assertTrue(request.getValue().getExpiration().getTime()>=before+900000&&request.getValue().getExpiration().getTime()<=System.currentTimeMillis()+900000);
+    }
+
     private CosObjectStorage storage(COSClient client) {
         LoveNotesProperties properties = mock(LoveNotesProperties.class);
         when(properties.storage()).thenReturn(new LoveNotesProperties.Storage("cos", "bucket-123", "ap-chengdu", "", ""));
