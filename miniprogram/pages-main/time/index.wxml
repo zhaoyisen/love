@@ -57,11 +57,6 @@
     </view>
   </view>
 
-  <view wx:if="{{loading && loaded}}" class="sync-status" role="status">
-    <view class="sync-dot" aria-hidden="true"></view>
-    <text>正在同步新的记录，已保存的内容仍可查看</text>
-  </view>
-
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
     <text>{{error}}</text>
     <button size="mini" bindtap="refresh">重试</button>
@@ -76,7 +71,7 @@
     </view>
   </view>
 
-  <view wx:else class="timeline-content" style="animation-name: timeline-{{viewType}};">
+  <view wx:else class="timeline-content">
     <view wx:if="{{viewType === 'week'}}" class="period-panel week-strip">
       <view wx:for="{{weekDays}}" wx:key="day" class="week-day {{item.active ? 'active' : ''}}">
         <text>{{item.label}}</text>

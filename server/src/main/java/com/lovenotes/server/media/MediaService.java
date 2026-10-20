@@ -59,6 +59,16 @@ public class MediaService {
     public String accessUrl(UUID actorId,UUID assetId){MediaAssetEntity asset=getAuthorized(actorId,assetId);if(asset.getStatus()!=DomainEnums.MediaStatus.READY)throw new ApiException(HttpStatus.CONFLICT,"MEDIA_NOT_READY","媒体仍在安全处理中，请稍后刷新。");return storage.signedGetUrl(displayKey(asset),Duration.ofMinutes(15),displayContentType(asset));}
     public String accessUrlIfReady(UUID actorId,MediaAssetEntity asset){return asset.getStatus()==DomainEnums.MediaStatus.READY&&canRead(actorId,asset)?storage.signedGetUrl(displayKey(asset),Duration.ofMinutes(15),displayContentType(asset)):null;}
     public String originalUrlIfReady(UUID actorId,MediaAssetEntity asset){return asset.getStatus()==DomainEnums.MediaStatus.READY&&canRead(actorId,asset)?storage.signedGetUrl(asset.getStorageKey(),Duration.ofMinutes(15),asset.getMimeType()):null;}
+    @Transactional
+    public void deleteAlbumPhoto(UUID actorId,UUID coupleId,UUID assetId){
+        MediaAssetEntity asset=assets.findLockedById(assetId).orElseThrow(()->notFound());
+        if(!coupleId.equals(asset.getAlbumCoupleId())||asset.getMomentId()!=null||asset.isProfileAvatar())throw notFound();
+        if(!asset.getUploaderId().equals(actorId))throw forbidden();
+        if(asset.getStatus()==DomainEnums.MediaStatus.DELETED)return;
+        if(asset.getStatus()==DomainEnums.MediaStatus.PROCESSING)throw new ApiException(HttpStatus.CONFLICT,"MEDIA_NOT_READY","照片仍在安全处理中，请稍后重试。");
+        storage.deleteObjects(asset.objectKeys());
+        asset.markDeleted();
+    }
     public String thumbnailUrlIfReady(UUID actorId,MediaAssetEntity asset){
         if(asset.getStatus()!=DomainEnums.MediaStatus.READY||!canRead(actorId,asset))return null;
         String thumbnail=asset.getThumbnailStorageKey();

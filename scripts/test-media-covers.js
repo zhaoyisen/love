@@ -387,6 +387,25 @@ test("saving and refreshing a visible cover never rebinds its image source", asy
   assert.equal(patches.filter(patch => Object.hasOwn(patch, "coverPath")).length, 0);
 });
 
+test("returning from detail or another tab does not resend an unchanged timeline list", async () => {
+  let definition; const patches=[];
+  const moment={id:"photo",author:"我",status:"PUBLISHED",mediaType:"IMAGE",occurredAt:new Date().toISOString(),media:[{id:"image",assetId:"image",status:"READY",path:firstUrl}],comments:[],events:[]};
+  const state={loggedIn:true,profile:{id:"me"},couple:{id:"pair",status:"PAIRED"},moments:[moment],messages:[]};
+  const service={isRemote:true,hasSession:()=>true,async refresh(){return {from:"2000-01-01",to:"2026-10-20",hasMore:false,nextCursor:""}}};
+  load("miniprogram/pages-main/time/index.ts",{
+    "../../core/store":{store:{getState:()=>state}},"../../services/app-service":{appService:service,redirectExpiredSession:()=>false,userError:error=>error.message}
+  },{Page(value){definition=value},wx:{stopPullDownRefresh(){}},setTimeout:()=>1,clearTimeout(){}});
+  const page={...definition,data:structuredClone(definition.data),setData(patch){patches.push(patch);for(const[key,value]of Object.entries(patch)){const match=key.match(/^moments\[(\d+)\]$/);if(match)this.data.moments[Number(match[1])]=value;else this.data[key]=value}}};
+  await page.onShow();await new Promise(resolve=>setImmediate(resolve));patches.length=0;
+  page.onHide();await page.onShow();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(page.data.moments[0].id,"photo");assert.equal(patches.filter(patch=>"moments"in patch).length,0);
+  state.moments=[{...moment,body:"详情中更新的正文"}];patches.length=0;
+  page.onHide();await page.onShow();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(page.data.moments[0].body,"详情中更新的正文");assert.equal(patches.filter(patch=>"moments"in patch).length,0);
+  page.remoteMoments[0].body="原位更新的正文";patches.length=0;page.render();
+  assert.ok(patches.some(patch=>Object.hasOwn(patch,"moments[0]")),"in-place updates still reach the view");
+});
+
 test("background media polling updates only pending rows and preserves ready covers and pagination", async () => {
   const timers = new Map(), patches = [], calls = []; let definition;
   const image = { id: "photo", status: "PUBLISHED", author: "我", mediaType: "IMAGE", media: [{ status: "READY", path: firstUrl }] };

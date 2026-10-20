@@ -53,7 +53,8 @@ public class MediaProcessingService {
 
     @Transactional
     public void backfillThumbnail(UUID assetId) {
-        MediaAssetEntity asset = assets.findById(assetId).orElse(null);
+        // 与相册删除共用行锁，避免删除后又生成未清理的缩略图。
+        MediaAssetEntity asset = assets.findLockedById(assetId).orElse(null);
         if (asset == null || asset.getStatus() != DomainEnums.MediaStatus.READY || asset.getThumbnailStorageKey() != null) return;
         // 即使截帧失败也推进重试时间，避免坏文件长期占据补图队列。
         asset.updateDerivatives(asset.getDisplayStorageKey(), null);

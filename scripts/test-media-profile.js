@@ -184,6 +184,42 @@ test("album responses preserve the original upload separately from processed dis
   assert.equal((await f.appService.albumPhotos())[0].original, "https://cos/legacy-display.webp");
 });
 
+test("album deletion removes only the selected own photo after server success and keeps failures", async () => {
+  const f=albumServiceFixture();
+  const photo={key:"album:own",assetId:"own",author:"我",source:"https://cos/own",original:"https://cos/own",status:"READY"};
+  const partner={...photo,key:"album:partner",assetId:"partner",author:"TA"};
+  f.state.album={coupleId:"pair",photos:[photo,partner]};
+  let requests=[];f.coupleService.deleteAlbumPhoto=async(coupleId,id)=>{requests.push({coupleId,id});throw new Error("离线")};
+  await assert.rejects(f.appService.deleteAlbumPhoto("own"),/离线/);assert.equal(f.state.album.photos.length,2);
+  await assert.rejects(f.appService.deleteAlbumPhoto("partner"),/自己上传/);assert.equal(requests.length,1);
+  f.coupleService.deleteAlbumPhoto=async(coupleId,id)=>{requests.push({coupleId,id})};
+  await f.appService.deleteAlbumPhoto("own");assert.equal(f.state.album.photos.length,1);assert.equal(f.state.album.photos[0].assetId,"partner");
+  assert.deepEqual(requests.at(-1),{coupleId:"pair",id:"own"});
+});
+
+test("a late album delete cannot change another account, relationship or logged-out cache", async () => {
+  for(const changed of ["account","couple","logout"]){
+    const f=albumServiceFixture();const photo={key:"album:own",assetId:"own",author:"我"};f.state.album={coupleId:"pair",photos:[photo]};
+    let finish;f.coupleService.deleteAlbumPhoto=()=>new Promise(resolve=>{finish=resolve});const pending=f.appService.deleteAlbumPhoto("own");
+    if(changed==="account")f.state.profile.id="other";if(changed==="couple")f.state.couple.id="other";if(changed==="logout")f.state.loggedIn=false;
+    finish();await assert.rejects(pending,/空间已变化|登录/);assert.equal(f.state.album.photos.length,1);
+  }
+});
+
+test("a stale album from another relationship cannot initiate deletion",async()=>{
+  const f=albumServiceFixture();f.state.album={coupleId:"old-pair",photos:[{assetId:"own",author:"我"}]};
+  let requests=0;f.coupleService.deleteAlbumPhoto=async()=>{requests++};
+  await assert.rejects(f.appService.deleteAlbumPhoto("own"),/当前共同相册/);assert.equal(requests,0);
+});
+
+test("an album response started before deletion cannot restore the deleted photo",async()=>{
+  const f=albumServiceFixture();f.state.album={coupleId:"pair",photos:[{assetId:"own",author:"我"}]};
+  let finish;f.coupleService.albumPhotos=()=>new Promise(resolve=>{finish=resolve});const pending=f.appService.albumPhotos();
+  f.coupleService.deleteAlbumPhoto=async()=>{};await f.appService.deleteAlbumPhoto("own");
+  finish([{id:"own",uploader_id:"me",status:"READY",access_url:"https://cos/deleted"}]);
+  await assert.rejects(pending,/相册已更新/);assert.equal(f.state.album.photos.length,0);
+});
+
 test("late album URLs are not stored after an account, relationship or login change", async () => {
   for (const changed of ["account", "couple", "ended", "logout"]) {
     const f = albumServiceFixture(); let finish;

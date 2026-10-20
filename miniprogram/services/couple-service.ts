@@ -3,6 +3,9 @@ import { apiRequest, idempotencyKey } from "./request";
 export const coupleService = {
   current: () => apiRequest<any>({ path: "/couples/current" }),
   albumPhotos: () => apiRequest<any[]>({ path: "/couples/current/album-photos" }),
+  deleteAlbumPhoto: (coupleId: string, assetId: string) => apiRequest<void>({
+    path: `/couples/current/album-photos/${encodeURIComponent(assetId)}?couple_id=${encodeURIComponent(coupleId)}`, method: "DELETE"
+  }),
   addAlbumPhotos: (coupleId: string, assetIds: string[]) => apiRequest<any[]>({
     path: "/couples/current/album-photos", method: "POST", data: { couple_id: coupleId, asset_ids: assetIds }
   }),
