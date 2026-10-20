@@ -131,6 +131,7 @@ export const mediaCache = {
   },
   forget(owner: string, assetId: string, url: string) {
     const id = key(owner, assetId, url);
+    pending.delete(id);
     const entry = load()[id];
     if (entry) { unlink(entry.path); delete entries![id]; persist(); }
   },

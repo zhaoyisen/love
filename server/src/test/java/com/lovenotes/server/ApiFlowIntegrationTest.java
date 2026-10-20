@@ -1107,6 +1107,25 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
+    void shouldReturnMissingVideoCoverThroughTimelineAndDetailWithoutLeakingAccess() throws Exception {
+        Login owner=login("video-cover-owner"),partner=login("video-cover-partner"),stranger=login("video-cover-stranger");
+        pair(owner,partner);
+        MediaAssetEntity asset=new MediaAssetEntity(UUID.fromString(owner.userId()),DomainEnums.MediaKind.VIDEO,"original/fallback.mp4",null,"video/mp4",1024,30);
+        asset.markReady("original/fallback.mp4",null);assets.saveAndFlush(asset);
+        String created=mvc.perform(post("/moments").header("Authorization",bearer(owner.accessToken())).header("Idempotency-Key",UUID.randomUUID()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"VIDEO\",\"body\":\"视频封面\",\"occurred_at\":\"2026-06-20T12:00:00Z\",\"visibility\":\"SHARED\",\"asset_ids\":[\""+asset.getId()+"\"]}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String momentId=mapper.readTree(created).at("/data/id").asText();
+        for(Login viewer:new Login[]{owner,partner}) {
+            mvc.perform(get("/moments/{id}",momentId).header("Authorization",bearer(viewer.accessToken())))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.media[0].thumbnail_url").value("local://thumbnail/fallback.jpg"));
+            mvc.perform(get("/timeline").header("Authorization",bearer(viewer.accessToken())).param("from","2026-01-01T00:00:00Z").param("to","2026-12-31T23:59:59Z"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data.items[0].media[0].thumbnail_url").value("local://thumbnail/fallback.jpg"));
+        }
+        mvc.perform(get("/moments/{id}",momentId).header("Authorization",bearer(stranger.accessToken()))).andExpect(status().isForbidden());
+    }
+
+    @Test
     void shouldAcceptAuthenticatedCosUploadFailureDiagnostic() throws Exception {
         Login user=login("cos-diagnostic-user");
         String created=mvc.perform(post("/upload-sessions").header("Authorization",bearer(user.accessToken()))
@@ -1238,12 +1257,13 @@ class ApiFlowIntegrationTest {
         Login stranger = login("direct-album-stranger");
         pair(owner, partner);
         String asset = uploadImage(owner, "album-only.jpg");
+        String originalUrl="local://"+assets.findById(UUID.fromString(asset)).orElseThrow().getStorageKey();
         String coupleId = members.findById(UUID.fromString(owner.userId())).orElseThrow().getCoupleId().toString();
         String body = "{\"couple_id\":\"" + coupleId + "\",\"asset_ids\":[\"" + asset + "\"]}";
         for (int repeat = 0; repeat < 2; repeat++) {
             mvc.perform(post("/couples/current/album-photos").header("Authorization", bearer(owner.accessToken()))
                             .contentType(MediaType.APPLICATION_JSON).content(body))
-                    .andExpect(status().isOk());
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data[0].original_url").value(originalUrl));
         }
         Assertions.assertEquals(0, moments.count(), "Album upload must not publish a timeline moment");
         var savedPhoto = assets.findById(UUID.fromString(asset)).orElseThrow();
@@ -1255,6 +1275,7 @@ class ApiFlowIntegrationTest {
         mvc.perform(get("/couples/current/album-photos").header("Authorization", bearer(partner.accessToken())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(1)))
                 .andExpect(jsonPath("$.data[0].id").value(asset))
+                .andExpect(jsonPath("$.data[0].original_url").value(originalUrl))
                 .andExpect(jsonPath("$.data[0].access_url", startsWith("local://")));
         mvc.perform(get("/media-assets/{id}/access-url", asset).header("Authorization", bearer(partner.accessToken())))
                 .andExpect(status().isOk());
@@ -1275,6 +1296,8 @@ class ApiFlowIntegrationTest {
                 .andExpect(status().isOk());
         mvc.perform(get("/media-assets/{id}/access-url", asset).header("Authorization", bearer(partner.accessToken())))
                 .andExpect(status().isForbidden());
+        mvc.perform(get("/couples/current/album-photos").header("Authorization",bearer(partner.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data",hasSize(0)));
         mvc.perform(get("/media-assets/{id}/access-url", asset).header("Authorization", bearer(owner.accessToken())))
                 .andExpect(status().isOk());
     }

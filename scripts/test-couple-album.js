@@ -24,7 +24,7 @@ function pageFixture() {
   let page;
   load("miniprogram/pages-main/couple/index.ts", {
     "../../core/store":{store:{getState:()=>state}},"../../core/couple-album":album,
-    "../../core/media-cache":{mediaCache:{get(...args){calls.cache.push(args)},remember(...args){calls.remembered.push(args)},forget(...args){calls.forgotten.push(args)}}},
+    "../../core/media-cache":{mediaCache:{get(...args){calls.cache.push(args)},remember(...args){calls.remembered.push(args);return Promise.resolve(calls.savePath||args[2])},forget(...args){calls.forgotten.push(args)}}},
     "../../services/app-service":{appService:service,redirectExpiredSession:()=>false,userError:error=>error.message}
   }, {setTimeout(callback){calls.timer=callback;return 1},clearTimeout(){calls.timer=undefined},Page(value){page=value},wx:{stopPullDownRefresh(){},navigateTo(value){calls.navigation.push(value)},chooseMedia(options){options.success({tempFiles:[{tempFilePath:"wxfile://album.jpg",size:1024}]})},previewImage(value){calls.preview=value},showToast(value){calls.toast=value}}});
   page.data=structuredClone(page.data);
@@ -111,4 +111,43 @@ test("local demo albums can show and preview photos without remote credentials",
   const {page,state,service,calls}=pageFixture();service.isRemote=false;service.hasSession=()=>false;state.moments=[];
   state.albumPhotos=[{key:"local",assetId:"local",author:"我",title:"照片",createdAt:new Date().toISOString(),source:"wxfile://photo",original:"wxfile://photo",status:"READY"}];
   await page.onShow();assert.equal(page.data.albumCount,1);page.openAlbumPhoto(photoEvent);assert.equal(calls.preview.current,"wxfile://photo");
+});
+
+test("a failed standalone album photo refreshes its URLs once instead of opening the broken preview",async()=>{
+  const {page,state,service,calls}=pageFixture();state.moments=[];
+  const old={key:"album:photo",assetId:"photo",author:"我",title:"相册照片",status:"READY",createdAt:new Date().toISOString(),source:"https://cos/expired-thumb",original:"https://cos/expired-original"};
+  state.albumPhotos=[old];await page.onShow();page.albumPhotoError(photoEvent);page.albumPhotoError(photoEvent);
+  let finish,requests=0;service.albumPhotos=()=>{requests++;return new Promise(resolve=>{finish=resolve})};
+  const retry=page.openAlbumPhoto(photoEvent);await page.openAlbumPhoto(photoEvent);
+  assert.equal(requests,1);assert.equal(calls.preview,undefined);
+  finish([{...old,source:"https://cos/fresh-thumb",original:"https://cos/fresh-original"}]);await retry;
+  assert.equal(page.data.albumColumns[0][0].path,"https://cos/fresh-thumb");assert.equal(page.data.albumColumns[0][0].error,false);
+  assert.equal(page.data.albumRetrying,false);page.openAlbumPhoto(photoEvent);assert.equal(calls.preview.current,"https://cos/fresh-original");
+});
+
+test("saving a loaded album photo does not replace its displayed source",async()=>{
+  const {page,calls}=pageFixture();await page.onShow();const source=page.data.albumColumns[0][0].path;
+  calls.savePath="wxfile://saved-cover";await page.albumPhotoLoaded(photoEvent);
+  assert.equal(calls.remembered.length,1);assert.equal(page.data.albumColumns[0][0].path,source);
+});
+
+test("a failed album retry retains its placeholder and can be retried again",async()=>{
+  const {page,state,service,calls}=pageFixture();state.moments=[];
+  state.albumPhotos=[{key:"album:photo",assetId:"photo",author:"我",status:"READY",createdAt:new Date().toISOString(),source:"https://cos/old",original:"https://cos/old"}];
+  await page.onShow();page.albumPhotoError(photoEvent);
+  service.albumPhotos=async()=>{throw new Error("网络不可用")};await page.openAlbumPhoto(photoEvent);
+  assert.equal(page.data.albumColumns[0][0].error,true);assert.equal(page.data.albumRetrying,false);assert.equal(page.data.error,"网络不可用");assert.equal(calls.preview,undefined);
+  service.albumPhotos=async()=>state.albumPhotos;await page.openAlbumPhoto(photoEvent);assert.equal(page.data.albumColumns[0][0].error,false);
+});
+
+test("a late album retry cannot restore photos after leaving, unbinding, switching accounts or losing the session",async()=>{
+  for(const changed of ["hide","couple","account","session"]) {
+    const {page,state,service}=pageFixture();state.moments=[];
+    const old={key:"album:photo",assetId:"photo",author:"我",status:"READY",createdAt:new Date().toISOString(),source:"https://cos/old",original:"https://cos/old"};
+    state.albumPhotos=[old];await page.onShow();page.albumPhotoError(photoEvent);
+    let finish;service.albumPhotos=()=>new Promise(resolve=>{finish=resolve});const retry=page.openAlbumPhoto(photoEvent);
+    if(changed==="hide")page.onHide();if(changed==="couple")state.couple.id="new-pair";if(changed==="account")state.profile.id="other";if(changed==="session")service.hasSession=()=>false;
+    finish([{...old,source:"https://cos/new",original:"https://cos/new"}]);await retry;
+    assert.equal(page.data.albumColumns[0][0].path,"https://cos/old",changed);assert.equal(page.data.albumColumns[0][0].error,true,changed);
+  }
 });

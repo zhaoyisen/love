@@ -233,3 +233,5 @@
     transform: none;
   }
 }
+.recap-heading { display: flex; align-items: flex-start; gap: 16px; }
+.recap-heading .recap-intro { flex: 1; min-width: 0; }

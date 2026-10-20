@@ -1,0 +1,9 @@
+{
+  "date": "2026-10-13",
+  "framework": "native WeChat Mini Program",
+  "designSystem": "DESIGN.md",
+  "font": "native Chinese system sans-serif",
+  "tokens": "miniprogram/styles/tokens.wxss",
+  "motion": "CSS transform and opacity, no added dependencies",
+  "scope": "homepage"
+}

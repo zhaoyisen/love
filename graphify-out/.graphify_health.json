@@ -1,0 +1,209 @@
+{
+  "node_count": 2160,
+  "unverified_node_count": 0,
+  "raw_edge_count": 6574,
+  "non_object_edges": 0,
+  "missing_endpoint_edges": 0,
+  "dangling_endpoint_edges": 601,
+  "external_reference_edges": 6,
+  "self_loop_edges": 16,
+  "valid_candidate_edges": 5967,
+  "exact_duplicate_edges": 0,
+  "directed_unique_endpoint_pairs": 5685,
+  "directed_same_endpoint_collapsed_edges": 282,
+  "undirected_unique_endpoint_pairs": 5662,
+  "undirected_same_endpoint_collapsed_edges": 305,
+  "same_endpoint_group_count": 274,
+  "relation_variant_groups": 96,
+  "source_file_variant_groups": 0,
+  "source_location_variant_groups": 38,
+  "context_variant_groups": 142,
+  "post_build_graph_type": "Graph",
+  "post_build_node_count": 2270,
+  "post_build_edge_count": 6254,
+  "post_build_error": "",
+  "producer_suppression": {
+    "path": "D:\\Scoop\\persist\\uv\\tools\\versions\\graphifyy\\Lib\\site-packages\\graphify\\extract.py",
+    "total_sites": 12,
+    "sites": [
+      {
+        "line": 1764,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids = {n[\"id\"] for n in nodes}"
+      },
+      {
+        "line": 2328,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids = {n[\"id\"] for n in nodes}"
+      },
+      {
+        "line": 2330,
+        "name": "seen_doc_refs",
+        "tuple_arity": 0,
+        "sample": "seen_doc_refs: set[str] = set()"
+      },
+      {
+        "line": 2808,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = {n[\"id\"] for n in nodes}"
+      },
+      {
+        "line": 2955,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids = {n.get(\"id\") for n in nodes}"
+      },
+      {
+        "line": 3807,
+        "name": "seen_keys",
+        "tuple_arity": 0,
+        "sample": "seen_keys: set[tuple] = set()"
+      },
+      {
+        "line": 3980,
+        "name": "seen_keys",
+        "tuple_arity": 0,
+        "sample": "seen_keys: set[tuple] = set()"
+      },
+      {
+        "line": 6385,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 6493,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 6572,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 7087,
+        "name": "seen_ids",
+        "tuple_arity": 0,
+        "sample": "seen_ids: set[str] = set()"
+      },
+      {
+        "line": 7088,
+        "name": "seen_edges",
+        "tuple_arity": 4,
+        "sample": "seen_edges: set[tuple[str, str, str, str | None]] = set()"
+      }
+    ],
+    "error": ""
+  },
+  "examples": [
+    {
+      "source": "miniprogram_vendor_cos_wx_sdk_v5_min",
+      "target": "miniprogram_vendor_cos_wx_sdk_v5_min_i",
+      "edge_count": 3,
+      "relations": [
+        "calls",
+        "contains",
+        "indirect_call"
+      ],
+      "source_files": [
+        "miniprogram/vendor/cos-wx-sdk-v5.min.js"
+      ],
+      "source_locations": [
+        "L1"
+      ],
+      "contexts": [
+        "",
+        "argument",
+        "call"
+      ]
+    },
+    {
+      "source": "miniprogram_vendor_cos_wx_sdk_v5_min_i_b",
+      "target": "miniprogram_vendor_cos_wx_sdk_v5_min_i_b_a",
+      "edge_count": 3,
+      "relations": [
+        "calls",
+        "contains",
+        "indirect_call"
+      ],
+      "source_files": [
+        "miniprogram/vendor/cos-wx-sdk-v5.min.js"
+      ],
+      "source_locations": [
+        "L1"
+      ],
+      "contexts": [
+        "",
+        "argument",
+        "call"
+      ]
+    },
+    {
+      "source": "miniprogram_vendor_cos_wx_sdk_v5_min_i",
+      "target": "miniprogram_vendor_cos_wx_sdk_v5_min_i_o",
+      "edge_count": 3,
+      "relations": [
+        "calls",
+        "contains",
+        "indirect_call"
+      ],
+      "source_files": [
+        "miniprogram/vendor/cos-wx-sdk-v5.min.js"
+      ],
+      "source_locations": [
+        "L1"
+      ],
+      "contexts": [
+        "",
+        "argument",
+        "call"
+      ]
+    },
+    {
+      "source": "server_src_main_java_com_lovenotes_server_auth_inmemorysessiontokenstore_inmemorysessiontokenstore",
+      "target": "server_src_main_java_com_lovenotes_server_auth_inmemorysessiontokenstore_entry",
+      "edge_count": 3,
+      "relations": [
+        "contains",
+        "references"
+      ],
+      "source_files": [
+        "server/src/main/java/com/lovenotes/server/auth/InMemorySessionTokenStore.java"
+      ],
+      "source_locations": [
+        "L13",
+        "L14",
+        "L25"
+      ],
+      "contexts": [
+        "",
+        "generic_arg"
+      ]
+    },
+    {
+      "source": "server_src_main_java_com_lovenotes_server_domain_appmessageentity_appmessageentity",
+      "target": "server_src_main_java_com_lovenotes_server_domain_appmessageentity_appmessageentity_appmessageentity",
+      "edge_count": 3,
+      "relations": [
+        "method"
+      ],
+      "source_files": [
+        "server/src/main/java/com/lovenotes/server/domain/AppMessageEntity.java"
+      ],
+      "source_locations": [
+        "L50",
+        "L52",
+        "L57"
+      ],
+      "contexts": [
+        ""
+      ]
+    }
+  ]
+}

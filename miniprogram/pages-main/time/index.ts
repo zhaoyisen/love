@@ -31,11 +31,12 @@ Page({
     }
     this.refresh();
   },
-  onHide() { this.visible = false; clearTimeout(this.mediaPollTimer); },
-  onUnload() { this.visible = false; clearTimeout(this.mediaPollTimer); },
+  onHide() { this.visible = false; this.rangeRequestId++; clearTimeout(this.mediaPollTimer); },
+  onUnload() { this.onHide(); },
   onPullDownRefresh() { this.refresh(); },
   onReachBottom() { this.loadMore(); },
   async refresh() {
+    this.rangeRequestId++;
     this.setData({ loading: true, error: "" });
     try {
       const timeline = await appService.refresh();
@@ -62,6 +63,7 @@ Page({
   },
   async loadMore() {
     if (!appService.isRemote || !this.data.hasMore || this.data.loadingMore) return;
+    this.rangeRequestId++;
     this.setData({ loadingMore: true });
     try {
       const page = await appService.timelinePage(this.data.timelineFrom, this.data.timelineTo, 50, this.data.nextCursor);
@@ -72,7 +74,7 @@ Page({
       this.render();
     } catch (error) {
       if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "更多记录加载失败"), icon: "none" });
-    } finally { this.setData({ loadingMore: false }); }
+    } finally { this.setData({ loadingMore: false }); this.scheduleMediaRefresh(); }
   },
   timelineRange() {
     const now = new Date();
@@ -116,14 +118,38 @@ Page({
   },
   scheduleMediaRefresh() {
     clearTimeout(this.mediaPollTimer);
-    const pending = this.remoteMoments.some((moment: any) => moment.status === "UPLOADING"
+    const pending = this.remoteMoments.filter((moment: any) => moment.status === "UPLOADING"
       || (moment.status === "PUBLISHED" && moment.mediaType === "VIDEO" && moment.media?.some((media: any) => media.status === "READY" && !media.thumbnailPath)));
-    if (!this.visible || !appService.isRemote || !appService.hasSession() || !pending || this.mediaPollCount >= 12) return;
+    if (!this.visible || !appService.isRemote || !appService.hasSession() || !pending.length || this.mediaPollCount >= 12) return;
     this.mediaPollTimer = setTimeout(async () => {
       if (!this.visible) return;
       if (this.data.loading || this.data.loadingMore) { this.scheduleMediaRefresh(); return; }
       this.mediaPollCount++;
-      try { await this.reloadTimelineRange(); } catch (_) { /* 后台同步失败仍保留当前记录，用户可下拉重试。 */ }
+      const requestId = this.rangeRequestId, state = store.getState();
+      const owner = state.profile.id, coupleId = state.couple.id, status = state.couple.status;
+      const current = () => this.visible && requestId === this.rangeRequestId && appService.hasSession()
+        && owner === store.getState().profile.id && coupleId === store.getState().couple.id && status === store.getState().couple.status;
+      for (const item of pending) {
+        if (!current()) return;
+        try {
+          const moment = await appService.detail(item.id);
+          if (!current()) return;
+          if (!moment || !this.remoteMoments.includes(item)) continue;
+          this.remoteMoments = this.remoteMoments.map(value => value.id === moment.id ? moment : value);
+          const index = this.data.moments.findIndex(value => value.id === moment.id);
+          if (moment.status === "DELETED" || moment.occurredAt !== item.occurredAt || moment.mood !== item.mood) this.render();
+          else if (index >= 0) this.setData({ [`moments[${index}]`]: moment });
+        } catch (error: any) {
+          if (!current()) return;
+          if (["RESOURCE_FORBIDDEN", "RESOURCE_NOT_FOUND"].includes(error?.code)) {
+            store.removeRemoteMoment(item.id);
+            this.remoteMoments = this.remoteMoments.filter(value => value.id !== item.id);
+            this.render();
+            await this.refresh(); return;
+          }
+          // 后台同步失败仍保留当前记录，用户可下拉重试。
+        }
+      }
       this.scheduleMediaRefresh();
     }, 5000);
   },

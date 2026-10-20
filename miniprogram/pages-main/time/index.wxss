@@ -134,16 +134,12 @@ page {
 }
 
 .memory-toolbar {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-sticky);
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   width: auto;
-  margin: var(--space-lg) calc(0rpx - var(--page-gutter)) 0;
-  padding: var(--space-sm) var(--page-gutter);
-  background: var(--color-paper);
+  margin: var(--space-sm) 0 var(--space-lg);
+  padding: 0;
 }
 
 .memory-tabs {
@@ -258,6 +254,7 @@ page {
 .time-page .chip {
   display: inline-flex;
   width: auto;
+  min-width: var(--touch-target);
   padding: 0 var(--space-md);
   font-size: var(--text-meta);
   line-height: 1;

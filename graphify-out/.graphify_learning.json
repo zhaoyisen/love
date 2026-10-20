@@ -1,0 +1,387 @@
+{
+  "generated_at": "2026-10-16T07:03:29.981557+00:00",
+  "nodes": {
+    "docs____________production_launch_main_manual": {
+      "code_fingerprint": "1cd70201e0765aae956f245c4ce3cd4f099a37272c94cf944b5d29d7703b3b5a",
+      "label": "Production Launch Main Manual",
+      "last": "2026-10-13T06:00:58.345005+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-13T06:00:58.345005+00:00",
+          "outcome": "useful",
+          "q": "提交正式的环境应该怎么配置？"
+        }
+      ],
+      "score": 0.932097391,
+      "source_file": "docs/生产上线唯一操作手册.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "docs____________single_host_docker_database_route": {
+      "code_fingerprint": "1cd70201e0765aae956f245c4ce3cd4f099a37272c94cf944b5d29d7703b3b5a",
+      "label": "Single Host Docker Database Route",
+      "last": "2026-10-15T03:39:49.867235+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T03:39:49.867235+00:00",
+          "outcome": "useful",
+          "q": "我的cos好像欠费了，之前也没买明白过，不知道用了哪些在线服务，请帮我整理以下。"
+        }
+      ],
+      "score": 0.973971941,
+      "source_file": "docs/生产上线唯一操作手册.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "miniprogram_core_api_config": {
+      "code_fingerprint": "2874c45fedc69e0dac08334dd86aa1477b0c9ff7911ec3729737c09379aedadc",
+      "label": "api-config.ts",
+      "last": "2026-10-13T06:00:58.345005+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-13T06:00:58.345005+00:00",
+          "outcome": "useful",
+          "q": "提交正式的环境应该怎么配置？"
+        },
+        {
+          "date": "2026-10-13T05:57:05.958706+00:00",
+          "outcome": "useful",
+          "q": "在哪里配置后端接口地址？"
+        }
+      ],
+      "score": 1.86413686,
+      "source_file": "miniprogram/core/api-config.ts",
+      "status": "preferred",
+      "uses": 2
+    },
+    "miniprogram_core_api_config_api_config": {
+      "code_fingerprint": "2874c45fedc69e0dac08334dd86aa1477b0c9ff7911ec3729737c09379aedadc",
+      "label": "API_CONFIG",
+      "last": "2026-10-15T03:39:49.867235+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T03:39:49.867235+00:00",
+          "outcome": "useful",
+          "q": "我的cos好像欠费了，之前也没买明白过，不知道用了哪些在线服务，请帮我整理以下。"
+        },
+        {
+          "date": "2026-10-13T06:00:58.345005+00:00",
+          "outcome": "useful",
+          "q": "提交正式的环境应该怎么配置？"
+        },
+        {
+          "date": "2026-10-13T05:57:05.958706+00:00",
+          "outcome": "useful",
+          "q": "在哪里配置后端接口地址？"
+        }
+      ],
+      "score": 2.838108801,
+      "source_file": "miniprogram/core/api-config.ts",
+      "status": "preferred",
+      "uses": 3
+    },
+    "miniprogram_services_auth_service": {
+      "code_fingerprint": "fc852a7cbabaf4d2668ac3ff7028ba4de12e51fedff2f481e1f62bf1bd3afa2d",
+      "label": "auth-service.ts",
+      "last": "2026-10-13T06:00:58.345005+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-13T06:00:58.345005+00:00",
+          "outcome": "useful",
+          "q": "提交正式的环境应该怎么配置？"
+        },
+        {
+          "date": "2026-10-13T05:57:05.958706+00:00",
+          "outcome": "useful",
+          "q": "在哪里配置后端接口地址？"
+        }
+      ],
+      "score": 1.86413686,
+      "source_file": "miniprogram/services/auth-service.ts",
+      "status": "preferred",
+      "uses": 2
+    },
+    "miniprogram_services_media_service": {
+      "code_fingerprint": "7c8e78942d10d830f2c2c224eb7496bd7cedaee78a201aca279f199dadf51db4",
+      "label": "media-service.ts",
+      "last": "2026-10-15T02:32:37.023956+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T02:32:37.023956+00:00",
+          "outcome": "useful",
+          "q": "我只能用腾讯的oss吗？能不能自己搭建一个自己的存储？"
+        }
+      ],
+      "score": 0.972922123,
+      "source_file": "miniprogram/services/media-service.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "miniprogram_services_readme_separate_mock_and_remote_cache": {
+      "code_fingerprint": "7c42792f9fa9ab7b81ea7f1b14dcc343e3273f5306ff49fe055bed051001651d",
+      "label": "Separate Mock And Remote Cache",
+      "last": "2026-10-15T02:35:27.975780+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T02:35:27.975780+00:00",
+          "outcome": "useful",
+          "q": "那用cos能解决加载慢的问题吗？"
+        },
+        {
+          "date": "2026-10-13T06:47:38.187629+00:00",
+          "outcome": "useful",
+          "q": "核实并解决：视频封面没有并且加载缓慢；图片和视频封面缺少缓存，打开小程序应快速加载。"
+        }
+      ],
+      "score": 1.905762142,
+      "source_file": "miniprogram/services/README.md",
+      "status": "preferred",
+      "uses": 2
+    },
+    "miniprogram_services_request": {
+      "code_fingerprint": "a5c76966c895c0ed4f7741c5062ba4c4b0dc6fc53952ebd4a95f2bf5e78dc8bf",
+      "label": "request.ts",
+      "last": "2026-10-13T05:57:05.958706+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-13T05:57:05.958706+00:00",
+          "outcome": "useful",
+          "q": "在哪里配置后端接口地址？"
+        }
+      ],
+      "score": 0.932039468,
+      "source_file": "miniprogram/services/request.ts",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_compliance_accountdeletionprocessingservice_accountdeletionprocessingservice": {
+      "code_fingerprint": "e69e141f7fadd028649046dcbde847f3ec599e24fd21ab7d6f0757c3546df59f",
+      "label": "AccountDeletionProcessingService",
+      "last": "2026-10-15T07:51:10.394368+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T07:51:10.394368+00:00",
+          "outcome": "useful",
+          "q": "另外，之前我跟我女朋友分手了，她就解除了关系，不知道是注销还是解除的关系，现在我们和好又重新建立了关系，我就看不到之前她发的东西了。补充：她也看不到旧记录；没切换数据库。"
+        }
+      ],
+      "score": 0.977907709,
+      "source_file": "server/src/main/java/com/lovenotes/server/compliance/AccountDeletionProcessingService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_couple_coupleservice_coupleservice": {
+      "code_fingerprint": "bdb4d7be14c5a2c09f0533819b7ddb19834579ec0f23aa746b59702471b942cb",
+      "label": "CoupleService",
+      "last": "2026-10-15T07:51:10.394368+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T07:51:10.394368+00:00",
+          "outcome": "useful",
+          "q": "另外，之前我跟我女朋友分手了，她就解除了关系，不知道是注销还是解除的关系，现在我们和好又重新建立了关系，我就看不到之前她发的东西了。补充：她也看不到旧记录；没切换数据库。"
+        }
+      ],
+      "score": 0.977907709,
+      "source_file": "server/src/main/java/com/lovenotes/server/couple/CoupleService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_domain_userentity_userentity": {
+      "code_fingerprint": "a1b04047b4aa8422e9892a416e021dd63731a450c197522015caae85920a39b5",
+      "label": "UserEntity",
+      "last": "2026-10-15T07:51:10.394368+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T07:51:10.394368+00:00",
+          "outcome": "useful",
+          "q": "另外，之前我跟我女朋友分手了，她就解除了关系，不知道是注销还是解除的关系，现在我们和好又重新建立了关系，我就看不到之前她发的东西了。补充：她也看不到旧记录；没切换数据库。"
+        }
+      ],
+      "score": 0.977907709,
+      "source_file": "server/src/main/java/com/lovenotes/server/domain/UserEntity.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_media_mediaprocessingservice_mediaprocessingservice": {
+      "code_fingerprint": "df78fc75efa2181534386ceb1aa2e5000e75f909efcc0d3f3474a9b93cc3bf62",
+      "label": "MediaProcessingService",
+      "last": "2026-10-13T06:47:38.187629+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-13T06:47:38.187629+00:00",
+          "outcome": "useful",
+          "q": "核实并解决：视频封面没有并且加载缓慢；图片和视频封面缺少缓存，打开小程序应快速加载。"
+        }
+      ],
+      "score": 0.93279554,
+      "source_file": "server/src/main/java/com/lovenotes/server/media/MediaProcessingService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_media_mediaservice_mediaservice": {
+      "code_fingerprint": "15f8ffae8637aeabe9e54e429c0cf385e77035466066a0a4434d7a51b039feac",
+      "label": "MediaService",
+      "last": "2026-10-13T06:47:38.187629+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-13T06:47:38.187629+00:00",
+          "outcome": "useful",
+          "q": "核实并解决：视频封面没有并且加载缓慢；图片和视频封面缺少缓存，打开小程序应快速加载。"
+        }
+      ],
+      "score": 0.93279554,
+      "source_file": "server/src/main/java/com/lovenotes/server/media/MediaService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_media_mediaservice_mediaservice_thumbnailurlifready": {
+      "code_fingerprint": "15f8ffae8637aeabe9e54e429c0cf385e77035466066a0a4434d7a51b039feac",
+      "label": ".thumbnailUrlIfReady()",
+      "last": "2026-10-15T02:35:27.975780+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T02:35:27.975780+00:00",
+          "outcome": "useful",
+          "q": "那用cos能解决加载慢的问题吗？"
+        }
+      ],
+      "score": 0.972966602,
+      "source_file": "server/src/main/java/com/lovenotes/server/media/MediaService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_message_messageservice_messageservice": {
+      "code_fingerprint": "d0b5aaee28f9e76785dcb882c456a6d1be3d30fb8dd9ad093bc0f1c0c7c8ba27",
+      "label": "MessageService",
+      "last": "2026-10-15T07:51:10.394368+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T07:51:10.394368+00:00",
+          "outcome": "useful",
+          "q": "另外，之前我跟我女朋友分手了，她就解除了关系，不知道是注销还是解除的关系，现在我们和好又重新建立了关系，我就看不到之前她发的东西了。补充：她也看不到旧记录；没切换数据库。"
+        }
+      ],
+      "score": 0.977907709,
+      "source_file": "server/src/main/java/com/lovenotes/server/message/MessageService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_moment_momentservice_momentservice": {
+      "code_fingerprint": "a8045af822e4acc63d583fc895170fcc28d20b2c368c1ebdde60c1458fd46435",
+      "label": "MomentService",
+      "last": "2026-10-15T07:51:10.394368+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T07:51:10.394368+00:00",
+          "outcome": "useful",
+          "q": "另外，之前我跟我女朋友分手了，她就解除了关系，不知道是注销还是解除的关系，现在我们和好又重新建立了关系，我就看不到之前她发的东西了。补充：她也看不到旧记录；没切换数据库。"
+        }
+      ],
+      "score": 0.977907709,
+      "source_file": "server/src/main/java/com/lovenotes/server/moment/MomentService.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_storage_cosobjectstorage": {
+      "code_fingerprint": "c9b86a8d7b6d3ba30e9c8de45f2860f993d708021b43f1dcd1933d27583a2dfb",
+      "label": "CosObjectStorage.java",
+      "last": "2026-10-13T06:47:38.187629+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-13T06:47:38.187629+00:00",
+          "outcome": "useful",
+          "q": "核实并解决：视频封面没有并且加载缓慢；图片和视频封面缺少缓存，打开小程序应快速加载。"
+        }
+      ],
+      "score": 0.93279554,
+      "source_file": "server/src/main/java/com/lovenotes/server/storage/CosObjectStorage.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_storage_cosobjectstorage_cosobjectstorage": {
+      "code_fingerprint": "c9b86a8d7b6d3ba30e9c8de45f2860f993d708021b43f1dcd1933d27583a2dfb",
+      "label": "CosObjectStorage",
+      "last": "2026-10-15T03:39:49.867235+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T03:39:49.867235+00:00",
+          "outcome": "useful",
+          "q": "我的cos好像欠费了，之前也没买明白过，不知道用了哪些在线服务，请帮我整理以下。"
+        },
+        {
+          "date": "2026-10-15T02:37:35.219106+00:00",
+          "outcome": "useful",
+          "q": "你说的 LocalObjectStorage 这啥问题？"
+        },
+        {
+          "date": "2026-10-15T02:35:27.975780+00:00",
+          "outcome": "useful",
+          "q": "那用cos能解决加载慢的问题吗？"
+        },
+        {
+          "date": "2026-10-15T02:32:37.023956+00:00",
+          "outcome": "useful",
+          "q": "我只能用腾讯的oss吗？能不能自己搭建一个自己的存储？"
+        }
+      ],
+      "score": 3.892860377,
+      "source_file": "server/src/main/java/com/lovenotes/server/storage/CosObjectStorage.java",
+      "status": "preferred",
+      "uses": 4
+    },
+    "server_src_main_java_com_lovenotes_server_storage_localobjectstorage": {
+      "code_fingerprint": "3f5b963e1fb0d551099569871134b2b465a7ab7a5945d8964f4a1f199cad0d5c",
+      "label": "LocalObjectStorage.java",
+      "last": "2026-10-15T02:37:35.219106+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T02:37:35.219106+00:00",
+          "outcome": "useful",
+          "q": "你说的 LocalObjectStorage 这啥问题？"
+        }
+      ],
+      "score": 0.97299971,
+      "source_file": "server/src/main/java/com/lovenotes/server/storage/LocalObjectStorage.java",
+      "status": "tentative",
+      "uses": 1
+    },
+    "server_src_main_java_com_lovenotes_server_storage_localobjectstorage_localobjectstorage": {
+      "code_fingerprint": "3f5b963e1fb0d551099569871134b2b465a7ab7a5945d8964f4a1f199cad0d5c",
+      "label": "LocalObjectStorage",
+      "last": "2026-10-15T02:37:35.219106+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T02:37:35.219106+00:00",
+          "outcome": "useful",
+          "q": "你说的 LocalObjectStorage 这啥问题？"
+        },
+        {
+          "date": "2026-10-15T02:32:37.023956+00:00",
+          "outcome": "useful",
+          "q": "我只能用腾讯的oss吗？能不能自己搭建一个自己的存储？"
+        }
+      ],
+      "score": 1.945921833,
+      "source_file": "server/src/main/java/com/lovenotes/server/storage/LocalObjectStorage.java",
+      "status": "preferred",
+      "uses": 2
+    },
+    "server_src_main_java_com_lovenotes_server_storage_objectstorage_objectstorage": {
+      "code_fingerprint": "0fe91b99d45f14377ce56e6455939636e96ae714114cdc837baa5aa1297b8645",
+      "label": "ObjectStorage",
+      "last": "2026-10-15T02:32:37.023956+00:00",
+      "provenance": [
+        {
+          "date": "2026-10-15T02:32:37.023956+00:00",
+          "outcome": "useful",
+          "q": "我只能用腾讯的oss吗？能不能自己搭建一个自己的存储？"
+        }
+      ],
+      "score": 0.972922123,
+      "source_file": "server/src/main/java/com/lovenotes/server/storage/ObjectStorage.java",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
+  "version": 1
+}

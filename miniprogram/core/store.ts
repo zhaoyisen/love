@@ -235,6 +235,16 @@ class LoveNotesStore {
     });
   }
 
+  removeRemoteMoment(id: string) {
+    const owner = this.state.profile.id || "";
+    this.getMoment(id)?.media.forEach(media => {
+      for (const url of [media.path, media.thumbnailPath]) {
+        if (url) mediaCache.forget(owner, media.assetId || media.id, url);
+      }
+    });
+    this.update(state => { state.moments = state.moments.filter(moment => moment.id !== id); });
+  }
+
   publishRemoteDraft(draftId: string, moment: Moment) {
     this.update((state) => {
       state.moments = [moment, ...state.moments.filter((item) => item.id !== moment.id)];

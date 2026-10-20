@@ -46,7 +46,7 @@ page { background: var(--color-home-paper); }
 .skeleton-photo--portrait { padding-bottom: var(--album-portrait); }
 .relationship-skeleton > text { display: block; margin-top: var(--space-sm); color: var(--color-ink-secondary); font-size: var(--text-meta); line-height: var(--line-meta); }
 
-.relationship-summary { margin-top: var(--album-section-gap); }
+.relationship-summary { margin-top: 0; margin-bottom: var(--album-section-gap); }
 .relationship-people { display: flex; align-items: center; flex: 0 0 auto; gap: var(--space-3xs); }
 .person-avatar, .preview-avatar { display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--radius-round); color: var(--color-accent-strong); background: var(--color-accent-soft); font-size: var(--text-meta); font-weight: var(--weight-medium); }
 .person-avatar { flex: 0 0 auto; width: var(--home-avatar-size); height: var(--home-avatar-size); }

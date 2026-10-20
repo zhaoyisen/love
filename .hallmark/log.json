@@ -1,0 +1,51 @@
+[
+  {
+    "date": "2026-10-19",
+    "scope": "main-pages-and-settings",
+    "macrostructure": "Compact primary pages and separate grouped settings",
+    "theme": "DESIGN.md 清爽精致",
+    "enrichment": "existing user photos only",
+    "brief": "Relationship above album, pet beside inbox, inbox on four main tabs only, time controls inside filter, and settings moved to a dedicated page with existing flows preserved."
+  },
+  {
+    "date": "2026-10-15",
+    "scope": "moment-detail-page",
+    "macrostructure": "Compact photo-led reading with fixed short-comment composer",
+    "theme": "DESIGN.md 清爽精致",
+    "enrichment": "user media only",
+    "brief": "Short records fit one viewport; only the other viewer sees six reactions, comments appear when present, and existing management flows remain."
+  },
+  {
+    "date": "2026-10-14",
+    "scope": "mine-page",
+    "macrostructure": "Compact profile and grouped settings",
+    "theme": "DESIGN.md 清爽精致",
+    "enrichment": "none",
+    "brief": "Compact identity, preserved settings and copy, collapsed inline notification preferences, and opaque refined navigation."
+  },
+  {
+    "date": "2026-10-14",
+    "scope": "composer-page",
+    "macrostructure": "Same-page editor with four stages",
+    "theme": "DESIGN.md 清爽精致",
+    "studied": "WeChat Moments direct editing, public screenshot dated 2024-07-24",
+    "enrichment": "user photos only",
+    "brief": "Four stages, in-page photo layout, preview and publishing, with reserved footer and no outer page scrolling."
+  },
+  {
+    "date": "2026-10-14",
+    "scope": "couple-page",
+    "macrostructure": "Long Document (shared photo album)",
+    "theme": "DESIGN.md 清爽精致：共同相册",
+    "enrichment": "user photos only",
+    "brief": "Photo-led shared album with scroll-linked motion, compact relationship details, and preserved existing actions."
+  },
+  {
+    "date": "2026-10-13",
+    "scope": "homepage",
+    "macrostructure": "Long Document (photo-led timeline)",
+    "theme": "DESIGN.md 首页变体：清爽精致",
+    "enrichment": "user media only",
+    "brief": "Young couples browse each other's records with a clear, refined photo-led interface."
+  }
+]

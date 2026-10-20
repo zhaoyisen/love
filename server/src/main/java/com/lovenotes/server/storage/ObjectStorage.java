@@ -8,6 +8,7 @@ public interface ObjectStorage {
     UploadCredential issueUploadCredential(String storageKey, Duration ttl);
     ObjectInfo stat(String storageKey, long expectedSize);
     String signedGetUrl(String storageKey, Duration ttl, String contentType);
+    String signedVideoSnapshotUrl(String storageKey, Duration ttl);
     boolean requiresProcessing();
     ProcessingResult process(DomainEnums.MediaKind kind, String storageKey, String jobId);
     Derivatives createDerivatives(DomainEnums.MediaKind kind, String storageKey);

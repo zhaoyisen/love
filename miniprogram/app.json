@@ -29,11 +29,12 @@
     },
     {
       "root": "pkg-profile",
-      "pages": ["edit/index", "delete-account/index", "agreement/index"]
+      "pages": ["edit/index", "settings/index", "delete-account/index", "agreement/index"]
     }
   ],
   "usingComponents": {
-    "privacy-consent": "/components/privacy-consent/index"
+    "privacy-consent": "/components/privacy-consent/index",
+    "main-actions": "/components/main-actions/index"
   },
   "window": {
     "navigationBarTitleText": "恋爱笔记",

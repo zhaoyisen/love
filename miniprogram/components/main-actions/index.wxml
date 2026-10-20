@@ -1,0 +1,4 @@
+<view class="home-refined main-actions">
+  <button wx:if="{{showPet}}" size="mini" class="action-button" bindtap="pet" aria-label="查看云宠物"><image src="/assets/icons/home/cat.png" mode="aspectFit" aria-hidden="true"></image></button>
+  <button size="mini" class="action-button message-action" bindtap="messages" aria-label="{{unread ? '打开消息，' + unread + ' 条未读' : '打开消息'}}"><image src="/assets/icons/home/mail.png" mode="aspectFit" aria-hidden="true"></image><text wx:if="{{unread}}" class="action-badge">{{unread > 99 ? '99+' : unread}}</text></button>
+</view>

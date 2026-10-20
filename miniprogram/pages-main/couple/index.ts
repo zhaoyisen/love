@@ -4,9 +4,9 @@ import { mediaCache } from "../../core/media-cache";
 import type { AlbumPhoto } from "../../core/types";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
 Page({
-  data: { couple: {} as any, pet: {} as any, unread: 0, sharedCount: 0, days: 0, myInitial: "我", myAvatarUrl: "", partnerInitial: "TA", partnerAvatarUrl: "", loading: false, loaded: false, error: "", isRemote: appService.isRemote, editing: false, editName: "", editAnniversary: "", savingProfile: false,
+  data: { couple: {} as any, unread: 0, days: 0, myInitial: "我", myAvatarUrl: "", partnerInitial: "TA", partnerAvatarUrl: "", loading: false, loaded: false, error: "", isRemote: appService.isRemote,
     albumColumns: [[], []] as any[][], albumCount: 0, albumOffset: 0, albumLoading: false, albumOwner: "",
-    albumUploading: false, albumUploadText: "上传照片", albumPending: 0, albumFailed: 0, myAvatarError: false, partnerAvatarError: false },
+    albumUploading: false, albumUploadText: "上传照片", albumPending: 0, albumFailed: 0, albumRetrying: false, myAvatarError: false, partnerAvatarError: false },
   requestId: 0,
   albumScope: "",
   remoteAlbum: [] as any[],
@@ -20,7 +20,7 @@ Page({
     clearTimeout(this.albumTimer);
     const requestId = ++this.requestId;
     const tab = this.getTabBar && this.getTabBar(); if (tab) tab.setData({ selected: 1 });
-    this.setData({ loading: true, error: "" });
+    this.setData({ loading: true, error: "", albumRetrying: false });
     this.render();
     if (this.data.albumCount) this.setData({ loaded: true });
     try {
@@ -73,9 +73,8 @@ Page({
       albumCount: photos.length, albumOwner: owner,
       albumPending: state.couple.status === "PAIRED" ? allowedUploads.filter(photo => photo.status === "PROCESSING").length : 0,
       albumFailed: state.couple.status === "PAIRED" ? allowedUploads.filter(photo => photo.status === "FAILED" || photo.status === "BLOCKED").length : 0,
-      couple: state.couple, pet: state.pet,
+      couple: state.couple,
       unread: state.messages.filter((item) => !item.read).length,
-      sharedCount: state.moments.filter((item) => item.visibility === "SHARED" && item.status !== "DELETED").length,
       days: this.daysSince(state.couple.anniversary),
       myInitial: (state.profile.name || "我").slice(0, 1),
       myAvatarError: this.data.myAvatarUrl === (state.profile.avatarUrl || "") && this.data.myAvatarError,
@@ -93,10 +92,8 @@ Page({
     const photo = this.albumPhoto(event);
     if (!photo || photo.path !== photo.source || !appService.hasSession() || this.data.albumOwner !== store.getState().profile.id
       || this.albumScope !== this.currentAlbumScope()) return;
-    const path = await mediaCache.remember(this.data.albumOwner, photo.assetId, photo.source, photo.author === "TA");
-    if (!this.albumVisible || this.albumScope !== this.currentAlbumScope() || typeof path !== "string" || path === photo.source) return;
-    const { column, index } = event.currentTarget.dataset;
-    if (this.albumPhoto(event)?.assetId === photo.assetId) this.setData({ [`albumColumns[${column}][${index}].path`]: path });
+    // 缓存供下次进入使用，当前已经显示的图片不切换 src。
+    await mediaCache.remember(this.data.albumOwner, photo.assetId, photo.source, photo.author === "TA");
   },
   albumPhotoError(event: any) {
     const photo = this.albumPhoto(event);
@@ -115,7 +112,22 @@ Page({
     if (!photo || store.getState().couple.status !== "PAIRED"
       || (appService.isRemote && (!appService.hasSession() || !store.getState().loggedIn || this.albumScope !== this.currentAlbumScope()))) return;
     if (photo.momentId) wx.navigateTo({ url: `/pkg-moment/detail/index?id=${encodeURIComponent(photo.momentId)}` });
+    else if (photo.error) return this.retryAlbumPhoto();
     else this.previewAlbum(photo.original);
+  },
+  async retryAlbumPhoto() {
+    if (this.data.albumRetrying || !this.albumVisible) return;
+    const requestId = this.requestId, scope = this.currentAlbumScope();
+    const current = () => this.albumVisible && requestId === this.requestId && scope === this.currentAlbumScope();
+    this.setData({ albumRetrying: true, error: "" });
+    try {
+      const photos = await appService.albumPhotos();
+      if (!current()) return;
+      if (appService.isRemote && (!appService.hasSession() || !store.getState().loggedIn)) { redirectExpiredSession(); return; }
+      this.remotePhotos = photos; this.albumScope = scope; this.render(); this.scheduleAlbumRefresh();
+    } catch (error) {
+      if (!redirectExpiredSession() && current()) this.setData({ error: userError(error, "照片地址没有刷新成功，请稍后重试。") });
+    } finally { if (current()) this.setData({ albumRetrying: false }); }
   },
   previewAlbum(current?: string) {
     const state = store.getState();
@@ -166,29 +178,5 @@ Page({
   retry() { this.onShow(); },
   daysSince(value: string) { if (!value) return 0; return Math.max(1, Math.floor((Date.now() - new Date(`${value}T00:00:00+08:00`).getTime()) / 86400000)); },
   invite() { wx.navigateTo({ url: "/pkg-couple/invite/index" }); },
-  messages() { wx.navigateTo({ url: "/pkg-couple/messages/index" }); },
-  pet() { wx.navigateTo({ url: "/pkg-pet/detail/index" }); },
-  settings() { wx.switchTab({ url: "/pages-main/mine/index" }); },
   privacy() { wx.navigateTo({ url: "/pkg-couple/privacy/index" }); },
-  openProfileEditor() {
-    const couple = store.getState().couple;
-    this.setData({ editing: true, editName: couple.relationshipName || "我们的空间", editAnniversary: couple.anniversary || "" });
-  },
-  closeProfileEditor() { if (!this.data.savingProfile) this.setData({ editing: false }); },
-  nameInput(event: any) { this.setData({ editName: event.detail.value }); },
-  anniversaryChange(event: any) { this.setData({ editAnniversary: event.detail.value }); },
-  clearAnniversary() { this.setData({ editAnniversary: "" }); },
-  async saveProfile() {
-    if (this.data.savingProfile) return;
-    const name = String(this.data.editName || "").trim();
-    if (!name) { wx.showToast({ title: "请填写你们的关系昵称", icon: "none" }); return; }
-    this.setData({ savingProfile: true });
-    try {
-      await appService.updateCoupleProfile(name, this.data.editAnniversary || null);
-      this.render(); this.setData({ editing: false });
-    } catch (error: any) {
-      if (error?.code === "VERSION_CONFLICT") { await appService.refresh(); this.render(); }
-      if (!redirectExpiredSession()) wx.showToast({ title: userError(error, "保存失败，请稍后重试。"), icon: "none" });
-    } finally { this.setData({ savingProfile: false }); }
-  }
 });

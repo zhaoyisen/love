@@ -1,8 +1,8 @@
 <view class="page recap-page">
-  <view class="recap-intro">
+  <view class="recap-heading"><view class="recap-intro">
     <text class="recap-title">回看共同留下的日子</text>
     <text class="recap-note">从共同可见的记录里选出片段，整理成一份只属于你们的年度回顾。</text>
-  </view>
+  </view><main-actions unread="{{unread}}"></main-actions></view>
 
   <view wx:if="{{loading && recap.year}}" class="sync-status" aria-live="polite">
     <view class="sync-dot"></view>

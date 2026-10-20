@@ -1,0 +1,95 @@
+<view class="home-refined settings-page">
+  <view wx:if="{{error}}" class="settings-error" role="alert"><text>{{error}}</text><button size="mini" bindtap="retry">重试</button></view>
+  <view wx:if="{{loading && loaded}}" class="sync-status" role="status"><view></view><text>正在同步个人资料，已保存的设置仍可查看</text></view>
+  <view wx:if="{{!loaded}}" class="settings-loading" role="status"><view class="loading-indicator"></view><text>正在读取你的身份与设置</text></view>
+  <block wx:else>
+    <view class="setting-group profile-settings"><view class="index-list">
+      <button size="mini" class="index-row press" bindtap="edit"><image class="row-icon" src="/assets/icons/home/user-round.png" mode="aspectFit"></image><text class="row-title">个人资料</text><text class="row-value">{{state.profile.name}}</text><text class="row-arrow">›</text></button>
+      <button size="mini" wx:if="{{state.couple.status === 'PAIRED'}}" class="index-row press" bindtap="openProfileEditor" aria-expanded="{{editing}}"><image class="row-icon" src="/assets/icons/home/users.png" mode="aspectFit"></image><text class="row-title">关系资料</text><text class="row-value">{{state.couple.relationshipName || '我们的空间'}}</text><text class="row-arrow">›</text></button>
+    </view></view>
+    <view wx:if="{{editing}}" class="relation-editor" aria-label="编辑关系资料">
+      <view class="editor-head">
+        <view>
+          <text class="editor-title">编辑关系资料</text>
+          <text class="editor-note">保存后会同步给对方</text>
+        </view>
+        <button size="mini" class="text-button" disabled="{{savingProfile}}" bindtap="closeProfileEditor">取消</button>
+      </view>
+
+      <view class="form-item">
+        <text class="form-label">关系昵称</text>
+        <input
+          class="input"
+          value="{{editName}}"
+          maxlength="40"
+          placeholder="例如：满屿之间"
+          disabled="{{savingProfile}}" aria-label="关系昵称"
+          bindinput="nameInput"
+        />
+        <text class="form-helper">用于标记你们共同的空间</text>
+      </view>
+
+      <view class="form-item">
+        <view class="form-label-row">
+          <text class="form-label">在一起的日期</text>
+          <text class="form-optional">可留空</text>
+        </view>
+        <picker class="date-control" disabled="{{savingProfile}}" mode="date" value="{{editAnniversary}}" bindchange="anniversaryChange">
+          <view class="date-picker press" role="button" aria-label="选择在一起的日期">
+            <text>{{editAnniversary || '选择日期'}}</text>
+            <text>更改</text>
+          </view>
+        </picker>
+        <view class="date-helper">
+          <text class="form-helper">用于计算在一起的天数</text>
+          <button size="mini" class="clear-date" disabled="{{!editAnniversary || savingProfile}}" bindtap="clearAnniversary">清空日期</button>
+        </view>
+      </view>
+
+      <button size="mini" class="primary-button press" loading="{{savingProfile}}" disabled="{{savingProfile}}" bindtap="saveProfile">
+        {{savingProfile ? '正在保存' : '保存资料'}}
+      </button>
+    </view>
+
+
+    <view class="privacy-promise"><image class="row-icon" src="/assets/icons/home/lock-keyhole.png" mode="aspectFit" aria-hidden="true"></image><view><text class="promise-title">分享由你决定</text><text class="promise-copy">每条记录都能确认可见范围，旧内容不会因为配对自动共享。</text></view></view>
+
+    <view class="setting-group">
+      <text class="group-title">隐私与记录</text>
+      <view class="index-list">
+        <button size="mini" class="index-row press" bindtap="privacy"><image class="row-icon" src="/assets/icons/home/eye.png" mode="aspectFit" aria-hidden="true"></image><text class="row-title">默认可见范围</text><text class="row-value">{{state.profile.defaultVisibility === 'PRIVATE' ? '仅自己可见' : '与另一半共同可见'}}</text><text class="row-arrow" aria-hidden="true">›</text></button>
+        <button size="mini" class="index-row press" bindtap="recycle"><image class="row-icon" src="/assets/icons/home/trash-2.png" mode="aspectFit" aria-hidden="true"></image><text class="row-title">回收站</text><text class="row-value">删除后保留 30 天</text><text class="row-arrow" aria-hidden="true">›</text></button>
+        <button size="mini" wx:if="{{!isRemote}}" class="index-row press" bindtap="recap"><image class="row-icon" src="/assets/icons/home/images.png" mode="aspectFit" aria-hidden="true"></image><view class="row-copy"><text class="row-title">年度回顾</text><text class="row-description">整理共同可见的时刻</text></view><text class="row-arrow" aria-hidden="true">›</text></button>
+      </view>
+    </view>
+
+    <view class="setting-group notice-group">
+      <view class="index-list">
+        <button size="mini" class="index-row notice-toggle press" aria-expanded="{{noticesOpen}}" aria-controls="notice-options" bindtap="toggleNotices"><image class="row-icon" src="/assets/icons/home/bell.png" mode="aspectFit" aria-hidden="true"></image><text class="row-title">应用内提醒</text><text class="row-value">已开启 {{noticeCount}} 项</text><text class="notice-chevron {{noticesOpen ? 'is-open' : ''}}" aria-hidden="true">⌄</text></button>
+        <view wx:if="{{noticesOpen}}" id="notice-options" class="notice-panel">
+          <!-- Native switch properties mirror the refined accent; they cannot consume WXSS variables. -->
+          <view class="switch-row"><text>新共享时刻</text><switch class="notice-switch" color="#A55469" checked="{{state.preferences.momentNotice}}" disabled="{{loading || savingPreference}}" data-key="momentNotice" aria-label="新共享时刻提醒" bindchange="toggle" /></view>
+          <view class="switch-row"><text>回应与短评</text><switch class="notice-switch" color="#A55469" checked="{{state.preferences.reactionNotice}}" disabled="{{loading || savingPreference}}" data-key="reactionNotice" aria-label="回应与短评提醒" bindchange="toggle" /></view>
+          <view class="switch-row"><text>云宠物互动</text><switch class="notice-switch" color="#A55469" checked="{{state.preferences.petNotice}}" disabled="{{loading || savingPreference}}" data-key="petNotice" aria-label="云宠物互动提醒" bindchange="toggle" /></view>
+          <view class="switch-row"><text>回顾生成完成</text><switch class="notice-switch" color="#A55469" checked="{{state.preferences.recapNotice}}" disabled="{{loading || savingPreference}}" data-key="recapNotice" aria-label="回顾生成完成提醒" bindchange="toggle" /></view>
+          <view class="notice-help"><text>只控制小程序内出现的信笺</text><text>{{isRemote ? '这些偏好会同步到你的账号。微信服务通知需要在模板配置完成后另行授权。' : '演示模式下，这些开关只保存在当前设备。'}}</text></view>
+        </view>
+      </view>
+    </view>
+
+    <view class="setting-group about-group" aria-label="关于">
+      <button size="mini" class="index-row press" bindtap="help"><image class="row-icon" src="/assets/icons/home/info.png" mode="aspectFit" aria-hidden="true"></image><text class="row-title">使用说明</text><text class="row-arrow" aria-hidden="true">›</text></button>
+      <button size="mini" class="index-row press" bindtap="about"><image class="row-icon" src="/assets/icons/home/info.png" mode="aspectFit" aria-hidden="true"></image><text class="row-title">关于恋爱笔记</text><text class="row-value">客户端 {{clientVersion}}</text><text class="row-arrow" aria-hidden="true">›</text></button>
+      <view class="service-state {{isRemote ? 'remote' : ''}}" role="status"><view class="service-dot" aria-hidden="true"></view><text>{{modeText}}</text></view>
+    </view>
+
+    <view class="setting-group account-zone">
+      <text class="group-title">账号管理</text><text class="group-description">以下操作只会在你明确确认后执行</text>
+      <view class="index-list">
+        <button size="mini" class="index-row danger-row press" bindtap="deleteAccount"><image class="row-icon" src="/assets/icons/home/user-round-active.png" mode="aspectFit" aria-hidden="true"></image><view class="row-copy"><text class="row-title">账号注销</text><text class="row-description">冻结情侣空间、撤销本机登录，并生成处理进度</text></view><text class="row-arrow" aria-hidden="true">›</text></button>
+        <button size="mini" wx:if="{{!isRemote}}" class="index-row danger-row press" bindtap="reset"><image class="row-icon" src="/assets/icons/home/trash-2.png" mode="aspectFit" aria-hidden="true"></image><view class="row-copy"><text class="row-title">重置演示数据</text><text class="row-description">清除当前设备上的所有演示状态</text></view><text class="row-arrow" aria-hidden="true">›</text></button>
+      </view>
+    </view>
+
+  </block>
+</view>

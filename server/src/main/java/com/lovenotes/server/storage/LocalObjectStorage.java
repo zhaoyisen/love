@@ -12,6 +12,7 @@ public class LocalObjectStorage implements ObjectStorage {
     public UploadCredential issueUploadCredential(String key,Duration ttl){Instant expiry=Instant.now().plus(ttl);return new UploadCredential("LOCAL",properties.storage().bucket(),properties.storage().region(),key,null,expiry);}
     public ObjectInfo stat(String key,long expectedSize){return new ObjectInfo(expectedSize,"local-etag",null);}
     public String signedGetUrl(String key,Duration ttl,String contentType){return "local://"+key;}
+    public String signedVideoSnapshotUrl(String key,Duration ttl){return signedGetUrl(createDerivatives(DomainEnums.MediaKind.VIDEO,key).thumbnailKey(),ttl,"image/jpeg");}
     public boolean requiresProcessing(){return false;}
     public ProcessingResult process(DomainEnums.MediaKind kind,String key,String jobId){
         Derivatives derivatives = createDerivatives(kind, key);
