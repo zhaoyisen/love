@@ -10,6 +10,7 @@ pipeline {
 
     environment {
         COMPOSE_PROJECT_NAME = 'love-notes'
+        DEPLOY_DIR = '/opt/love-notes'
     }
 
     stages {
@@ -48,7 +49,7 @@ pipeline {
                             --volumes-from "$(hostname)" \
                             --workdir "$WORKSPACE" \
                             node:20-bookworm-slim \
-                            sh -c 'npm ci --ignore-scripts && npm run validate && npm run typecheck'
+                            sh -c 'npm ci --ignore-scripts && node --test scripts/test-deployment.cjs && npm run validate && npm run typecheck'
                     else
                         docker run --rm \
                             --user "$(id -u):$(id -g)" \
@@ -57,7 +58,7 @@ pipeline {
                             --volume "$WORKSPACE:/workspace" \
                             --workdir /workspace \
                             node:20-bookworm-slim \
-                            sh -c 'npm ci --ignore-scripts && npm run validate && npm run typecheck'
+                            sh -c 'npm ci --ignore-scripts && node --test scripts/test-deployment.cjs && npm run validate && npm run typecheck'
                     fi
                 '''
             }
@@ -103,7 +104,7 @@ pipeline {
             steps {
                 sh '''
                     set -eu
-                    IMAGE_TAG="${IMAGE_TAG}" docker compose \
+                    APP_ENV_FILE="$WORKSPACE/server/.env.example" IMAGE_TAG="${IMAGE_TAG}" docker compose \
                         --env-file server/.env.example \
                         config --quiet
                 '''
@@ -120,21 +121,7 @@ pipeline {
                 }
             }
             steps {
-                withCredentials([file(credentialsId: 'love-notes-prod-env', variable: 'PROD_ENV_FILE')]) {
-                    sh '''
-                        set -eu
-                        IMAGE_TAG="${IMAGE_TAG}" docker compose \
-                            --env-file "${PROD_ENV_FILE}" \
-                            config --quiet
-                        IMAGE_TAG="${IMAGE_TAG}" docker compose \
-                            --env-file "${PROD_ENV_FILE}" \
-                            up -d --no-deps --remove-orphans \
-                            --wait --wait-timeout 300 api
-                        docker compose \
-                            --env-file "${PROD_ENV_FILE}" \
-                            ps api
-                    '''
-                }
+                sh 'sh scripts/deploy-production.sh'
             }
         }
     }

@@ -17,6 +17,50 @@ import static org.mockito.Mockito.*;
 
 class CosObjectStorageTest {
     @Test
+    void shouldConfirmAmbiguousHead404WithBoundedGet() throws Exception {
+        var client=mock(COSClient.class);
+        var head=new com.qcloud.cos.http.CosHttpResponse(null,new org.apache.http.client.methods.HttpHead("https://example.test/a"));
+        head.setStatusCode(404);head.setStatusText("Not Found");head.setHeaders(new java.util.HashMap<>());
+        var headError=new com.qcloud.cos.internal.CosErrorResponseHandler().handle(head);
+        assertEquals("404 Not Found",headError.getErrorCode());
+        when(client.getObjectMetadata(anyString(),anyString())).thenThrow(headError);
+        var request=mock(com.qcloud.cos.http.CosHttpRequest.class);when(request.getHttpMethod()).thenReturn(com.qcloud.cos.http.HttpMethodName.GET);
+        var get=new com.qcloud.cos.http.CosHttpResponse(request,new org.apache.http.client.methods.HttpGet("https://example.test/a"));
+        get.setStatusCode(404);get.setStatusText("Not Found");get.setHeaders(new java.util.HashMap<>());
+        get.setContent(new java.io.ByteArrayInputStream("<Error><Code>NoSuchKey</Code><Message>missing</Message></Error>".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        var getError=new com.qcloud.cos.internal.CosErrorResponseHandler().handle(get);
+        when(client.getObject(any(com.qcloud.cos.model.GetObjectRequest.class))).thenThrow(getError);
+        assertEquals("UPLOAD_NOT_FOUND",assertThrows(com.lovenotes.server.common.ApiException.class,()->storage(client).stat("original/a.jpg",0)).code());
+        var range=ArgumentCaptor.forClass(com.qcloud.cos.model.GetObjectRequest.class);verify(client).getObject(range.capture());
+        org.junit.jupiter.api.Assertions.assertArrayEquals(new long[]{0,0},range.getValue().getRange());
+    }
+    @Test
+    void regeneratedVideoCoversUseNewPathsAndLeaveOriginalUntouched() {
+        var client=mock(COSClient.class);var storage=storage(client);
+        var first=storage.regenerateDerivatives(DomainEnums.MediaKind.VIDEO,"original/u/movie.mp4");
+        var second=storage.regenerateDerivatives(DomainEnums.MediaKind.VIDEO,"original/u/movie.mp4");
+        assertEquals("original/u/movie.mp4",first.displayKey());
+        org.junit.jupiter.api.Assertions.assertNotEquals(first.thumbnailKey(),second.thumbnailKey());
+        org.junit.jupiter.api.Assertions.assertNotEquals("thumbnail/u/movie.jpg",first.thumbnailKey());
+        var requests=ArgumentCaptor.forClass(SnapshotRequest.class);verify(client,times(2)).generateSnapshot(requests.capture());
+        assertEquals(first.thumbnailKey(),requests.getAllValues().get(0).getOutput().getObject());
+        assertEquals("original/u/movie.mp4",requests.getAllValues().get(0).getInput().getObject());
+        verify(client,never()).deleteObjects(any());
+    }
+    @Test
+    void shouldSeparateMissingObjectFromPermissionAndNetworkFailure() {
+        var client=mock(COSClient.class);
+        var denied=new com.qcloud.cos.exception.CosServiceException("denied");denied.setStatusCode(403);denied.setErrorCode("AccessDenied");
+        when(client.getObjectMetadata(anyString(),anyString())).thenThrow(denied);
+        assertEquals("PROVIDER_UNAVAILABLE",assertThrows(com.lovenotes.server.common.ApiException.class,()->storage(client).stat("original/a.jpg",0)).code());
+        var missing=new com.qcloud.cos.exception.CosServiceException("missing");missing.setStatusCode(404);missing.setErrorCode("NoSuchKey");
+        doThrow(missing).when(client).getObjectMetadata(anyString(),anyString());
+        assertEquals("UPLOAD_NOT_FOUND",assertThrows(com.lovenotes.server.common.ApiException.class,()->storage(client).stat("original/a.jpg",0)).code());
+        var bucket=new com.qcloud.cos.exception.CosServiceException("bucket");bucket.setStatusCode(404);bucket.setErrorCode("NoSuchBucket");
+        doThrow(bucket).when(client).getObjectMetadata(anyString(),anyString());
+        assertEquals("PROVIDER_UNAVAILABLE",assertThrows(com.lovenotes.server.common.ApiException.class,()->storage(client).stat("original/a.jpg",0)).code());
+    }
+    @Test
     void shouldIncludeSnapshotParametersInTheActualSdkSignature() {
         var client=new COSClient(new com.qcloud.cos.auth.BasicCOSCredentials("test-id","test-secret"),new com.qcloud.cos.ClientConfig(new com.qcloud.cos.region.Region("ap-chengdu")));
         try {

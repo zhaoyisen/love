@@ -14,6 +14,7 @@ public class LocalObjectStorage implements ObjectStorage {
     public String signedGetUrl(String key,Duration ttl,String contentType){return "local://"+key;}
     public String signedVideoSnapshotUrl(String key,Duration ttl){return signedGetUrl(createDerivatives(DomainEnums.MediaKind.VIDEO,key).thumbnailKey(),ttl,"image/jpeg");}
     public boolean requiresProcessing(){return false;}
+    public Derivatives regenerateDerivatives(DomainEnums.MediaKind kind,String key,String generation){return ObjectStorage.derivativeKeys(kind,key,generation);}
     public ProcessingResult process(DomainEnums.MediaKind kind,String key,String jobId){
         Derivatives derivatives = createDerivatives(kind, key);
         return new ProcessingResult(ProcessingOutcome.READY,null,derivatives.displayKey(),derivatives.thumbnailKey());

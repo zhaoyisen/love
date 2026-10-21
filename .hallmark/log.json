@@ -1,5 +1,13 @@
 [
   {
+    "date": "2026-10-20",
+    "scope": "media-admin-web",
+    "macrostructure": "Account-scoped table with persistent inspector",
+    "theme": "DESIGN.md warm white and berry; approved desktop mockup",
+    "enrichment": "real user media only",
+    "brief": "Account search, abnormal media inspection, durable repair tasks, both-viewer hide and original-scope restoration."
+  },
+  {
     "date": "2026-10-19",
     "scope": "main-pages-and-settings",
     "macrostructure": "Compact primary pages and separate grouped settings",

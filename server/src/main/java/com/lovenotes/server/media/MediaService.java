@@ -94,6 +94,7 @@ public class MediaService {
     private String displayKey(MediaAssetEntity asset){return asset.getDisplayStorageKey()!=null?asset.getDisplayStorageKey():asset.getStorageKey();}
     private String displayContentType(MediaAssetEntity asset){return asset.getKind()==DomainEnums.MediaKind.IMAGE&&asset.getDisplayStorageKey()!=null?"image/webp":asset.getMimeType();}
     private boolean canRead(UUID actorId,MediaAssetEntity asset){
+        if(asset.getMomentId()!=null&&moments.findById(asset.getMomentId()).map(MomentEntity::isAdminHidden).orElse(false))return false;
         if(asset.getUploaderId().equals(actorId))return true;
         if(asset.getStatus()!=DomainEnums.MediaStatus.READY)return false;
         if(asset.getAlbumCoupleId()!=null)return members.findById(actorId).map(member->member.getCoupleId().equals(asset.getAlbumCoupleId())).orElse(false);

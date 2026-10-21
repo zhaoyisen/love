@@ -6,7 +6,7 @@ spring:
     hikari:
       maximum-pool-size: ${MYSQL_POOL_SIZE:20}
       minimum-idle: ${MYSQL_MIN_IDLE:4}
-      connection-timeout: 5000
+      connection-timeout: ${MYSQL_CONNECTION_TIMEOUT_MS:5000}
   data:
     redis:
       host: ${REDIS_HOST}
@@ -20,6 +20,8 @@ spring:
       ddl-auto: validate
 
 love-notes:
+  timeline:
+    cursor-secret: ${TIMELINE_CURSOR_SECRET}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
   wechat:

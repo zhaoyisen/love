@@ -28,7 +28,7 @@ class MediaCleanupServiceTest {
         MomentRepository moments = mock(MomentRepository.class);
         ObjectStorage storage = mock(ObjectStorage.class);
         LoveNotesProperties properties = properties();
-        MediaCleanupService service = new MediaCleanupService(assets, moments, storage, properties);
+        MediaCleanupService service = new MediaCleanupService(assets, moments, storage, properties,mock(jakarta.persistence.EntityManager.class));
 
         UUID userId = UUID.randomUUID();
         MomentEntity moment = new MomentEntity(userId, null, DomainEnums.MomentType.IMAGE,
@@ -59,7 +59,7 @@ class MediaCleanupServiceTest {
         MediaAssetRepository assets = mock(MediaAssetRepository.class);
         MomentRepository moments = mock(MomentRepository.class);
         ObjectStorage storage = mock(ObjectStorage.class);
-        MediaCleanupService service = new MediaCleanupService(assets, moments, storage, properties());
+        MediaCleanupService service = new MediaCleanupService(assets, moments, storage, properties(),mock(jakarta.persistence.EntityManager.class));
         MediaAssetEntity orphan = new MediaAssetEntity(UUID.randomUUID(), DomainEnums.MediaKind.VIDEO,
                 "original/orphan.mp4", null, "video/mp4", 2048);
 

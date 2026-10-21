@@ -63,6 +63,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private Rule rule(HttpServletRequest request) {
         String path = path(request);
         String method = request.getMethod();
+        if (path.equals("/internal/admin/session") && "POST".equals(method)) return new Rule("ADMIN_LOGIN", 10, Duration.ofMinutes(1));
         if (path.startsWith("/internal/") || path.startsWith("/actuator/")) return null;
         if (path.startsWith("/auth/") && "POST".equals(method)) return new Rule("AUTH", 20, Duration.ofMinutes(1));
         if (path.matches("/couple-invitations/[^/]+/preview") && "GET".equals(method)) return new Rule("INVITE_PREVIEW", 60, Duration.ofMinutes(1));

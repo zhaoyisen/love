@@ -37,7 +37,8 @@ requireMatch("miniprogram/pkg-moment/detail/index.wxml", /<swiper[\s\S]*wx:for="
 requireMatch("miniprogram/pkg-compose/composer/index.ts", /IMAGE_MAX_BYTES\s*=\s*20\s*\*\s*1024\s*\*\s*1024/, "客户端图片大小限制必须与服务端一致");
 requireMatch("miniprogram/pkg-compose/composer/index.ts", /VIDEO_MAX_BYTES\s*=\s*200\s*\*\s*1024\s*\*\s*1024/, "客户端视频大小限制必须与服务端一致");
 requireMatch("server/src/main/resources/application-prod.yml", /rate-limit:[\s\S]*enabled:\s*\$\{RATE_LIMIT_ENABLED:true\}/, "生产环境必须默认启用接口限流");
-requireMatch("docker-compose.yml", /RATE_LIMIT_ENABLED:\s*\$\{RATE_LIMIT_ENABLED:-true\}/, "容器部署必须传递接口限流开关");
+requireMatch("docker-compose.yml", /env_file:\s*\n\s*-\s*\$\{APP_ENV_FILE:-\.\/\.env\}/, "容器部署必须完整传入服务器 env 文件");
+requireMatch("server/.env.example", /^RATE_LIMIT_ENABLED=true$/m, "生产环境变量模板必须默认启用接口限流");
 requireMatch("server/src/main/resources/db/migration/V18__media_duration.sql", /duration_seconds/, "服务端必须保存视频时长元数据");
 
 if (/<video\b/.test(read("miniprogram/components/moment-card/index.wxml"))) {

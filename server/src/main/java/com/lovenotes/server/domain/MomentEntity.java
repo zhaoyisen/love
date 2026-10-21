@@ -29,6 +29,8 @@ public class MomentEntity {
     private DomainEnums.Visibility visibility;
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 24)
     private DomainEnums.MomentStatus status;
+    @Column(name = "admin_hidden", nullable = false)
+    private boolean adminHidden;
     @Version
     private int version;
     @Column(name = "deleted_at")
@@ -56,6 +58,8 @@ public class MomentEntity {
     public Instant getOccurredAt() { return occurredAt; }
     public DomainEnums.Visibility getVisibility() { return visibility; }
     public DomainEnums.MomentStatus getStatus() { return status; }
+    public boolean isAdminHidden() { return adminHidden; }
+    public void setAdminHidden(boolean hidden) { this.adminHidden = hidden; }
     public int getVersion() { return version; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getDeletedAt() { return deletedAt; }

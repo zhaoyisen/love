@@ -1,292 +1,191 @@
 # Jenkins + Docker Compose 服务端部署指南
 
-> 如果你的唯一目标是把小程序正式上线，请先完整执行[《生产上线唯一操作手册》](生产上线唯一操作手册.md)。本文只补充 Jenkins 与 Docker Compose 专题细节，不再作为上线起点。
+生产配置只在服务器的 `/opt/love-notes/.env` 维护。Jenkins 负责检出代码、测试、构建镜像和替换 API 容器，**不会创建或覆盖服务器的 `.env`、`compose.yml`**。本次变更必须先完成下面的目录准备，再发布新版 `main`；否则流水线会在替换容器前停止。
 
-本指南用于把 `server/` 中的 Spring Boot API 部署到一台 Linux 服务器。数据库、Redis 和腾讯云 COS 使用外部托管资源，不由 Docker Compose 创建。
-
-## 1. 最终结构
+## 配置与发布的关系
 
 ```text
-GitHub main 分支
-    ↓ Jenkins Pipeline
-Maven 测试与打包
-    ↓
-Docker 镜像 love-notes-server:<Git提交短哈希>
-    ↓ Docker Compose
-Spring Boot API 容器
-    ├── 托管 MySQL
-    ├── 托管 Redis
-    ├── 腾讯云 COS
-    └── 微信 jscode2session
-
-公网 HTTPS
-    ↓ Nginx / 负载均衡 / API 网关
-127.0.0.1:8080
-    ↓
-Spring Boot API
+Gitee/GitHub main → Jenkins → love-notes-server:<Git提交短哈希>
+                                    ↓
+服务器 /opt/love-notes/compose.yml + .env → API 容器
+                                    ↓ 健康检查通过
+                         镜像别名 love-notes-server:production
 ```
 
-分支规则：
+- `develop` 只运行检查和构建；`main` 才执行 `Deploy production`。
+- 当前已有 Jenkins 作业可继续使用；保持它实际连接的仓库，当前使用 Gitee 时必须把提交同步到 Gitee。
+- `compose.yml` 描述服务、网络、端口、资源限制；所有可调整的配置值放 `.env`。
+- 项目内 `application.yml`、`application-prod.yml` 是随 JAR 发布的模板，用 `${变量名:默认值}` 读取环境变量。不在服务器放第二份应用 YAML，不挂载 `config/`。
+- Compose 的 `--env-file` 解析端口等编排参数；`env_file` 把同一份文件的变量注入应用容器。只指定前者不会自动传入所有应用变量。
+- 不再依赖 Jenkins 的 `love-notes-prod-env` Secret file。不向 Git、Jenkins 参数或构建日志写真实密钥。
 
-- `develop`：执行测试、镜像构建和 Compose 配置校验，不部署生产；
-- `main`：完成相同检查后，使用 Jenkins 生产密钥文件执行部署；
-- 生产发布应通过 Pull Request 将 `develop` 合并到 `main`，不要直接在服务器修改代码。
+## 1. 首次准备服务器目录（现有部署也要迁移一次）
 
-## 2. 仓库中的部署文件
+前提：Linux 构建节点与生产 API 使用同一个 Docker daemon，具备 Java 21、Git、Docker、Compose v2.20+，节点标签为 `linux-docker`。MySQL、Redis、COS 沿用原有资源；不要删除数据库、数据卷或重建 schema。
 
-```text
-Jenkinsfile                 Jenkins Pipeline
-docker-compose.yml          生产 API 编排
-server/Dockerfile           Java 21 运行镜像，复制 Jenkins 已构建的 jar
-server/.dockerignore        镜像构建上下文排除规则
-server/.env.example         生产环境变量模板，不含真实密钥
-```
-
-镜像以非 root 用户运行，根文件系统只读，仅 `/tmp` 可写；端口默认只绑定到宿主机 `127.0.0.1`。Compose 配置了健康检查、优雅停止、日志轮转、CPU/内存限制和禁止提权。运行镜像不执行 `apt-get update`，也不安装 `curl`；健康检查使用基础镜像自带的 `bash` 和 `grep` 请求本机 Actuator。
-
-`Backend test` 阶段负责执行 `mvn clean verify` 并生成 `server/target/love-notes-server-*.jar`。`Build image` 阶段只把该 jar 复制进运行镜像，不再在 Dockerfile 内重复执行 Maven；这样可以避免轻量服务器在同一次流水线里下载和编译两轮后端依赖。npm 缓存保存在 Jenkins 工作区的 `.npm` 目录，Maven 缓存保存在 `.m2` 目录。
-
-## 3. 部署服务器前置条件
-
-建议使用 Ubuntu 22.04/24.04 或兼容 Linux，至少准备：
-
-- Docker Engine；
-- Docker Compose v2.20 或更高版本，需支持 `docker compose up --wait`；
-- Git；
-- Java 21（运行 Jenkins）；
-- Jenkins LTS；
-- Jenkins Pipeline、Git、Credentials Binding、JUnit 插件；
-- Nginx、腾讯云负载均衡或其他 HTTPS 入口。
-
-执行检查：
+先记录现有容器的项目和镜像，只读取这些字段，不要输出容器完整环境：
 
 ```bash
-git --version
-java -version
-docker version
-docker compose version
+sudo docker inspect love-notes-api-1 --format '{{index .Config.Labels "com.docker.compose.project"}} {{.Config.Image}}'
 ```
 
-Jenkins 执行用户必须可以运行 Docker。将用户加入 `docker` 组等同于授予较高宿主机权限，因此 Jenkins 节点必须专用，不能运行不可信仓库的任务。
+本方案沿用项目 `love-notes`、服务 `api`，通常容器名为 `love-notes-api-1`。若现有项目名不同，先对齐 Jenkins/运维命令中的 `--project-name`，避免启动第二套服务抢占端口。
 
-在 Jenkins 的“Manage Nodes and Clouds”中为实际 Linux 构建/部署节点添加标签：
+创建配置目录和仅供运维/部署读取的组：
 
-```text
-linux-docker
+```bash
+getent group love-notes-ops >/dev/null || sudo groupadd --system love-notes-ops
+sudo install -d -m 0750 -o root -g love-notes-ops /opt/love-notes
 ```
 
-仓库中的 `Jenkinsfile` 固定选择该标签。Node.js 20 和 Maven 3.9 均通过 Docker 镜像运行，服务器无需单独安装 Node.js 或 Maven；测试、Linux 镜像构建和 Docker Compose 发布都发生在服务器，而不是 Windows 开发机。
+在服务器上进入包含本次修改的项目根目录，**仅在目标文件不存在时**安装模板：
 
-## 4. 网络与云资源
+```bash
+if ! sudo test -e /opt/love-notes/compose.yml; then
+  sudo install -m 0640 -o root -g love-notes-ops docker-compose.yml /opt/love-notes/compose.yml
+fi
+if ! sudo test -e /opt/love-notes/.env; then
+  sudo install -m 0640 -o root -g love-notes-ops server/.env.example /opt/love-notes/.env
+fi
+sudoedit /opt/love-notes/.env
+```
 
-部署前完成：
+已有生产环境：从你保管的原生产变量文件迁移真实值，保留 MySQL、Redis、COS、微信、`TIMELINE_CURSOR_SECRET` 和运维口令哈希；不要换成示例值。如果唯一副本在旧 Jenkins 凭据中，先通过受控运维方式保存到这个服务器文件，再切换流水线。确认迁移成功前可以保留旧凭据，但新流水线不再读取它。
 
-1. MySQL 创建独立数据库和应用账号；
-2. MySQL 安全组只允许部署服务器私网 IP；
-3. Redis 只允许部署服务器私网访问，并启用密码；
-4. 条件允许时启用 MySQL/Redis TLS；
-5. COS 使用私有桶并绑定数据万象；主账号需完成数据万象角色授权，长期建议改为最小权限 CAM 子用户或云角色；
-6. 部署服务器能够访问微信 API、COS、MySQL 和 Redis；
-7. 公网安全组只开放 80/443，禁止直接开放 MySQL、Redis 和 8080。
+如果原 API 容器仍健康运行，可使用 [migrate-production-env.py](../scripts/migrate-production-env.py) 从容器直接迁移，无需把密钥复制到终端或聊天。需要服务器 Python 3，先将新版 `server/.env.example` 上传为 `/tmp/love-notes-env.example`，将脚本上传为 `/tmp/migrate-production-env.py`；安装后的 `/opt/love-notes/.env` 必须仍是该示例模板或尚不存在。先检查，再应用：
 
-应用启动时 Flyway 会自动执行数据库迁移。第一次上线或新增迁移前必须先备份 MySQL；应用回滚不会自动回滚数据库结构。
+```bash
+sudo python3 /tmp/migrate-production-env.py
+# 只有上一条显示 Dry run passed 后才执行：
+sudo python3 /tmp/migrate-production-env.py --apply
+```
 
-## 5. 创建 Jenkins 生产密钥文件
+脚本私下读取固定容器 `love-notes-api-1` 的 Docker 元数据，沿用已知应用变量以及实际宿主机端口、内存/CPU和日志限制。缺少必要变量、容器不健康、配置已经被人工修改或端口有歧义时停止，不打印真实值，也不重启容器。新参数保留模板默认值；空的运维口令哈希仍保持空，不会自动启用管理登录。生成的双引号值按 Compose dotenv 规则转义，`$$` 表示字面量 `$`；不要为了让文件“看起来一致”删除转义。目录/网络、Jenkins 挂载仍按本指南检查，脚本不修改 Compose 或容器网络。
 
-在本地复制 `server/.env.example`，填入真实生产值。不要把真实文件保存进 Git。
-
-示例结构：
+`.env` 必须设置/检查：
 
 ```dotenv
 COMPOSE_PROJECT_NAME=love-notes
+SPRING_PROFILES_ACTIVE=prod
 SERVER_BIND_ADDRESS=127.0.0.1
 SERVER_HTTP_PORT=8080
-APP_MEMORY_LIMIT=768m
-APP_CPU_LIMIT=1.0
-LOG_LEVEL_ROOT=INFO
-
-MYSQL_URL=jdbc:mysql://你的MySQL内网地址:3306/love_notes?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
-MYSQL_USERNAME=你的数据库账号
-MYSQL_PASSWORD=你的数据库密码
-MYSQL_POOL_SIZE=20
-MYSQL_MIN_IDLE=4
-
-REDIS_HOST=你的Redis内网地址
-REDIS_PORT=6379
-REDIS_PASSWORD=你的Redis密码
-REDIS_SSL=false
-RATE_LIMIT_ENABLED=true
-
-WECHAT_APP_ID=你的小程序AppID
-WECHAT_APP_SECRET=你的小程序AppSecret
-
-COS_BUCKET=你的存储桶名称
-COS_REGION=ap-chengdu
-COS_SECRET_ID=腾讯云API SecretId
-COS_SECRET_KEY=腾讯云API SecretKey
-TIMELINE_CURSOR_SECRET=至少32位随机字符串
-INTERNAL_OPERATION_TOKEN_HASH=内部运维口令的SHA-256哈希
-MEDIA_PROCESSING_POLL_MS=5000
-MEDIA_CLEANUP_POLL_MS=3600000
-ACCOUNT_DELETION_POLL_MS=600000
-MEDIA_TRASH_RETENTION_DAYS=30
-MEDIA_ORPHAN_RETENTION_HOURS=24
+SERVER_PORT=8080
 ```
 
-`SERVER_BIND_ADDRESS` 填监听 IP，不填域名。同机 Nginx 代理时使用 `127.0.0.1`。如果你使用主账号密钥，程序可以运行，但密钥只能保存于此 Secret file；不要写入仓库、小程序或 Jenkins Console。
+完整变量以 [server/.env.example](../server/.env.example) 为准。删除旧文件中的 `IMAGE_TAG=local` 等 `IMAGE_TAG` 行，也不要添加 `APP_ENV_FILE`；这些属于发布过程，不能由业务配置固定。已有 Compose 也需要手动对照新模板改为 `env_file`，去掉旧的 `environment` 映射和 `build`，默认镜像使用 `production`，以后 Jenkins 不替你覆盖它。
 
-在 Jenkins 中依次操作：
+密码含 `$`、`#` 或空格时，使用单引号保留字面值，例如 `MYSQL_PASSWORD='example-$-#-with space'`；值本身含单引号时按 Compose dotenv 规则转义。不要 `source .env`、`set -x`、输出完整的 `docker compose config` 或完整 `docker inspect`，这些可能泄露配置。不要把 `.env` 放进仓库或镜像。
 
-1. 进入“Manage Jenkins”→“Credentials”；
-2. 选择 Jenkins 作业可访问的凭据域；
-3. 点击“Add Credentials”；
-4. Kind 选择“Secret file”；
-5. 上传生产 `.env` 文件；
-6. ID 必须填写 `love-notes-prod-env`；
-7. Description 填写“恋爱笔记生产环境变量”。
+保持现有 MySQL/Redis 连接网络：若使用 `host.docker.internal`，模板已保留 `host-gateway`；若使用数据库容器名，则需要在服务器 Compose 中保留原来共享的 external 网络/别名。不要把原来的共享 external 网络换成一个新建的同名 bridge。
 
-流水线只在 `main` 部署阶段读取该 Secret file，并且不会执行会打印完整配置和密钥的 `docker compose config`。
-
-## 6. 创建 Jenkins 流水线
-
-推荐创建 Multibranch Pipeline：
-
-1. Jenkins 首页点击“New Item”；
-2. 输入名称 `love-notes-server`；
-3. 选择“Multibranch Pipeline”；
-4. Branch Sources 选择 Git；
-5. Repository URL 填写 `https://github.com/zhaoyisen/love.git`；
-6. 私有仓库需要配置 GitHub 凭据，公开仓库可直接读取；
-7. Build Configuration 选择“by Jenkinsfile”；
-8. Script Path 填写 `Jenkinsfile`；
-9. 保存并执行“Scan Multibranch Pipeline Now”。
-
-首次建议先构建 `develop`。预期阶段：
-
-```text
-Checkout
-Verify toolchain
-Mini Program checks
-Backend test
-Build image
-Validate Compose
-```
-
-`develop` 不会出现生产部署。合并并构建 `main` 时才会继续执行 `Deploy production`。
-
-## 7. 首次部署验证
-
-Jenkins 的 `main` 流水线成功后，在部署服务器执行：
+每次改配置前，在仅 root 可读的安全备份目录保存旧文件。备份是恢复副本，不参与运行时配置加载：
 
 ```bash
-docker compose --env-file /安全路径/prod.env ps api
-docker compose --env-file /安全路径/prod.env logs --tail=200 api
+sudo install -d -m 0700 /root/love-notes-backups
+sudo cp -p /opt/love-notes/.env "/root/love-notes-backups/env-$(date +%Y%m%d-%H%M%S)"
+sudo cp -p /opt/love-notes/compose.yml "/root/love-notes-backups/compose-$(date +%Y%m%d-%H%M%S).yml"
+```
+
+## 2. 让 Jenkins 能只读服务器配置
+
+宿主机运行 Jenkins 时，将实际执行用户加入读取组，随后重新登录/重启对应 agent 以刷新组权限：
+
+```bash
+sudo usermod -aG love-notes-ops jenkins
+sudo -u jenkins test -r /opt/love-notes/.env
+sudo -u jenkins test -r /opt/love-notes/compose.yml
+```
+
+Docker 运行 Jenkins 时，修改**现有 Jenkins 的 Compose**，在原服务的 `volumes` 下增加：
+
+```yaml
+volumes:
+  # 保留所有原有 Jenkins 数据卷、Docker socket 等挂载
+  - /opt/love-notes:/opt/love-notes:ro
+```
+
+如果 Jenkins 容器不是 root，执行 `getent group love-notes-ops` 获取数字 GID，把该 GID 添加到原服务的 `group_add`，保留已有补充组。然后在 Jenkins 的原 Compose 目录执行 `docker compose up -d` 重建 Jenkins；保留 `/var/jenkins_home` 的原挂载、原端口和 Docker socket，不要执行 `down -v`。
+
+用实际容器名验证，不会显示密钥：
+
+```bash
+sudo docker exec Jenkins容器名 sh -c 'test -r /opt/love-notes/.env && test -r /opt/love-notes/compose.yml'
+```
+
+这里的配置目录路径要在宿主机和 Jenkins 容器内一致。节点必须是受信任的专用节点；不要为方便改成所有用户可读。
+
+## 3. Jenkins 日常发布
+
+原多分支流水线保留，Script Path 仍为 `Jenkinsfile`：
+
+```text
+Checkout → Verify toolchain → Mini Program checks → Backend test
+→ Build image → Validate Compose → Deploy production（仅 main）
+```
+
+`Validate Compose` 只检查仓库模板与示例变量；生产阶段调用 [scripts/deploy-production.sh](../scripts/deploy-production.sh)，验证服务器真实 Compose 后运行 `up --wait`。校验使用 `config --quiet`；生产 Compose 的错误诊断也不进入 Jenkins 日志，避免 dotenv 语法错误把原值带进报错。失败时流水线保留退出码并提示到服务器受控终端检查，切勿复制含真实值的错误到聊天或工单。
+
+发布时 Jenkins 从 `DEPLOY_DIR=/opt/love-notes` 读取已有文件，通过环境变量临时指定 `<Git提交短哈希>` 镜像，不写 `.env`。容器健康检查通过后，才把该镜像另标为 `love-notes-server:production`，供以后手动应用配置使用。服务器文件缺失/无读取权限时直接失败，不会退回旧凭据或自动写模板。
+
+首次切换前先备份数据库并完成第 1、2 节，再提交、推送代码到 Jenkins 实际连接的仓库，经 `develop` 检查后合并 `main`。本地打包成功不代表已经发布。
+
+发布失败不会自动回滚容器；若失败发生在重建之后，需要查看日志并按第 5 节恢复旧镜像。旧的 `production` 标签只在成功后改变，不代表当前运行的失败容器也已自动恢复。
+
+## 4. 修改配置及查看状态
+
+以后修改业务参数、数据库/COS 信息、端口、内存等值，只编辑 `/opt/love-notes/.env`。新增业务变量只需在应用模板中引用并写入 `.env`，不再补一份 Compose `environment` 映射。
+
+修改后在服务器执行（沿用最近一次成功发布的 `production` 镜像，不重新构建）：
+
+```bash
+unset IMAGE_TAG APP_ENV_FILE
+sudoedit /opt/love-notes/.env
+sudo docker compose --project-name love-notes --env-file /opt/love-notes/.env -f /opt/love-notes/compose.yml config --quiet
+sudo docker compose --project-name love-notes --env-file /opt/love-notes/.env -f /opt/love-notes/compose.yml up -d --no-deps --force-recreate --wait --wait-timeout 300 api
+sudo docker compose --project-name love-notes --env-file /opt/love-notes/.env -f /opt/love-notes/compose.yml ps api
+```
+
+修改 `.env` 不会热生效，单纯 `restart` 不重新读取容器环境。`--force-recreate` 也保证仅修改 Worker 间隔等参数时应用会重新启动。重建会短暂中断服务；不要和 Jenkins 发布同时操作。
+
+`compose.yml` 的网络、挂载等结构也可以在服务器编辑，再执行同一组校验/重建命令。发布不会覆盖服务器修改，但新版本若需要新的编排结构，须人工对照仓库模板合并，不能整份覆盖生产文件。
+
+检查当前容器的真实镜像、健康和日志：
+
+```bash
+sudo docker inspect love-notes-api-1 --format '{{.Config.Image}} {{.State.Status}} {{.State.Health.Status}}'
+sudo docker compose --project-name love-notes --env-file /opt/love-notes/.env -f /opt/love-notes/compose.yml logs --tail=200 api
 curl --fail http://127.0.0.1:8080/api/v1/actuator/health
+curl --fail https://love.api.zhaoyisen.com.cn/api/v1/actuator/health
 ```
 
-健康响应应包含：
+健康响应应包含 `"status":"UP"`。若修改了宿主机端口，相应调整本机 URL 和 Nginx 上游；默认仍仅监听 `127.0.0.1:8080`。HTTPS/Nginx、微信合法域名和私有 COS 的现有配置沿用。
 
-```json
-{"status":"UP"}
-```
+应用模板约定和接口路径等协议常量仍在代码里。上传限制默认图片 20MB、视频 200MB/60 秒；调整服务端上限时还需同步客户端的校验，单改 `.env` 不会改变小程序内置限制。
 
-如果容器不健康，优先检查：
+## 5. 回滚
+
+从 Jenkins 记录或 `docker image ls love-notes-server` 找到上一个健康的提交标签，使用同一份服务器配置：
 
 ```bash
-docker compose --env-file /安全路径/prod.env logs --tail=300 api
-docker inspect love-notes-api-1
+unset APP_ENV_FILE
+PREVIOUS_TAG=上一个提交短哈希
+sudo env IMAGE_TAG="$PREVIOUS_TAG" docker compose --project-name love-notes --env-file /opt/love-notes/.env -f /opt/love-notes/compose.yml config --quiet
+sudo env IMAGE_TAG="$PREVIOUS_TAG" docker compose --project-name love-notes --env-file /opt/love-notes/.env -f /opt/love-notes/compose.yml up -d --no-deps --force-recreate --wait --wait-timeout 300 api
+# 只在上一步成功、健康检查通过后执行：
+sudo docker image tag "love-notes-server:$PREVIOUS_TAG" love-notes-server:production
 ```
 
-常见原因包括 MySQL/Redis 安全组未放行、内网地址错误、密码错误、Redis TLS 配置不一致、COS 地域或桶名错误。
+如果故障源于配置，先从安全备份恢复相应文件，再执行校验和重建。不要删除数据卷、重建数据库或执行 `docker system prune -a` 丢失回滚镜像。
 
-首次部署还要检查 Flyway 已执行到 V3：
+Flyway 随新容器自动迁移，应用回滚不会降级数据库。管理端使用隐藏功能后，回滚版本必须仍包含 `admin_hidden` 过滤，避免隐藏记录重新出现。
 
-```sql
-SELECT version, description, success
-FROM flyway_schema_history
-ORDER BY installed_rank;
-```
-
-应看到 `1 foundation`、`2 media processing`、`3 media derivatives` 且 `success=1`。然后用体验账号完成一次真实图片发布，确认：
-
-1. COS 出现对应的 `original/`、`display/`、`thumbnail/` 三个对象；
-2. 图片审核通过后记录由 `UPLOADING` 变为 `PUBLISHED`；
-3. 时间线图片 URL 指向 `thumbnail/`，详情 URL 指向 `display/`；
-4. 无痕浏览器直接打开不带签名的 COS URL 返回拒绝访问；
-5. 审核失败时记录不会对另一半可见。
-
-## 8. 配置 HTTPS 入口
-
-Compose 默认监听 `127.0.0.1:8080`，建议由同机 Nginx 转发：
-
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name api.example.com;
-
-    ssl_certificate     /etc/letsencrypt/live/api.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.example.com/privkey.pem;
-
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        proxy_connect_timeout 5s;
-        proxy_read_timeout 60s;
-    }
-}
-```
-
-完成证书和 DNS 后，验证：
+## 本地验证与服务器验收边界
 
 ```bash
-curl --fail https://api.example.com/api/v1/actuator/health
+node --test scripts/test-deployment.cjs
+APP_ENV_FILE="$PWD/server/.env.example" docker compose --env-file server/.env.example config --quiet
 ```
 
-然后在微信公众平台把 `https://api.example.com` 加入 request 合法域名。
+自动检查覆盖文件不被改写、缺文件停止、配置/健康失败不更新别名，以及应用环境参数绑定。Docker 重建、Jenkins 挂载权限、真实 MySQL/Redis/COS/微信和小程序双账号媒体流程，需迁移后在实际服务器验收。
 
-## 9. 日常发布流程
-
-```text
-本地在 develop 开发
-→ 提交并推送 develop
-→ Jenkins 自动测试和构建
-→ 创建 Pull Request：develop → main
-→ 审核并合并
-→ Jenkins 构建 main
-→ 以 Git 提交短哈希构建镜像
-→ Docker Compose 等待新容器健康
-→ 发布完成
-```
-
-每个镜像标签对应一个 Git 提交，例如：
-
-```text
-love-notes-server:fdbc746301c6
-```
-
-## 10. 回滚
-
-先从 Jenkins 构建记录或 `docker image ls love-notes-server` 找到上一个健康版本标签，然后执行：
-
-```bash
-IMAGE_TAG=上一个提交短哈希 docker compose \
-  --env-file /安全路径/prod.env \
-  up -d --no-deps --wait --wait-timeout 300 api
-```
-
-回滚后再次检查健康接口和核心登录流程。不要随意执行 `docker system prune -a`，否则会删除用于快速回滚的旧镜像。
-
-## 11. 发布前数据库和回滚边界
-
-每次 `main` 发布前执行 MySQL 快照或逻辑备份。Flyway 迁移发生在新容器启动阶段；如果 V7 已成功执行后回滚旧镜像，数据库结构不会自动降级。不要删除 `display_storage_key`、`thumbnail_storage_key`、互动、信笺、宠物或年度回顾相关表和索引。
-
-回滚后仍需检查媒体处理 Worker；否则已上传对象可能长期停留在 `PROCESSING`。
-
-## 12. 当前发布边界
-
-这套配置已经支持小程序静态检查、服务端自动测试、Linux 镜像构建、生产变量注入、Flyway V7、媒体审核/图片派生、清理任务、健康等待和按提交版本回滚。
-
-仍不能只凭 Jenkins 绿色就直接全量上线。生产 MySQL/Redis/COS/微信 AppID 联调、至少两台 iPhone 和两台 Android 真机测试、隐私与合法域名配置仍是人工发布门禁。回应、短评、消息、宠物和回顾已经接入真实服务端；提审前仍要人工验证双账号权限、解绑隔离、真实媒体审核、年度回顾长图保存和相册权限拒绝路径。
+参考：[Docker env_file](https://docs.docker.com/compose/how-tos/environment-variables/set-environment-variables/)、[Spring Boot 环境配置](https://docs.spring.io/spring-boot/3.5/reference/features/external-config.html)。

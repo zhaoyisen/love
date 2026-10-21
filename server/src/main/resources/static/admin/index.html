@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer"><title>媒体与记录 · 恋爱笔记管理端</title>
+  <link rel="stylesheet" href="./admin.css">
+  <script src="./admin-model.js" defer></script><script src="./admin.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="./" aria-label="恋爱笔记管理端"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 7C11 3 6 4 3 5v22c5-2 9-1 13 1 4-2 8-3 13-1V5c-3-1-8-2-13 2Zm0 0v21M6 8v15c3-1 6 0 8 1m4 0c2-1 5-2 8-1V8"/></svg><strong>恋爱笔记</strong><span>管理端</span></a>
+    <div id="identity" hidden><span id="operator-name"></span><button id="logout" class="text-button">退出</button></div>
+  </header>
+  <main id="login-panel" class="login-panel">
+    <p class="subtle">恋爱笔记 · 媒体管理</p><h1>登录管理端</h1>
+    <p>检查媒体状态，修复封面，管理记录展示。</p>
+    <form id="login-form">
+      <label for="operator">操作人名称</label><input id="operator" name="operator" autocomplete="username" maxlength="60" required placeholder="用于标注操作记录">
+      <label for="token">运维口令</label><input id="token" name="token" type="password" autocomplete="current-password" maxlength="512" required>
+      <p id="login-error" class="error-text" role="alert"></p><button id="login-button" class="primary" type="submit">登录</button>
+    </form>
+    <p class="small subtle">使用服务端已配置的内部运维口令。登录状态过期后需重新登录。</p>
+  </main>
+  <div id="app" hidden>
+    <nav class="navigation" aria-label="管理导航"><button id="nav-records" class="active" aria-current="page">记录管理</button><button id="nav-tasks">任务记录</button></nav>
+    <div id="notice" class="notice" role="status" hidden></div>
+    <div id="error" class="error-banner" role="alert" hidden></div>
+    <div id="workspace" class="workspace">
+      <main class="records-area">
+        <div class="page-heading"><h1 id="page-title">媒体与记录</h1><p id="page-description">检查媒体状态，修复封面，管理记录展示。</p></div>
+        <section class="filters" aria-label="账号与记录筛选">
+          <form id="account-form" class="account-search"><label for="account-query">账号</label><div class="search-field"><input id="account-query" placeholder="搜索昵称或完整账号 ID" autocomplete="off" maxlength="100"><button type="submit" aria-label="搜索账号">搜索</button></div></form>
+          <div class="filter-selects"><label>媒体<select id="type-filter"><option value="ALL">全部</option><option value="IMAGE">照片</option><option value="VIDEO">视频</option><option value="TEXT">文字</option></select></label><label>展示<select id="hidden-filter"><option value="ALL">全部</option><option value="VISIBLE">展示中</option><option value="HIDDEN">已隐藏</option></select></label></div>
+        </section>
+        <div id="accounts" class="accounts" aria-label="搜索到的账号"></div>
+        <div id="account-selection" class="account-selection subtle">请选择一个账号。</div>
+        <section id="records-section">
+          <div class="tab-line"><div class="tabs" role="group" aria-label="记录分类"><button data-tab="ALL" class="active" aria-pressed="true">全部记录</button><button data-tab="ABNORMAL" aria-pressed="false">媒体异常</button><button data-tab="HIDDEN" aria-pressed="false">已隐藏</button></div><label class="issue-filter">异常类型<select id="issue-filter"><option value="ALL">全部</option><option value="UNCHECKED">未检查</option><option value="SOURCE_MISSING">原文件缺失</option><option value="COVER_MISSING">封面缺失</option><option value="DISPLAY_MISSING">展示图缺失</option><option value="CHECK_FAILED">检查失败</option><option value="UNAVAILABLE">处理失败／已删除</option></select></label></div>
+          <div class="toolbar"><span id="selected-count">已选 0 条</span><div class="toolbar-buttons"><button id="check-records" disabled>检查媒体</button><button id="rebuild-records" class="primary" disabled>重建封面</button><button id="hide-records" disabled>隐藏记录</button><button id="restore-records" disabled hidden>恢复展示</button></div></div>
+          <p id="check-hint" class="small subtle">首次使用请检查该账号的媒体。列表展示最近一次检查结果，文件变化后可重新检查。</p>
+          <div class="table-shell"><table class="record-table"><thead><tr><th class="select-col"><label class="check-label"><input id="select-page" type="checkbox" aria-label="选择当前页记录" disabled></label></th><th>记录</th><th class="health-col">媒体状态</th><th class="visibility-col">展示</th><th class="action-col">操作</th></tr></thead><tbody id="record-rows"></tbody></table><div id="empty-state" class="empty-state">选择账号后查看记录。</div></div>
+          <footer class="pagination"><span id="record-total" class="subtle"></span><div><button id="previous-page" aria-label="上一页" disabled>‹</button><span id="page-number">1</span><button id="next-page" aria-label="下一页" disabled>›</button></div></footer>
+          <div class="task-strip"><strong>◷ 任务</strong><span id="task-summary" class="subtle">暂无正在执行的任务</span><button id="open-tasks" class="text-button">查看任务记录 ›</button></div>
+        </section>
+        <section id="tasks-section" hidden><p class="small subtle">任务保存在服务端；刷新页面后可以继续查看。失败项可单独重试。</p><div id="task-list"></div><div class="pagination"><span id="task-total"></span><div><button id="tasks-prev" disabled>上一页</button><button id="tasks-next" disabled>下一页</button></div></div></section>
+      </main>
+      <aside id="detail" class="detail" hidden aria-label="记录或任务详情"><div class="detail-heading"><h2 id="detail-heading">记录详情</h2><button id="close-detail" class="icon-button" aria-label="关闭详情">×</button></div><div id="detail-content"></div></aside>
+    </div>
+  </div>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><h2 id="confirm-title"></h2><div id="confirm-description"></div><div class="dialog-actions"><button id="confirm-cancel">取消</button><button id="confirm-submit" class="primary">确认</button></div></dialog>
+  <dialog id="preview-dialog" aria-label="媒体预览"><button id="close-preview" class="icon-button" aria-label="关闭媒体预览">×</button><div id="preview-content"></div><p id="preview-error" class="error-text" role="alert"></p></dialog>
+</body>
+</html>

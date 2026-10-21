@@ -1,0 +1,14 @@
+/* Hallmark · macrostructure: Account-scoped table with persistent inspector · tone: restrained utility · anchor hue: warm berry
+ * Hallmark · pre-emit critique: P5 H5 E4 S5 R5 V4 · source: user-approved 2026-10-20 mockup */
+:root {
+  --color-paper: #fbfaf7; --color-surface: #ffffff; --color-ink: #282725; --color-muted: #777672;
+  --color-line: #e3e0db; --color-accent: #b94e5a; --color-accent-strong: #943d48; --color-selected: #faf0f0;
+  --color-hover: #f2efeb; --color-good: #426d52; --color-good-bg: #edf4ed; --color-warning: #956121;
+  --color-warning-bg: #fbf3e5; --color-error: #a34248; --color-error-bg: #fbefee; --color-focus: #943d48;
+  --color-backdrop: #28272566; --color-preview: #171715; --color-on-accent: #ffffff;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-display: var(--font-body); --space-xs: 4px; --space-sm: 8px; --space-md: 16px; --space-lg: 24px; --space-xl: 32px;
+  --text-small: .8125rem; --text-body: .9375rem; --text-title: 1.75rem; --radius-control: 6px; --radius-surface: 8px;
+  --ease-out: cubic-bezier(.2,.8,.2,1); --ease-in: cubic-bezier(.4,0,1,1); --ease-in-out: cubic-bezier(.4,0,.2,1);
+  --dur-fast: 120ms; --rule-hairline: 1px;
+}

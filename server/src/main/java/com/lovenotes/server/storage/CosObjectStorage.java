@@ -89,7 +89,22 @@ public class CosObjectStorage implements ObjectStorage {
         if(separator<0)throw new IllegalArgumentException("storage key must contain a directory");
         return key.substring(0,separator+1)+"*";
     }
-    public ObjectInfo stat(String key,long expectedSize){try{ObjectMetadata metadata=cos.getObjectMetadata(properties.storage().bucket(),key);return new ObjectInfo(metadata.getContentLength(),metadata.getETag(),metadata.getContentType());}catch(Exception exception){throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,"UPLOAD_NOT_FOUND","没有找到已上传的媒体，请重试上传。");}}
+    public ObjectInfo stat(String key,long expectedSize){
+        try{ObjectMetadata metadata=cos.getObjectMetadata(properties.storage().bucket(),key);return new ObjectInfo(metadata.getContentLength(),metadata.getETag(),metadata.getContentType());}
+        catch(Exception exception){
+            var diagnostic=CosProviderFailure.inspect(exception);
+            if(Integer.valueOf(404).equals(diagnostic.status())&&!"NoSuchKey".equalsIgnoreCase(diagnostic.errorCode())&&!"NoSuchBucket".equalsIgnoreCase(diagnostic.errorCode())) {
+                // COS SDK HEAD errors omit XML codes; a one-byte GET distinguishes a missing key from a bad bucket.
+                try(var ignored=cos.getObject(new com.qcloud.cos.model.GetObjectRequest(properties.storage().bucket(),key).withRange(0,0))) {
+                    diagnostic=new CosProviderFailure.Diagnostic("OBJECT_CHANGED",null,null,null,"HeadGetMismatch");
+                } catch(Exception confirmed) {exception=confirmed;diagnostic=CosProviderFailure.inspect(confirmed);}
+            }
+            if(Integer.valueOf(404).equals(diagnostic.status())&&"NoSuchKey".equalsIgnoreCase(diagnostic.errorCode()))
+                throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,"UPLOAD_NOT_FOUND","没有找到媒体文件。");
+            logProviderFailure("object check",null,key,null,exception);
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,"PROVIDER_UNAVAILABLE","存储权限或网络异常，请稍后重试。");
+        }
+    }
     public String signedGetUrl(String key,Duration ttl,String contentType){
         Date expiry=Date.from(Instant.now().plus(ttl));
         var request=new GeneratePresignedUrlRequest(properties.storage().bucket(),key);
@@ -167,10 +182,15 @@ public class CosObjectStorage implements ObjectStorage {
         log.debug("COS "+operation+" exception",exception);
     }
     public Derivatives createDerivatives(DomainEnums.MediaKind kind,String sourceKey){
-        String suffix=sourceKey.startsWith("original/")?sourceKey.substring("original/".length()):sourceKey;
-        int extension=suffix.lastIndexOf('.');String stem=extension<0?suffix:suffix.substring(0,extension);
+        return derivatives(kind,sourceKey,"");
+    }
+    @Override public Derivatives regenerateDerivatives(DomainEnums.MediaKind kind,String sourceKey,String generation){
+        return derivatives(kind,sourceKey,generation);
+    }
+    private Derivatives derivatives(DomainEnums.MediaKind kind,String sourceKey,String revision){
+        Derivatives keys=ObjectStorage.derivativeKeys(kind,sourceKey,revision);
         if(kind==DomainEnums.MediaKind.VIDEO){
-            String thumbnailKey="thumbnail/"+stem+".jpg";
+            String thumbnailKey=keys.thumbnailKey();
             SnapshotRequest request=new SnapshotRequest();
             request.setBucketName(properties.storage().bucket());
             request.getInput().setObject(sourceKey);
@@ -182,7 +202,7 @@ public class CosObjectStorage implements ObjectStorage {
             cos.generateSnapshot(request);
             return new Derivatives(sourceKey,thumbnailKey);
         }
-        String displayKey="display/"+stem+".webp";String thumbnailKey="thumbnail/"+stem+".webp";
+        String displayKey=keys.displayKey();String thumbnailKey=keys.thumbnailKey();
         PicOperations operations=new PicOperations();operations.setIsPicInfo(0);
         PicOperations.Rule display=new PicOperations.Rule();display.setBucket(properties.storage().bucket());display.setFileId(displayKey);display.setRule("imageMogr2/thumbnail/2000x2000>/strip/format/webp");
         PicOperations.Rule thumbnail=new PicOperations.Rule();thumbnail.setBucket(properties.storage().bucket());thumbnail.setFileId(thumbnailKey);thumbnail.setRule("imageMogr2/thumbnail/480x480>/strip/format/webp");
