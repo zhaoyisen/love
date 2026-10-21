@@ -88,15 +88,23 @@ public class AdminMediaTasks {
             else if(List.of(check.sourceState,check.displayState,check.thumbnailState).contains("ERROR")){status="FAILED";message="存储权限、网络或文件状态异常，请重新检查。";}
             else if(check.thumbnailState.equals("AVAILABLE")&&check.displayState.equals("AVAILABLE")){status="SKIPPED";message="封面和展示文件正常，无需重建。";}
             else {
+                String stage="GENERATE",thumbnailState="UNCHECKED",displayState="UNCHECKED";
                 try {
                     asset.rememberObjects(asset.objectKeys());
                     var generated=storage.regenerateDerivatives(asset.getKind(),asset.getStorageKey(),item.id.toString());
                     if(generated!=null)asset.rememberObjects(java.util.stream.Stream.of(generated.displayKey(),generated.thumbnailKey()).filter(Objects::nonNull).toList());
-                    if(generated==null||generated.thumbnailKey()==null||generated.displayKey()==null||!probe(generated.thumbnailKey(),-1).equals("AVAILABLE")||!probe(generated.displayKey(),-1).equals("AVAILABLE"))throw new IllegalStateException("derivatives unavailable");
+                    stage="VERIFY";
+                    thumbnailState=probe(generated==null?null:generated.thumbnailKey(),-1);
+                    displayState=probe(generated==null?null:generated.displayKey(),-1);
+                    if(!thumbnailState.equals("AVAILABLE")||!displayState.equals("AVAILABLE"))throw new IllegalStateException("derivatives unavailable");
                     asset.updateDerivatives(check.displayState.equals("AVAILABLE")&&asset.getDisplayStorageKey()!=null?asset.getDisplayStorageKey():generated.displayKey(),check.thumbnailState.equals("AVAILABLE")&&asset.getThumbnailStorageKey()!=null?asset.getThumbnailStorageKey():generated.thumbnailKey());
                     db.merge(new AdminMediaCheck(asset,"AVAILABLE","AVAILABLE","AVAILABLE"));
                     message="封面已重建。";
-                } catch(Exception exception) {status="FAILED";message="生成或验证封面失败，请检查存储权限后重试。";}
+                } catch(Exception exception) {
+                    org.slf4j.LoggerFactory.getLogger(getClass()).warn("Admin media rebuild failed: task={}, item={}, asset={}, kind={}, stage={}, thumbnailState={}, displayState={}, exceptionType={}",
+                            task.id,item.id,asset.getId(),asset.getKind(),stage,thumbnailState,displayState,exception.getClass().getSimpleName());
+                    status="FAILED";message=stage.equals("GENERATE")?"封面生成失败，请查看服务日志后重试。":"封面生成后的文件验证失败，请查看服务日志后重试。";
+                }
             }
         } else if(List.of(check.sourceState,check.displayState,check.thumbnailState).contains("ERROR")) {status="FAILED";message="检查失败，请检查存储权限或网络后重试。";}
         item.finish(status,message);

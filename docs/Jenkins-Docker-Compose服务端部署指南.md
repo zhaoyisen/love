@@ -133,6 +133,28 @@ Checkout → Verify toolchain → Mini Program checks → Backend test
 
 ## 4. 修改配置及查看状态
 
+### 仅同步中文注释（保留生产值）
+
+在本地项目根目录执行，将模板和注释同步脚本上传到服务器（替换实际服务器 IP）：
+
+```powershell
+scp server/.env.example ubuntu@服务器IP:/tmp/love-notes-env.example
+scp scripts/sync-env-comments.py ubuntu@服务器IP:/tmp/sync-env-comments.py
+```
+
+然后在 Ubuntu 服务器的 SSH 终端执行，先预览，只有显示 `DRY_RUN_OK` 后才执行第二条：
+
+```bash
+sudo python3 /tmp/sync-env-comments.py
+sudo python3 /tmp/sync-env-comments.py --apply
+```
+
+脚本只在现有配置项上方补充模板注释，不新增、删除、排序或重新转义任何配置项，保留自定义注释和未知参数。重复运行不会重复添加相同注释。应用前备份原文件到 `/root/love-notes-backups/env-before-comments-*`（仅 root 可读），原文件的所有者、组、权限保持不变。不支持的语法（例如多行引号值）会停止，不输出配置值；预览后若有其他运维操作，需重新预览再应用。请勿与人工编辑同时执行。
+
+仅同步注释无需重启容器或触发 Jenkins。不要用示例模板覆盖生产 `.env`，也不要重新运行首次配置迁移脚本来同步注释。
+
+### 修改配置值
+
 以后修改业务参数、数据库/COS 信息、端口、内存等值，只编辑 `/opt/love-notes/.env`。新增业务变量只需在应用模板中引用并写入 `.env`，不再补一份 Compose `environment` 映射。
 
 修改后在服务器执行（沿用最近一次成功发布的 `production` 镜像，不重新构建）：

@@ -17,6 +17,21 @@ import static org.mockito.Mockito.*;
 
 class CosObjectStorageTest {
     @Test
+    @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
+    void shouldLogSafeProviderDetailsWhenAdminVideoCoverGenerationFails(org.springframework.boot.test.system.CapturedOutput output) {
+        var client=mock(COSClient.class);
+        var denied=new com.qcloud.cos.exception.CosServiceException("sensitive-provider-message");
+        denied.setStatusCode(403);denied.setErrorCode("AccessDenied");denied.setRequestId("snapshot-request-123");
+        when(client.generateSnapshot(any(SnapshotRequest.class))).thenThrow(denied);
+        assertEquals(denied,assertThrows(com.qcloud.cos.exception.CosServiceException.class,
+                ()->storage(client).regenerateDerivatives(DomainEnums.MediaKind.VIDEO,"original/video.mp4","generation-123")));
+        org.junit.jupiter.api.Assertions.assertTrue(output.getOut().contains("COS derivative regeneration failed"));
+        org.junit.jupiter.api.Assertions.assertTrue(output.getOut().contains("errorCode=AccessDenied"));
+        org.junit.jupiter.api.Assertions.assertTrue(output.getOut().contains("requestId=snapshot-request-123"));
+        org.junit.jupiter.api.Assertions.assertFalse(output.getOut().contains("sensitive-provider-message"));
+    }
+
+    @Test
     void shouldConfirmAmbiguousHead404WithBoundedGet() throws Exception {
         var client=mock(COSClient.class);
         var head=new com.qcloud.cos.http.CosHttpResponse(null,new org.apache.http.client.methods.HttpHead("https://example.test/a"));

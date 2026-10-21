@@ -185,7 +185,14 @@ public class CosObjectStorage implements ObjectStorage {
         return derivatives(kind,sourceKey,"");
     }
     @Override public Derivatives regenerateDerivatives(DomainEnums.MediaKind kind,String sourceKey,String generation){
-        return derivatives(kind,sourceKey,generation);
+        try {
+            return derivatives(kind,sourceKey,generation);
+        } catch(RuntimeException exception) {
+            CosProviderFailure.Diagnostic diagnostic=CosProviderFailure.inspect(exception);
+            log.error("COS derivative regeneration failed: kind={}, generation={}, category={}, status={}, errorCode={}, requestId={}, exceptionType={}",
+                    kind,generation,diagnostic.category(),diagnostic.status(),diagnostic.errorCode(),diagnostic.requestId(),diagnostic.exceptionType());
+            throw exception;
+        }
     }
     private Derivatives derivatives(DomainEnums.MediaKind kind,String sourceKey,String revision){
         Derivatives keys=ObjectStorage.derivativeKeys(kind,sourceKey,revision);
