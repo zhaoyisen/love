@@ -31,7 +31,7 @@ public class AuthFilter extends OncePerRequestFilter {
                 ? uri.substring(contextPath.length()) : uri;
         return path.equals("/auth/wechat/session") || path.equals("/auth/refresh") || path.startsWith("/actuator/") ||
                 path.startsWith("/v3/api-docs") || path.startsWith("/swagger-ui") ||
-                path.startsWith("/internal/") ||
+                path.startsWith("/internal/") || path.equals("/admin") || path.startsWith("/admin/") ||
                 (request.getMethod().equals("GET") && path.matches("/couple-invitations/[^/]+/preview")) ||
                 (request.getMethod().equals("GET") && path.matches("/deletion-requests/[^/]+/status"));
     }

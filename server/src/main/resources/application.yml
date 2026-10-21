@@ -2,7 +2,7 @@ spring:
   application:
     name: love-notes-server
   lifecycle:
-    timeout-per-shutdown-phase: 25s
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:25s}
   profiles:
     default: dev
   jackson:
@@ -12,6 +12,10 @@ spring:
     redis:
       repositories:
         enabled: false
+  task:
+    scheduling:
+      pool:
+        size: ${SCHEDULING_POOL_SIZE:2}
   jpa:
     open-in-view: false
     properties:
@@ -29,6 +33,11 @@ server:
   forward-headers-strategy: framework
   servlet:
     context-path: /api/v1
+    session:
+      timeout: ${ADMIN_SESSION_TIMEOUT:20m}
+      cookie:
+        http-only: true
+        same-site: strict
     encoding:
       charset: UTF-8
       enabled: true
@@ -54,28 +63,30 @@ logging:
     root: ${LOG_LEVEL_ROOT:INFO}
 
 love-notes:
+  admin:
+    worker-enabled: ${ADMIN_MEDIA_WORKER_ENABLED:true}
   session:
-    access-ttl: PT30M
-    refresh-ttl: P30D
+    access-ttl: ${SESSION_ACCESS_TTL:PT30M}
+    refresh-ttl: ${SESSION_REFRESH_TTL:P30D}
   invitation:
-    ttl: PT24H
+    ttl: ${INVITATION_TTL:PT24H}
   pet:
-    relationship-daily-cap: 20
-    moment-growth: 6
-    reaction-growth: 4
-    both-active-growth: 6
-    rule-version: 1
-    unlocks: 云朵围巾,星星抱枕,晚安动作,纪念相框,双人烟花
+    relationship-daily-cap: ${LOVE_NOTES_PET_RELATIONSHIP_DAILY_CAP:20}
+    moment-growth: ${LOVE_NOTES_PET_MOMENT_GROWTH:6}
+    reaction-growth: ${LOVE_NOTES_PET_REACTION_GROWTH:4}
+    both-active-growth: ${LOVE_NOTES_PET_BOTH_ACTIVE_GROWTH:6}
+    rule-version: ${LOVE_NOTES_PET_RULE_VERSION:1}
+    unlocks: ${LOVE_NOTES_PET_UNLOCKS:云朵围巾,星星抱枕,晚安动作,纪念相框,双人烟花}
   media:
-    image-max-bytes: 20971520
-    video-max-bytes: 209715200
-    video-max-duration-seconds: 60
-    upload-credential-ttl-seconds: 1800
+    image-max-bytes: ${IMAGE_MAX_BYTES:20971520}
+    video-max-bytes: ${VIDEO_MAX_BYTES:209715200}
+    video-max-duration-seconds: ${VIDEO_MAX_DURATION_SECONDS:60}
+    upload-credential-ttl-seconds: ${UPLOAD_CREDENTIAL_TTL_SECONDS:1800}
     trash-retention-days: ${MEDIA_TRASH_RETENTION_DAYS:30}
     orphan-retention-hours: ${MEDIA_ORPHAN_RETENTION_HOURS:24}
   timeline:
     cursor-secret: ${TIMELINE_CURSOR_SECRET:dev-only-change-me}
   wechat:
-    session-url: https://api.weixin.qq.com/sns/jscode2session
+    session-url: ${WECHAT_SESSION_URL:https://api.weixin.qq.com/sns/jscode2session}
   operations:
     internal-token-hash: ${INTERNAL_OPERATION_TOKEN_HASH:}

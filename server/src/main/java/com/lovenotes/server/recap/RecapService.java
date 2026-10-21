@@ -127,6 +127,7 @@ public class RecapService {
         List<UUID> linkedIds = links.stream().map(AnnualRecapMomentEntity::getMomentId).toList();
         Map<UUID, MomentEntity> selected = moments.findAllById(linkedIds).stream()
                 .filter(moment -> moment.getCoupleId() != null && moment.getCoupleId().equals(recap.getCoupleId()))
+                .filter(moment -> !moment.isAdminHidden())
                 .filter(moment -> moment.getVisibility() == DomainEnums.Visibility.SHARED && moment.getStatus() == DomainEnums.MomentStatus.PUBLISHED)
                 .collect(Collectors.toMap(MomentEntity::getId, Function.identity()));
         List<UUID> selectedIds = linkedIds.stream().filter(selected::containsKey).toList();
@@ -145,6 +146,7 @@ public class RecapService {
         ZonedDateTime end = start.plusYears(1);
         List<MomentEntity> allShared = moments.findByCoupleIdAndVisibilityAndStatusAndOccurredAtBetweenOrderByOccurredAtDescCreatedAtDesc(
                 coupleId, DomainEnums.Visibility.SHARED, DomainEnums.MomentStatus.PUBLISHED, start.toInstant(), end.toInstant().minusMillis(1));
+        allShared = allShared.stream().filter(moment -> !moment.isAdminHidden()).toList();
         List<MomentEntity> candidates = allShared.stream().filter(moment -> !sensitive(moment)).toList();
         return new CandidateSet(candidates, allShared.size() - candidates.size());
     }

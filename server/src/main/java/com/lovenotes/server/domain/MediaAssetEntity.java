@@ -50,6 +50,10 @@ public class MediaAssetEntity {
     private Instant createdAt;
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+    @ElementCollection(fetch=FetchType.EAGER)
+    @CollectionTable(name="media_object_history",joinColumns=@JoinColumn(name="asset_id"))
+    @Column(name="storage_key",nullable=false,length=300)
+    private java.util.Set<String> retainedObjectKeys = new java.util.LinkedHashSet<>();
 
     protected MediaAssetEntity() {}
     public MediaAssetEntity(UUID uploaderId, DomainEnums.MediaKind kind, String storageKey, String sha256, String mimeType, long sizeBytes) {
@@ -98,8 +102,11 @@ public class MediaAssetEntity {
     public void attach(UUID momentId) { this.momentId = momentId; }
     public void markProfileAvatar(boolean profileAvatar) { this.profileAvatar = profileAvatar; }
     public void markDeleted() { this.status = DomainEnums.MediaStatus.DELETED; }
+    public void rememberObjects(java.util.Collection<String> keys) {
+        keys.stream().filter(java.util.Objects::nonNull).filter(key->!key.isBlank()).forEach(retainedObjectKeys::add);
+    }
     public java.util.List<String> objectKeys() {
-        return java.util.stream.Stream.of(storageKey, displayStorageKey, thumbnailStorageKey)
+        return java.util.stream.Stream.concat(java.util.stream.Stream.of(storageKey, displayStorageKey, thumbnailStorageKey),retainedObjectKeys.stream())
                 .filter(java.util.Objects::nonNull)
                 .filter(value -> !value.isBlank())
                 .distinct()

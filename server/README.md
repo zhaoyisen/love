@@ -1,5 +1,7 @@
 # 恋爱笔记统一 API 服务
 
+媒体与记录管理网页：`/api/v1/admin/`。复用内部运维口令，支持账号筛选、COS 检查、持久化批量补图任务、隐藏与恢复。部署及使用见[管理端使用说明](../docs/管理端使用说明.md)。
+
 Spring Boot 3 / Java 21 后端基础版，按详细设计提供统一 `/api/v1` API。
 
 完整的生产资源、Jenkins、域名、微信后台和提审顺序见[《生产上线唯一操作手册》](../docs/生产上线唯一操作手册.md)。
@@ -24,7 +26,7 @@ Spring Boot 3 / Java 21 后端基础版，按详细设计提供统一 `/api/v1` 
 - Flyway MySQL 迁移、Redis 会话/幂等存储、统一错误和 request ID；
 - H2 隔离集成测试，不连接生产 MySQL、Redis 或 COS。
 
-图片/视频上传后进入 `PROCESSING`，审核通过才把时刻迁移到 `PUBLISHED`。图片时间线使用缩略图，详情使用展示图，不再向客户端签发原图 URL。视频当前在审核通过后使用原视频播放，尚未生成视频封面或转码版本，生产验收必须覆盖 iOS/Android 实际编码兼容性。
+图片/视频上传后进入 `PROCESSING`，审核通过才把时刻迁移到 `PUBLISHED`。图片生成展示图和缩略图，视频通过 COS 截帧生成封面，缺少封面时有自动补图；管理端支持实际文件检查和手动修复。必要的视频转码与 iOS/Android 实际编码兼容性仍需生产验收。
 
 ## 本地启动
 
@@ -65,32 +67,11 @@ Idempotency-Key: <每次业务操作生成的 UUID>
 
 ## 生产配置
 
-复制 `.env.example` 中的变量到部署平台的 Secret Manager 或环境变量，不要把真实值写进文件。
+服务器只维护 `/opt/love-notes/.env` 一份配置值，完整变量见 [.env.example](.env.example)。真实值不进入 Git、镜像或 Jenkins 参数。项目中的 `application.yml` 和 `application-prod.yml` 保留为 `${变量名:默认值}` 模板；密码、密钥无真实值默认项，生产游标密钥也不能回退到开发值。不在服务器挂载另一份应用 YAML。
 
-生产启动：
+Compose 通过 `env_file` 把整份 `.env` 注入应用，新变量无需逐一修改 Compose 映射。`--env-file` 同时用于解析端口/资源等编排参数。Jenkins 只读取固定目录的 `compose.yml` 和 `.env`，不再依赖 `love-notes-prod-env` Secret file。
 
-```powershell
-$env:SPRING_PROFILES_ACTIVE='prod'
-$env:MYSQL_URL='jdbc:mysql://...'
-$env:MYSQL_USERNAME='...'
-$env:MYSQL_PASSWORD='...'
-$env:REDIS_HOST='...'
-$env:WECHAT_APP_ID='...'
-$env:WECHAT_APP_SECRET='...'
-$env:COS_BUCKET='...'
-$env:COS_REGION='ap-shanghai'
-$env:COS_SECRET_ID='...'
-$env:COS_SECRET_KEY='...'
-$env:TIMELINE_CURSOR_SECRET='至少32位随机字符串'
-$env:INTERNAL_OPERATION_TOKEN_HASH='内部运维口令的SHA-256哈希'
-$env:MEDIA_CLEANUP_POLL_MS='3600000'
-$env:ACCOUNT_DELETION_POLL_MS='600000'
-$env:MEDIA_TRASH_RETENTION_DAYS='30'
-$env:MEDIA_ORPHAN_RETENTION_HOURS='24'
-java -jar target\love-notes-server-0.1.0-SNAPSHOT.jar
-```
-
-`COS_SECRET_ID/COS_SECRET_KEY` 只允许存在于受控服务端。小程序收到的是约 30 分钟、只允许上传一个随机对象 Key 的 STS 临时凭证。如果坚持使用主账号密钥，代码可以运行，但密钥泄露影响整个云账号；必须放在 Jenkins Secret file 中并完成数据万象主账号角色授权。更安全的长期方案仍是 CAM 子用户或云角色。
+`COS_SECRET_ID/COS_SECRET_KEY` 只保存在受控服务器 `.env`。小程序收到的是约 30 分钟、只允许上传一个随机对象 Key 的 STS 临时凭证。COS 仍需完成数据万象角色授权，优先使用最小权限 CAM 子用户或云角色。
 
 `SERVER_BIND_ADDRESS` 是监听 IP，不是域名。同机 Nginx 反向代理时保持 `127.0.0.1`；只有反向代理在另一台主机且网络已受防火墙保护时才绑定服务器私网 IP。
 
@@ -100,27 +81,21 @@ java -jar target\love-notes-server-0.1.0-SNAPSHOT.jar
 
 `server/Dockerfile` 只负责把已经打好的 Spring Boot jar 放进 Java 21 运行镜像，不在镜像构建阶段重复执行 Maven，也不执行 `apt-get update`。Jenkins 的 `Backend test` 阶段会先运行 `mvn clean verify` 生成 `server/target/love-notes-server-*.jar`，随后 `Build image` 阶段直接复制该 jar。Compose 健康检查使用基础镜像自带的 `bash` 和 `grep` 请求 Actuator，不需要在镜像里安装 `curl`。
 
-在 Linux 部署服务器手动验证生产编排时，先复制示例配置并填写测试资源，禁止使用生产数据做开发测试：
+首次部署或从旧 Jenkins 密钥文件迁移时，先按[部署指南](../docs/Jenkins-Docker-Compose服务端部署指南.md)准备固定目录、真实变量、权限及 Jenkins 挂载。发布成功后，修改配置不需要重新打包：
 
 ```bash
-cp .env.example .env
-docker run --rm \
-  --volume "$PWD:/workspace" \
-  --workdir /workspace \
-  maven:3.9-eclipse-temurin-21 \
-  mvn -B -ntp clean verify
-cd ..
-docker compose --env-file server/.env config --quiet
-docker compose --env-file server/.env build api
-docker compose --env-file server/.env up -d --wait api
-docker compose --env-file server/.env ps api
+unset IMAGE_TAG APP_ENV_FILE
+sudoedit /opt/love-notes/.env
+sudo docker compose --project-name love-notes --env-file /opt/love-notes/.env -f /opt/love-notes/compose.yml config --quiet
+sudo docker compose --project-name love-notes --env-file /opt/love-notes/.env -f /opt/love-notes/compose.yml up -d --no-deps --force-recreate --wait --wait-timeout 300 api
+sudo docker compose --project-name love-notes --env-file /opt/love-notes/.env -f /opt/love-notes/compose.yml ps api
 ```
 
-Windows 开发机只需要执行 Maven 测试和 Compose 配置校验；正式 Linux 镜像由带有 `linux-docker` 标签的 Jenkins 节点构建。
+配置不会热生效，重建应用容器会短暂中断。`production` 镜像别名只在 Jenkins 健康发布成功后更新；具体提交镜像保留用于回滚。不要在 `.env` 固定 `IMAGE_TAG`，不要和 Jenkins 同时重建容器。Compose 不再包含依赖仓库相对路径的 `build`；镜像由流水线的 `docker build ... server` 构建。
 
 默认只将容器端口映射到宿主机 `127.0.0.1:8080`。公网流量应先经过 Nginx、负载均衡或 API 网关终止 HTTPS，不要直接开放 8080。
 
-完整的 Jenkins 凭据、分支、发布、验证和回滚步骤见：
+完整的服务器配置、分支、发布、验证和回滚步骤见：
 
 ```text
 docs/Jenkins-Docker-Compose服务端部署指南.md
@@ -130,7 +105,7 @@ docs/Jenkins-Docker-Compose服务端部署指南.md
 
 应用启动时由 Flyway 自动执行 `src/main/resources/db/migration`。生产账号需要目标 schema 的建表/变更权限；稳定运行后可将迁移身份和应用运行身份拆分。
 
-当前迁移版本为 V7。不要手工修改已在共享环境执行过的迁移文件，应新增更高版本迁移。
+当前迁移版本为 V22。不要手工修改已在共享环境执行过的迁移文件，应新增更高版本迁移。
 
 ## 测试
 
@@ -177,7 +152,7 @@ MEDIA_ORPHAN_RETENTION_HOURS=24
 ## 尚未完成
 
 - Outbox 和消息队列；
-- 视频封面和转码；
+- 必要的视频转码及实际编码兼容性验收；
 - 周/月/年时间线摘要；
 - 审计日志、注销和通知任务；
 - OpenAPI 生成小程序 DTO。

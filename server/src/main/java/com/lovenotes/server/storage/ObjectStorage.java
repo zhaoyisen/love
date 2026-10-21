@@ -12,6 +12,13 @@ public interface ObjectStorage {
     boolean requiresProcessing();
     ProcessingResult process(DomainEnums.MediaKind kind, String storageKey, String jobId);
     Derivatives createDerivatives(DomainEnums.MediaKind kind, String storageKey);
+    default Derivatives regenerateDerivatives(DomainEnums.MediaKind kind, String storageKey) {return regenerateDerivatives(kind,storageKey,java.util.UUID.randomUUID().toString());}
+    Derivatives regenerateDerivatives(DomainEnums.MediaKind kind, String storageKey, String generation);
+    static Derivatives derivativeKeys(DomainEnums.MediaKind kind,String sourceKey,String generation) {
+        String suffix=sourceKey.startsWith("original/")?sourceKey.substring("original/".length()):sourceKey;
+        int extension=suffix.lastIndexOf('.');String stem=(extension<0?suffix:suffix.substring(0,extension))+(generation.isEmpty()?"":"-"+generation);
+        return kind==DomainEnums.MediaKind.VIDEO?new Derivatives(sourceKey,"thumbnail/"+stem+".jpg"):new Derivatives("display/"+stem+".webp","thumbnail/"+stem+".webp");
+    }
     ProcessingOutcome auditText(String text);
     void deleteObjects(Collection<String> storageKeys);
 

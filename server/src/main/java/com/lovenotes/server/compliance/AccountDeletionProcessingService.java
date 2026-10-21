@@ -48,12 +48,13 @@ public class AccountDeletionProcessingService {
     private final ObjectStorage storage;
     private final DerivedAssetCleanupService derivedAssetCleanup;
     private final AuditService audit;
+    private final jakarta.persistence.EntityManager db;
 
     public AccountDeletionProcessingService(DeletionRequestRepository deletionRequests, UserRepository users,
                                             ActiveCoupleMemberRepository members, MomentRepository moments,
                                             MediaAssetRepository assets, MomentCommentRepository comments,
                                             MomentReactionRepository reactions, ObjectStorage storage,
-                                            DerivedAssetCleanupService derivedAssetCleanup, AuditService audit) {
+                                            DerivedAssetCleanupService derivedAssetCleanup, AuditService audit, jakarta.persistence.EntityManager db) {
         this.deletionRequests = deletionRequests;
         this.users = users;
         this.members = members;
@@ -64,6 +65,7 @@ public class AccountDeletionProcessingService {
         this.storage = storage;
         this.derivedAssetCleanup = derivedAssetCleanup;
         this.audit = audit;
+        this.db = db;
     }
 
     @Transactional
@@ -165,6 +167,7 @@ public class AccountDeletionProcessingService {
 
         int deleted = 0;
         for (MediaAssetEntity asset : media.values()) {
+            db.refresh(asset,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
             storage.deleteObjects(asset.objectKeys());
             if (asset.getStatus() != DomainEnums.MediaStatus.DELETED) {
                 asset.markDeleted();

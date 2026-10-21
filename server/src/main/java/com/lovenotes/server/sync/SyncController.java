@@ -29,7 +29,7 @@ public class SyncController {
         List<UUID> people = new ArrayList<>();people.add(actor.userId());
         members.findByCoupleId(couple).forEach(member -> { if (!people.contains(member.getUserId())) people.add(member.getUserId()); });
         Map<String,Object> params = Map.of("actor",actor.userId(),"couple",couple,"people",people);
-        String visible = "select m.id from MomentEntity m where m.authorId=:actor or (m.coupleId=:couple and m.visibility=com.lovenotes.server.domain.DomainEnums$Visibility.SHARED and m.status=com.lovenotes.server.domain.DomainEnums$MomentStatus.PUBLISHED)";
+        String visible = "select m.id from MomentEntity m where m.adminHidden=false and (m.authorId=:actor or (m.coupleId=:couple and m.visibility=com.lovenotes.server.domain.DomainEnums$Visibility.SHARED and m.status=com.lovenotes.server.domain.DomainEnums$MomentStatus.PUBLISHED))";
         StringBuilder fingerprint = new StringBuilder(actor.userId()+":"+couple);
         fingerprint.append(stats("UserEntity", "x.id in :people", "x.updatedAt", params));
         fingerprint.append(stats("CoupleSpaceEntity", "x.id=:couple", "x.updatedAt", params));

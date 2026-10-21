@@ -18,6 +18,8 @@
 
 ## 已实现
 
+媒体与记录网页管理端入口为 `/api/v1/admin/`，支持管理员登录、按账号筛选记录、真实媒体检查、批量重建异常封面、隐藏与恢复，以及持久化任务结果。配置与使用见[管理端使用说明](docs/管理端使用说明.md)。
+
 - 首次登录、隐私承诺和未配对独立使用
 - 天/周/月/年/自定义五种时间视图及心情筛选
 - 图片、视频、纯文字三类记录，3 秒草稿保存、属性与可见范围约束
@@ -34,4 +36,4 @@
 
 年度回顾的候选、选择、草稿和生成状态已经接入真实服务端；预览页会在小程序端用 Canvas 生成长图并保存到手机相册，长图文件不上传 COS、不作为服务端资产保存。后端说明见 [server/README.md](server/README.md)。
 
-服务端生产发布采用 Jenkins + Docker Compose，配置和首次部署步骤见 [Jenkins + Docker Compose 服务端部署指南](docs/Jenkins-Docker-Compose服务端部署指南.md)。`develop` 分支只执行构建与测试，`main` 分支通过后自动发布生产容器。
+服务端生产发布采用 Jenkins + Docker Compose。服务器只维护 `/opt/love-notes/.env` 一份配置值，Compose 也固定在该目录，Jenkins 发布不覆盖它们。首次迁移、Docker 化 Jenkins 挂载、修改配置及回滚见 [Jenkins + Docker Compose 服务端部署指南](docs/Jenkins-Docker-Compose服务端部署指南.md)。`develop` 只构建与测试，`main` 通过后发布生产容器；升级流水线前先准备服务器配置目录。

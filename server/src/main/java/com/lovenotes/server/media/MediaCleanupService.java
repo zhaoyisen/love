@@ -28,13 +28,15 @@ public class MediaCleanupService {
     private final MomentRepository moments;
     private final ObjectStorage storage;
     private final LoveNotesProperties properties;
+    private final jakarta.persistence.EntityManager db;
 
     public MediaCleanupService(MediaAssetRepository assets, MomentRepository moments,
-                               ObjectStorage storage, LoveNotesProperties properties) {
+                               ObjectStorage storage, LoveNotesProperties properties, jakarta.persistence.EntityManager db) {
         this.assets = assets;
         this.moments = moments;
         this.storage = storage;
         this.properties = properties;
+        this.db = db;
     }
 
     @Transactional
@@ -73,6 +75,7 @@ public class MediaCleanupService {
     }
 
     private void delete(MediaAssetEntity asset) {
+        db.refresh(asset,jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
         storage.deleteObjects(asset.objectKeys());
         asset.markDeleted();
     }

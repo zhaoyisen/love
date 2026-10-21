@@ -125,7 +125,7 @@ tmp/{userPublicId}/{uploadSessionId}/{uuid}.part
 2. 打开 COS 存储桶，确认访问权限为“私有读写”；
 3. 在数据万象控制台绑定这个存储桶，开通图片处理与内容审核；
 4. 按控制台提示完成主账号数据万象服务角色授权；
-5. 将密钥只写入 Jenkins 的生产 Secret file：
+5. 将密钥只写入服务器唯一生产配置 `/opt/love-notes/.env`，然后按[部署指南](Jenkins-Docker-Compose服务端部署指南.md)校验并重建 API 容器：
 
    ```dotenv
    COS_BUCKET=love-1303187601
@@ -134,7 +134,7 @@ tmp/{userPublicId}/{uploadSessionId}/{uuid}.part
    COS_SECRET_KEY=你的SecretKey
    ```
 
-主账号密钥权限很大，泄漏会影响整个腾讯云账号。它不能写进小程序、Git、Docker 镜像、普通 `.env` 文件、日志或聊天记录。建议开启登录保护、费用告警并定期轮换。代码不强制子账号，但长期生产仍建议迁移到 CAM 子用户或云角色。
+主账号密钥权限很大，泄漏会影响整个腾讯云账号。它只允许保存在服务器受限权限的 `/opt/love-notes/.env`，不能写进小程序、Git、Docker 镜像、仓库中的 `.env`、日志或聊天记录。建议开启登录保护、费用告警并定期轮换。代码不强制子账号，但长期生产仍建议迁移到 CAM 子用户或云角色。
 
 注意：使用主账号 `SecretId/SecretKey` 不能替代第 4 步的数据万象服务角色授权。未授权时，普通 COS 读写可能正常，但文本、图片或视频审核会返回 403，体验版发布文字时会显示“文本安全检测服务暂时不可用”。服务端会记录 `COS text audit failed`，并给出不含密钥的错误分类、腾讯云错误码和 RequestId。
 
@@ -341,7 +341,7 @@ miniprogram/services/media-service.ts
 - [ ] 控制台上传测试图片；
 - [ ] 验证永久 URL 不能匿名打开；
 - [ ] 设置预算告警；
-- [ ] 将主账号 SecretId/SecretKey 仅保存到 Jenkins Secret file；
+- [ ] 将主账号 SecretId/SecretKey 仅保存到服务器 `/opt/love-notes/.env`，不放进 Git 或 Jenkins 参数；
 - [ ] 存储桶绑定数据万象并完成主账号角色授权；
 - [x] STS 临时凭证接口；
 - [x] 小程序直传和失败重试；
