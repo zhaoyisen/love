@@ -179,6 +179,23 @@ class AdminMediaIntegrationTest {
         assertTrue(keys.getValue().containsAll(List.of(photo.getStorageKey(),"display/old.webp","thumbnail/old.webp","display/"+stem+".webp","thumbnail/"+stem+".webp")));
     }
 
+    @Test
+    @org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
+    void missingGeneratedCoverReportsVerificationStageWithoutUpdatingMedia(org.springframework.boot.test.system.CapturedOutput output) throws Exception {
+        var admin=login();
+        when(storage.stat(eq("thumbnail/old.webp"),anyLong())).thenThrow(new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,"UPLOAD_NOT_FOUND","不存在"));
+        when(storage.regenerateDerivatives(any(),anyString(),anyString())).thenReturn(new ObjectStorage.Derivatives("display/fresh.webp","thumbnail/fresh.webp"));
+        when(storage.stat(eq("thumbnail/fresh.webp"),anyLong())).thenThrow(new ApiException(HttpStatus.UNPROCESSABLE_ENTITY,"UPLOAD_NOT_FOUND","不存在"));
+        var task=createTask(admin,"REBUILD",List.of(shared.getId()));runTask(admin,task);
+        mvc.perform(get("/internal/admin/tasks/{id}",task.get("id").asText()).session(admin).param("account_id",owner.getId().toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.items[0].status").value("FAILED"))
+                .andExpect(jsonPath("$.data.items[0].message").value("封面生成后的文件验证失败，请查看服务日志后重试。"));
+        assertEquals("thumbnail/old.webp",assets.findById(photo.getId()).orElseThrow().getThumbnailStorageKey());
+        assertTrue(output.getOut().contains("asset="+photo.getId()));
+        assertTrue(output.getOut().contains("stage=VERIFY"));
+        assertTrue(output.getOut().contains("thumbnailState=MISSING"));
+    }
+
     @Test void deletionOrSafetyStateChangedAfterQueueCannotBeResurrected() throws Exception {
         var admin=login();var task=createTask(admin,"REBUILD",List.of(shared.getId()));
         photo.markDeleted();assets.saveAndFlush(photo);runTask(admin,task);
