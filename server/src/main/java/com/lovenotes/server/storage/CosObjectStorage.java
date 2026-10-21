@@ -220,8 +220,9 @@ public class CosObjectStorage implements ObjectStorage {
         }
         String displayKey=keys.displayKey();String thumbnailKey=keys.thumbnailKey();
         PicOperations operations=new PicOperations();operations.setIsPicInfo(0);
-        PicOperations.Rule display=new PicOperations.Rule();display.setBucket(properties.storage().bucket());display.setFileId(displayKey);display.setRule("imageMogr2/thumbnail/2000x2000>/strip/format/webp");
-        PicOperations.Rule thumbnail=new PicOperations.Rule();thumbnail.setBucket(properties.storage().bucket());thumbnail.setFileId(thumbnailKey);thumbnail.setRule("imageMogr2/thumbnail/480x480>/strip/format/webp");
+        // COS resolves fileid relative to the source directory unless it starts with '/'.
+        PicOperations.Rule display=new PicOperations.Rule();display.setBucket(properties.storage().bucket());display.setFileId("/"+displayKey);display.setRule("imageMogr2/thumbnail/2000x2000>/strip/format/webp");
+        PicOperations.Rule thumbnail=new PicOperations.Rule();thumbnail.setBucket(properties.storage().bucket());thumbnail.setFileId("/"+thumbnailKey);thumbnail.setRule("imageMogr2/thumbnail/480x480>/strip/format/webp");
         operations.setRules(List.of(display,thumbnail));
         ImageProcessRequest request=new ImageProcessRequest(properties.storage().bucket(),sourceKey);request.setPicOperations(operations);cos.processImage(request);
         return new Derivatives(displayKey,thumbnailKey);

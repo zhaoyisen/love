@@ -18,6 +18,50 @@ import static org.mockito.Mockito.*;
 
 class CosObjectStorageTest {
     @Test
+    void shouldPersistUploadedAndRebuiltPhotosAtBucketRootWithActualSdk() throws Exception {
+        var requestUri=new java.util.concurrent.atomic.AtomicReference<java.net.URI>();
+        var requestMethod=new java.util.concurrent.atomic.AtomicReference<String>();
+        var operations=new java.util.concurrent.atomic.AtomicReference<String>();
+        var server=com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1",0),0);
+        String source="original/user/2026/10/photo.jpg";
+        server.createContext("/"+source,exchange->{
+            requestUri.set(exchange.getRequestURI());requestMethod.set(exchange.getRequestMethod());
+            operations.set(exchange.getRequestHeaders().getFirst("Pic-Operations"));
+            byte[] body="<UploadResult><ProcessResults/></UploadResult>".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type","application/xml");
+            exchange.sendResponseHeaders(200,body.length);exchange.getResponseBody().write(body);exchange.close();
+        });
+        server.start();
+        var config=new com.qcloud.cos.ClientConfig(new com.qcloud.cos.region.Region("ap-chengdu"));
+        config.setMaxErrorRetry(0);config.setConnectionTimeout(3000);config.setSocketTimeout(3000);
+        var client=new COSClient(new com.qcloud.cos.auth.BasicCOSCredentials("test-id","test-secret"),config) {
+            @Override protected <X extends com.qcloud.cos.internal.CosServiceRequest> com.qcloud.cos.http.CosHttpRequest<X> createRequest(
+                    String bucket,String key,X original,com.qcloud.cos.http.HttpMethodName method) {
+                var request=super.createRequest(bucket,key,original,method);
+                String endpoint="127.0.0.1:"+server.getAddress().getPort();
+                request.setEndpoint(endpoint);request.setProtocol(com.qcloud.cos.http.HttpProtocol.http);
+                request.addHeader("Host",endpoint);return request;
+            }
+        };
+        try {
+            var storage=storage(client);
+            for(String revision:java.util.List.of("","revision-123")) {
+                var result=revision.isEmpty()?storage.createDerivatives(DomainEnums.MediaKind.IMAGE,source)
+                        :storage.regenerateDerivatives(DomainEnums.MediaKind.IMAGE,source,revision);
+                String suffix=revision.isEmpty()?"":"-"+revision;
+                assertEquals("display/user/2026/10/photo"+suffix+".webp",result.displayKey());
+                assertEquals("thumbnail/user/2026/10/photo"+suffix+".webp",result.thumbnailKey());
+                assertEquals("POST",requestMethod.get());assertEquals("/"+source,requestUri.get().getPath());
+                assertEquals("image_process",requestUri.get().getQuery());
+                var rules=new com.fasterxml.jackson.databind.ObjectMapper().readTree(operations.get()).get("rules");
+                assertEquals("/"+result.displayKey(),rules.get(0).get("fileid").asText());
+                assertEquals("/"+result.thumbnailKey(),rules.get(1).get("fileid").asText());
+                for(var rule:rules)assertEquals("bucket-123",rule.get("bucket").asText());
+            }
+        } finally {client.shutdown();server.stop(0);}
+    }
+
+    @Test
     void shouldFetchRealtimeFrameAndUploadOnlyTheNewCoverWithJpegMetadata() throws Exception {
         var client=mock(COSClient.class);
         byte[] jpeg={(byte)0xff,(byte)0xd8,(byte)0xff,1};
