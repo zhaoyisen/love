@@ -16,7 +16,7 @@ import com.qcloud.cos.model.ciModel.auditing.TextAuditingRequest;
 import com.qcloud.cos.model.ciModel.auditing.TextAuditingResponse;
 import com.qcloud.cos.model.ciModel.common.ImageProcessRequest;
 import com.qcloud.cos.model.ciModel.persistence.PicOperations;
-import com.qcloud.cos.model.ciModel.snapshot.SnapshotRequest;
+import com.qcloud.cos.model.ciModel.snapshot.CosSnapshotRequest;
 import com.qcloud.cos.region.Region;
 import com.tencent.cloud.CosStsClient;
 import com.lovenotes.server.common.ApiException;
@@ -35,6 +35,7 @@ import java.util.*;
 @Component @Profile("prod")
 public class CosObjectStorage implements ObjectStorage {
     private static final Logger log = LoggerFactory.getLogger(CosObjectStorage.class);
+    private static final int MAX_VIDEO_COVER_BYTES = 20 * 1024 * 1024;
     private final LoveNotesProperties properties;
     private final COSClient cos;
     @org.springframework.beans.factory.annotation.Autowired
@@ -176,9 +177,10 @@ public class CosObjectStorage implements ObjectStorage {
     }
     private void logProviderFailure(String operation,DomainEnums.MediaKind kind,String key,String jobId,Exception exception){
         CosProviderFailure.Diagnostic diagnostic=CosProviderFailure.inspect(exception);
-        log.error("COS {} failed: kind={}, key={}, jobId={}, category={}, status={}, errorCode={}, requestId={}, exceptionType={}, bucket={}, region={}",
+        log.error("COS {} failed: kind={}, key={}, jobId={}, category={}, status={}, errorCode={}, requestId={}, exceptionType={}, bucket={}, region={}, parameterMessage={}",
                 operation,kind,key,jobId,diagnostic.category(),diagnostic.status(),diagnostic.errorCode(),diagnostic.requestId(),
-                diagnostic.exceptionType(),properties.storage().bucket(),properties.storage().region());
+                diagnostic.exceptionType(),properties.storage().bucket(),properties.storage().region(),
+                CosProviderFailure.parameterMessage(exception,properties.storage().secretId(),properties.storage().secretKey()));
         log.debug("COS "+operation+" exception",exception);
     }
     public Derivatives createDerivatives(DomainEnums.MediaKind kind,String sourceKey){
@@ -189,8 +191,9 @@ public class CosObjectStorage implements ObjectStorage {
             return derivatives(kind,sourceKey,generation);
         } catch(RuntimeException exception) {
             CosProviderFailure.Diagnostic diagnostic=CosProviderFailure.inspect(exception);
-            log.error("COS derivative regeneration failed: kind={}, generation={}, category={}, status={}, errorCode={}, requestId={}, exceptionType={}",
-                    kind,generation,diagnostic.category(),diagnostic.status(),diagnostic.errorCode(),diagnostic.requestId(),diagnostic.exceptionType());
+            log.error("COS derivative regeneration failed: kind={}, generation={}, category={}, status={}, errorCode={}, requestId={}, exceptionType={}, parameterMessage={}",
+                    kind,generation,diagnostic.category(),diagnostic.status(),diagnostic.errorCode(),diagnostic.requestId(),diagnostic.exceptionType(),
+                    CosProviderFailure.parameterMessage(exception,properties.storage().secretId(),properties.storage().secretKey()));
             throw exception;
         }
     }
@@ -198,15 +201,21 @@ public class CosObjectStorage implements ObjectStorage {
         Derivatives keys=ObjectStorage.derivativeKeys(kind,sourceKey,revision);
         if(kind==DomainEnums.MediaKind.VIDEO){
             String thumbnailKey=keys.thumbnailKey();
-            SnapshotRequest request=new SnapshotRequest();
+            CosSnapshotRequest request=new CosSnapshotRequest();
             request.setBucketName(properties.storage().bucket());
-            request.getInput().setObject(sourceKey);
-            request.getOutput().setBucket(properties.storage().bucket());
-            request.getOutput().setRegion(properties.storage().region());
-            request.getOutput().setObject(thumbnailKey);
+            request.setObjectKey(sourceKey);
             request.setTime("0");request.setWidth("480");request.setHeight("0");
             request.setFormat("jpg");request.setMode("keyframe");request.setRotate("auto");
-            cos.generateSnapshot(request);
+            // The realtime endpoint works for buckets where POST /snapshot rejects the same frame parameters.
+            try(var snapshot=cos.getSnapshot(request)) {
+                byte[] jpeg=snapshot.readNBytes(MAX_VIDEO_COVER_BYTES+1);
+                if(jpeg.length<3||jpeg.length>MAX_VIDEO_COVER_BYTES||(jpeg[0]&255)!=255||(jpeg[1]&255)!=216||(jpeg[2]&255)!=255)
+                    throw new IllegalStateException("Video snapshot is not a bounded JPEG image");
+                var metadata=new ObjectMetadata();metadata.setContentType("image/jpeg");metadata.setContentLength(jpeg.length);
+                cos.putObject(properties.storage().bucket(),thumbnailKey,new java.io.ByteArrayInputStream(jpeg),metadata);
+            } catch(java.io.IOException exception) {
+                throw new com.qcloud.cos.exception.CosClientException("Unable to read video snapshot",exception);
+            }
             return new Derivatives(sourceKey,thumbnailKey);
         }
         String displayKey=keys.displayKey();String thumbnailKey=keys.thumbnailKey();

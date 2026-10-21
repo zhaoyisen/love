@@ -27,6 +27,7 @@ final class CosProviderFailure {
 
     private static String category(int status, String errorCode) {
         String code = errorCode == null ? "" : errorCode.toLowerCase(java.util.Locale.ROOT);
+        if (code.equals("invalidargument")) return "REQUEST_PARAMETER";
         if (code.contains("signature") || code.contains("invalidaccesskey") || code.contains("invalidsecret")) {
             return "CREDENTIAL_OR_SIGNATURE";
         }
@@ -43,6 +44,23 @@ final class CosProviderFailure {
         }
         if (status >= 500) return "PROVIDER_5XX";
         return "PROVIDER_REJECTED";
+    }
+
+    static String parameterMessage(Throwable failure, String... secrets) {
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            if (!(current instanceof CosServiceException service) || !"InvalidArgument".equalsIgnoreCase(service.getErrorCode())) continue;
+            String message = service.getErrorMessage();
+            if (message == null || message.isBlank()) return null;
+            for (String secret : secrets) {
+                if (secret != null && !secret.isBlank()) message = message.replace(secret, "[redacted]");
+            }
+            message = message.replaceAll("[\\p{Cntrl}]", " ").replaceAll("(?i)https?://\\S+", "[url]").trim();
+            if (java.util.regex.Pattern.compile("(?i)authorization|q-sign|q-ak|signature|secret|token").matcher(message).find()) {
+                return "[redacted sensitive provider message]";
+            }
+            return message.substring(0, Math.min(message.length(), 400));
+        }
+        return null;
     }
 
     private static String safe(String value) {
