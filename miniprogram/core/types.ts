@@ -114,9 +114,10 @@ export interface AppState {
     relationshipName: string;
     anniversary: string;
     pairedAt?: string;
+    albumOrder?: string[];
   };
   moments: Moment[];
-  album?: { coupleId: string; photos: AlbumPhoto[] };
+  album?: { coupleId: string; photos: AlbumPhoto[]; used?: number };
   drafts: Draft[];
   messages: MessageItem[];
   pet: {

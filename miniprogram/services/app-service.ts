@@ -1,6 +1,7 @@
 import { API_CONFIG } from "../core/api-config";
 import { mockApi } from "../core/mock-api";
 import { store } from "../core/store";
+import { albumSlots } from "../core/couple-album";
 import type { AlbumPhoto, AppState, MessageItem, Moment } from "../core/types";
 import { authService } from "./auth-service";
 import { complianceService, type FeedbackCategory } from "./compliance-service";
@@ -334,14 +335,14 @@ export const appService = {
     const state = store.getState(), owner = state.profile.id, coupleId = state.couple.id || "local";
     if (!API_CONFIG.useRemoteApi) return state.album?.photos || [];
     const revision = albumRevision;
-    const items = await coupleService.albumPhotos();
+    const [items, capacity] = await Promise.all([coupleService.albumPhotos(), coupleService.albumCapacity()]);
     if (!store.getState().loggedIn || !hasSession() || store.getState().profile.id !== owner || store.getState().couple.id !== coupleId || store.getState().couple.status !== "PAIRED")
       throw new Error("登录状态或情侣空间已变化，请刷新后重试。");
     if (revision !== albumRevision) throw new Error("相册已更新，请刷新后重试。");
     const photos: AlbumPhoto[] = items.map(item => ({ key: `album:${item.id}`, assetId: item.id,
       author: item.uploader_id === owner ? "我" : "TA", title: "相册照片", status: item.status,
       source: item.thumbnail_url || item.access_url || item.original_url || "", original: item.original_url || item.access_url || "", createdAt: item.created_at }));
-    store.update(state => { state.album = { coupleId, photos }; });
+    store.update(state => { state.album = { coupleId, photos, used: capacity.used }; });
     return photos;
   },
 
@@ -354,13 +355,29 @@ export const appService = {
     albumRevision++;
     if (!store.getState().loggedIn || store.getState().profile.id !== owner || (store.getState().couple.id || "local") !== coupleId
       || store.getState().couple.status !== "PAIRED" || (API_CONFIG.useRemoteApi && !hasSession())) throw new Error("登录状态或情侣空间已变化，请刷新后重试。");
-    store.update(value => { if (value.album?.coupleId === coupleId) value.album.photos = value.album.photos.filter(item => item.assetId !== assetId); });
+    store.update(value => {
+      if (value.album?.coupleId !== coupleId) return;
+      value.album.photos = value.album.photos.filter(item => item.assetId !== assetId);
+      if (value.album.used !== undefined && (!photo.status || photo.status === "READY")) value.album.used = Math.max(0, value.album.used - 1);
+    });
+  },
+
+  async reorderAlbumPhotos(assetIds: string[]) {
+    const state = store.getState(), scope = mainScope(), coupleId = state.couple.id || "local";
+    if (!state.loggedIn || state.couple.status !== "PAIRED" || (API_CONFIG.useRemoteApi && !hasSession())) throw new Error("请先登录并完成配对。");
+    if (!assetIds.length || assetIds.length > 6 || new Set(assetIds).size !== assetIds.length) throw new Error("相册排序最多包含 6 张不同照片。");
+    const result = API_CONFIG.useRemoteApi ? await coupleService.reorderAlbumPhotos(coupleId, state.couple.version || 0, assetIds)
+      : { asset_ids: assetIds, version: state.couple.version || 0 };
+    if (scope !== mainScope() || (API_CONFIG.useRemoteApi && !hasSession())) throw new Error("登录状态或情侣空间已变化，请重试。");
+    store.update(value => { value.couple.albumOrder = result.asset_ids; value.couple.version = result.version; });
   },
 
   async uploadAlbumPhotos(files: any[], onProgress: (text: string) => void): Promise<AlbumPhoto[]> {
     const state = store.getState(), coupleId = state.couple.id || "local", owner = state.profile.id;
     if (state.couple.status !== "PAIRED" || !state.loggedIn || (API_CONFIG.useRemoteApi && !hasSession())) throw new Error("请先登录并完成配对。");
-    if (!files.length || files.length > 9) throw new Error("每次请选择 1～9 张照片。");
+    if (!files.length || files.length > 6) throw new Error("每次请选择 1～6 张照片。");
+    if (!API_CONFIG.useRemoteApi && files.length + albumSlots(state.moments, state.couple.status, state.album?.photos) > 6)
+      throw new Error("相册最多保留 6 张照片，请先移除照片。");
     for (let index = 0; index < files.length; index++) {
       const selected = files[index], filePath = selected.tempFilePath || selected.path;
       const image: any = await new Promise((resolve, reject) => wx.getImageInfo({ src: filePath, success: resolve, fail: reject }));

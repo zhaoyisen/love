@@ -1,3 +1,4 @@
+<page-meta page-style="{{albumDragging ? 'overflow: hidden;' : ''}}"></page-meta>
 <view class="page couple-page home-refined">
   <view class="couple-heading">
     <view class="heading-copy">
@@ -96,16 +97,18 @@
 
 
     <view class="album-section">
-      <view class="album-heading"><text class="section-title">相册</text><view class="album-actions"><button wx:if="{{albumCanManage || albumManaging}}" size="mini" class="text-button press" disabled="{{!!albumDeleting}}" bindtap="toggleAlbumManage">{{albumManaging ? '完成' : '管理'}}</button><button wx:if="{{albumCount && !albumManaging}}" size="mini" class="text-button press" bindtap="viewAlbum">查看相册</button><button wx:if="{{!albumManaging}}" size="mini" class="text-button press" loading="{{albumUploading}}" disabled="{{albumUploading}}" bindtap="uploadAlbum">{{albumUploadText}}</button></view></view>
+      <view class="album-heading"><text class="section-title">相册</text><view class="album-actions"><button wx:if="{{albumCanManage || albumManaging}}" size="mini" class="text-button press" disabled="{{!!albumDeleting || albumSaving || albumDragging}}" bindtap="toggleAlbumManage">{{albumManaging ? '完成' : '管理'}}</button><button wx:if="{{albumCount && !albumManaging}}" size="mini" class="text-button press" disabled="{{albumSaving || albumDragging}}" bindtap="viewAlbum">查看相册</button><button wx:if="{{!albumManaging}}" size="mini" class="text-button press" loading="{{albumUploading}}" disabled="{{albumUploading || albumSaving || albumDragging || albumLoading || !albumRemaining}}" bindtap="uploadAlbum">{{!albumRemaining ? '已满 6 张' : albumUploadText}}</button></view></view>
+      <text wx:if="{{albumCount > 1 && !albumManaging}}" class="album-pending" role="status">{{albumSaving ? '正在保存顺序…' : albumDragging ? '拖到目标照片处，松手排序' : '长按照片可拖动排序'}}</text>
       <text wx:if="{{albumManaging}}" class="album-pending">这里显示你上传的照片。删除后，双方都将无法查看。</text>
       <text wx:if="{{albumPending}}" class="album-pending" role="status">{{albumPending}} 张照片正在安全处理中，完成后会显示给你们。</text>
       <text wx:if="{{albumFailed}}" class="album-pending" role="alert">{{albumFailed}} 张照片没有通过安全处理，请重新选择照片上传。</text>
       <view wx:if="{{albumCount}}" class="album-grid {{albumCount === 1 ? 'album-grid--single' : ''}}">
         <view wx:for="{{[0,1]}}" wx:for-item="columnIndex" wx:key="*this" wx:if="{{albumColumns[columnIndex].length}}" class="album-column">
-          <view wx:for="{{albumColumns[columnIndex]}}" wx:for-item="photo" wx:for-index="photoIndex" wx:key="key" class="album-tile">
+          <view wx:for="{{albumColumns[columnIndex]}}" wx:for-item="photo" wx:for-index="photoIndex" wx:key="key" class="album-tile {{albumDragKey === photo.key ? 'album-tile--dragging' : ''}} {{albumDragging && albumDropKey === photo.key && albumDragKey !== photo.key ? 'album-tile--target' : ''}}">
           <button
             size="mini" class="album-photo album-photo--{{photo.aspect}} press"
             data-column="{{columnIndex}}" data-index="{{photoIndex}}" bindtap="openAlbumPhoto"
+            bindtouchstart="albumTouchStart" bindlongpress="startAlbumDrag" bindtouchmove="moveAlbumDrag" bindtouchend="endAlbumDrag" bindtouchcancel="cancelAlbumDrag"
             disabled="{{!photo.momentId && photo.error && albumRetrying}}" aria-busy="{{!photo.momentId && photo.error && albumRetrying}}"
             aria-label="{{photo.title || '共同照片'}}，{{photo.momentId ? '打开记录' : photo.error ? '重新加载照片' : '查看照片'}}"
           >
@@ -131,4 +134,7 @@
     </view>
 
   </block>
+</view>
+<view wx:if="{{albumDragging}}" class="album-drag-preview" aria-hidden="true" style="left: {{albumDragLeft}}px; top: {{albumDragTop}}px; width: {{albumDragWidth}}px; height: {{albumDragHeight}}px;">
+  <image src="{{albumDragPhoto.path}}" mode="aspectFill"></image>
 </view>

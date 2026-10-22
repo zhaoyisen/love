@@ -1,5 +1,21 @@
 [
   {
+    "date": "2026-10-22",
+    "scope": "recap-main-page",
+    "macrostructure": "Compact annual memory cover",
+    "theme": "DESIGN.md 清爽精致",
+    "enrichment": "existing selected user media only",
+    "brief": "Approved cover and text-draft preview, without top introduction or rules section; preserve recap actions, mailbox, scoped refresh and all remaining copy, and share refined native tabs."
+  },
+  {
+    "date": "2026-10-22",
+    "scope": "profile-edit-page",
+    "macrostructure": "Native profile editor (document flow)",
+    "theme": "DESIGN.md 清爽精致",
+    "enrichment": "existing user avatar only",
+    "brief": "Warm white document form with clear avatar, nickname, help and in-flow actions; retain all copy, native avatar/nickname integration, processing recovery and save behavior."
+  },
+  {
     "date": "2026-10-20",
     "scope": "media-admin-web",
     "macrostructure": "Account-scoped table with persistent inspector",

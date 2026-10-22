@@ -1217,6 +1217,97 @@ class ApiFlowIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.media[0].id").value(renderedAsset));
     }
 
+    @Test
+    void shouldLimitSharedAlbumToSixIncludingProcessingAndConcurrentUploads() throws Exception {
+        Login owner=login("six-album-owner"),partner=login("six-album-partner");pair(owner,partner);
+        String couple=members.findById(UUID.fromString(owner.userId())).orElseThrow().getCoupleId().toString();
+        for(int i=0;i<5;i++){
+            String id=uploadImage(owner,"six-"+i+".jpg");
+            if(i==0){var pending=assets.findById(UUID.fromString(id)).orElseThrow();pending.retryProcessing();assets.saveAndFlush(pending);}
+            mvc.perform(post("/couples/current/album-photos").header("Authorization",bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"asset_ids",List.of(id))))).andExpect(status().isOk());
+        }
+        String left=uploadImage(owner,"last-owner.jpg"),right=uploadImage(partner,"last-partner.jpg");
+        String extra=uploadImage(owner,"over-capacity-batch.jpg");
+        mvc.perform(post("/couples/current/album-photos").header("Authorization",bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"asset_ids",List.of(left,extra)))))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("ALBUM_FULL"));
+        Assertions.assertNull(assets.findById(UUID.fromString(left)).orElseThrow().getAlbumCoupleId());
+        Assertions.assertNull(assets.findById(UUID.fromString(extra)).orElseThrow().getAlbumCoupleId());
+        mvc.perform(post("/couples/current/album-photos").header("Authorization",bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"asset_ids",List.of(left,right))))).andExpect(status().isForbidden());
+        var start=new java.util.concurrent.CountDownLatch(1);
+        try(var executor=java.util.concurrent.Executors.newFixedThreadPool(2)){
+            var first=executor.submit(()->{start.await();return mvc.perform(post("/couples/current/album-photos").header("Authorization",bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"asset_ids",List.of(left))))).andReturn().getResponse().getStatus();});
+            var second=executor.submit(()->{start.await();return mvc.perform(post("/couples/current/album-photos").header("Authorization",bearer(partner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"asset_ids",List.of(right))))).andReturn().getResponse().getStatus();});
+            start.countDown();Assertions.assertEquals(List.of(200,409),java.util.stream.Stream.of(first.get(),second.get()).sorted().toList());
+        }
+        Assertions.assertEquals(6,assets.findAll().stream().filter(a->a.getAlbumCoupleId()!=null).count());
+        mvc.perform(get("/couples/current/album-capacity").header("Authorization",bearer(partner.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.used").value(6));
+        Login winner=assets.findById(UUID.fromString(left)).orElseThrow().getAlbumCoupleId()!=null?owner:partner;
+        String winningPhoto=winner==owner?left:right;
+        mvc.perform(post("/couples/current/album-photos").header("Authorization",bearer(winner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"asset_ids",List.of(winningPhoto)))))
+                .andExpect(status().isOk()); // Replay must not consume another position.
+        mvc.perform(delete("/couples/current/album-photos/{id}",winningPhoto).param("couple_id",couple).header("Authorization",bearer(winner.accessToken())))
+                .andExpect(status().isOk());
+        mvc.perform(post("/couples/current/album-photos").header("Authorization",bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"asset_ids",List.of(extra)))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void shouldPersistAlbumOrderForBothPartnersAndRejectStaleOrPrivateSelections() throws Exception {
+        Login owner=login("order-album-owner"),partner=login("order-album-partner");pair(owner,partner);
+        UUID couple=members.findById(UUID.fromString(owner.userId())).orElseThrow().getCoupleId();
+        String photo=uploadImage(owner,"order-standalone.jpg");
+        mvc.perform(post("/couples/current/album-photos").header("Authorization",bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"asset_ids",List.of(photo))))).andExpect(status().isOk());
+        String shared=uploadImage(partner,"order-shared.jpg");
+        mvc.perform(post("/moments").header("Authorization",bearer(partner.accessToken())).header("Idempotency-Key",UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON).content(imageMoment(shared).replace("PRIVATE","SHARED"))).andExpect(status().isCreated());
+        int version=couples.findById(couple).orElseThrow().getVersion();String before=syncVersion(partner);
+        String body=mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"version",version,"asset_ids",List.of(photo,shared)));
+        mvc.perform(put("/couples/current/album-order").header("Authorization",bearer(partner.accessToken())).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk());
+        mvc.perform(get("/couples/current").header("Authorization",bearer(owner.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.album_order[0]").value(photo)).andExpect(jsonPath("$.data.album_order[1]").value(shared));
+        Assertions.assertNotEquals(before,syncVersion(partner));
+        mvc.perform(put("/couples/current/album-order").header("Authorization",bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isConflict());
+        String secret=uploadImage(owner,"order-private.jpg");
+        mvc.perform(post("/moments").header("Authorization",bearer(owner.accessToken())).header("Idempotency-Key",UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON).content(imageMoment(secret))).andExpect(status().isCreated());
+        int current=couples.findById(couple).orElseThrow().getVersion();
+        for(List<String> ids:List.of(List.of(secret),List.of(photo,photo))){
+            mvc.perform(put("/couples/current/album-order").header("Authorization",bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                    .content(mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"version",current,"asset_ids",ids))))
+                    .andExpect(status().isBadRequest());
+        }
+        String extra=uploadImage(owner,"order-new-upload.jpg");
+        // Six published shared photos consume all positions even without standalone uploads.
+        for(int i=0;i<5;i++){
+            String id=uploadImage(owner,"order-more-"+i+".jpg");
+            mvc.perform(post("/moments").header("Authorization",bearer(owner.accessToken())).header("Idempotency-Key",UUID.randomUUID())
+                    .contentType(MediaType.APPLICATION_JSON).content(imageMoment(id).replace("PRIVATE","SHARED"))).andExpect(status().isCreated());
+        }
+        mvc.perform(post("/couples/current/album-photos").header("Authorization",bearer(owner.accessToken())).contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(java.util.Map.of("couple_id",couple,"asset_ids",List.of(extra)))))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.error.code").value("ALBUM_FULL"));
+        for(int i=0;i<2;i++){
+            String id=uploadImage(owner,"newer-than-pinned-"+i+".jpg");
+            mvc.perform(post("/moments").header("Authorization",bearer(owner.accessToken())).header("Idempotency-Key",UUID.randomUUID())
+                    .contentType(MediaType.APPLICATION_JSON).content(imageMoment(id).replace("PRIVATE","SHARED"))).andExpect(status().isCreated());
+        }
+        mvc.perform(get("/couples/current/album").header("Authorization",bearer(partner.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[*].media[*].id",hasItem(shared)));
+        var pinnedMoment=moments.findById(assets.findById(UUID.fromString(shared)).orElseThrow().getMomentId()).orElseThrow();
+        pinnedMoment.setAdminHidden(true);moments.saveAndFlush(pinnedMoment);
+        mvc.perform(get("/couples/current/album").header("Authorization",bearer(partner.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data[*].media[*].id",not(hasItem(shared))));
+    }
+
     private Login login(String code) throws Exception {
         String body = mvc.perform(post("/auth/wechat/session").contentType(MediaType.APPLICATION_JSON).content("{\"code\":\"" + code + "\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.data.access_token").isNotEmpty())
@@ -1431,6 +1522,8 @@ class ApiFlowIntegrationTest {
                 .andExpect(status().isOk());
         mvc.perform(get("/couples/current/album-photos").header("Authorization", bearer(partner.accessToken())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data", hasSize(0)));
+        mvc.perform(get("/couples/current/album-capacity").header("Authorization",bearer(partner.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.used").value(1));
         mvc.perform(get("/media-assets/{id}/access-url", assetId).header("Authorization", bearer(partner.accessToken())))
                 .andExpect(status().isForbidden());
         String avatar = uploadImage(owner, "already-avatar.jpg");
@@ -1440,6 +1533,11 @@ class ApiFlowIntegrationTest {
         mvc.perform(post("/couples/current/album-photos").header("Authorization", bearer(owner.accessToken()))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"couple_id\":\"" + coupleId + "\",\"asset_ids\":[\"" + avatar + "\"]}"))
                 .andExpect(status().isBadRequest());
+        String pendingVersion=syncVersion(partner);
+        var failed=assets.findById(UUID.fromString(assetId)).orElseThrow();failed.markFailed();assets.saveAndFlush(failed);
+        Assertions.assertNotEquals(pendingVersion,syncVersion(partner),"Released partner processing slots must invalidate cached capacity");
+        mvc.perform(get("/couples/current/album-capacity").header("Authorization",bearer(partner.accessToken())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.used").value(0));
     }
 
     @Test

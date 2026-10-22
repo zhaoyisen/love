@@ -11,9 +11,29 @@ function serviceFixture(globals={}){
  const deps={'../core/api-config':{API_CONFIG:{useRemoteApi:true}},'../core/mock-api':{},'../core/store':{store},'./request':{hasSession:()=>true},'./auth-service':{authService:auth},'./couple-service':{coupleService:{async current(){calls.push('couple');return {id:'pair',status:'PAIRED'}}}},'./moment-service':{momentService:{async timeline(){calls.push('timeline');return {items:[],has_more:false}}}},'./message-service':{messageService:{async list(){calls.push('messages');return {items:[]}}}},'./pet-service':{petService:{async current(){calls.push('pet');return {}}}},'./notification-preference-service':{notificationPreferenceService:{async current(){calls.push('preferences');return {}}}}};
  for(const name of ['compliance','media','recap','template-render'])deps['./'+name+'-service']={};
  const recapService={};deps['./recap-service']={recapService};
+ deps['../core/couple-album']=load('miniprogram/core/couple-album.ts');
  const app=load('miniprogram/services/app-service.ts',deps,globals).appService;
- return {app,state,calls,auth,recapService,setVersion(value){version=value}};
+ store.update=mutate=>mutate(state);
+ return {app,state,calls,auth,recapService,coupleService:deps['./couple-service'].coupleService,setVersion(value){version=value}};
 }
+
+test('album reorder saves the server order/version and rejects duplicate or oversized selections',async()=>{
+ const f=serviceFixture();f.state.couple.version=4;let requests=0;
+ f.coupleService.reorderAlbumPhotos=async(id,version,ids)=>{requests++;assert.equal(id,'pair');assert.equal(version,4);return {asset_ids:ids,version:5}};
+ await f.app.reorderAlbumPhotos(['second','first']);assert.equal(f.state.couple.version,5);assert.equal(f.state.couple.albumOrder.join(), 'second,first');
+ await assert.rejects(f.app.reorderAlbumPhotos(['same','same']));await assert.rejects(f.app.reorderAlbumPhotos(Array.from({length:7},(_,i)=>String(i))));assert.equal(requests,1);
+});
+test('late album reorder responses cannot change another account or relationship',async()=>{
+ for(const field of ['account','couple','logout']){
+  const f=serviceFixture();let finish;f.coupleService.reorderAlbumPhotos=()=>new Promise(resolve=>{finish=resolve});
+  const saving=f.app.reorderAlbumPhotos(['one','two']);if(field==='account')f.state.profile.id='other';if(field==='couple')f.state.couple.id='other';if(field==='logout')f.state.loggedIn=false;
+  finish({asset_ids:['one','two'],version:2});await assert.rejects(saving);assert.equal(f.state.couple.albumOrder,undefined);
+ }
+});
+test('album capacity includes invisible partner processing without exposing their photos',async()=>{
+ const f=serviceFixture();f.coupleService.albumPhotos=async()=>[];f.coupleService.albumCapacity=async()=>({used:6});
+ const photos=await f.app.albumPhotos();assert.equal(photos.length,0);assert.equal(f.state.album.used,6);
+});
 test('unchanged main-page entries check only version; real changes and manual refresh synchronize',async()=>{
  const f=serviceFixture();const first=await f.app.refreshIfChanged();assert.equal(f.calls.filter(v=>v==='timeline').length,1);
  f.calls.length=0;const second=await f.app.refreshIfChanged();assert.equal(second.version,first.version);assert.equal(f.calls.join(),'version');

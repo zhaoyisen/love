@@ -27,12 +27,81 @@ function pageFixture() {
     "../../core/store":{store:{getState:()=>state}},"../../core/couple-album":album,
     "../../core/media-cache":{mediaCache:{stableUrl:load("miniprogram/core/media-cache.ts").mediaCache.stableUrl,get(...args){calls.cache.push(args);return calls.cachedPath},isUrlCurrent:url=>!url.includes("expired"),remember(...args){calls.remembered.push(args);return Promise.resolve(calls.savePath||args[2])},forget(...args){calls.forgotten.push(args)}}},
     "../../services/app-service":{appService:service,redirectExpiredSession:()=>false,userError:error=>error.message}
-  }, {setTimeout(callback){calls.timer=callback;return 1},clearTimeout(){calls.timer=undefined},Page(value){page=value},wx:{stopPullDownRefresh(){},showModal(value){calls.modals.push(value);value.success({confirm:calls.confirmDelete!==false})},navigateTo(value){calls.navigation.push(value)},chooseMedia(options){options.success({tempFiles:[{tempFilePath:"wxfile://album.jpg",size:1024}]})},previewImage(value){calls.preview=value},showToast(value){calls.toast=value}}});
+  }, {setTimeout(callback){calls.timer=callback;return 1},clearTimeout(){calls.timer=undefined},Page(value){page=value},wx:{stopPullDownRefresh(){},createSelectorQuery(){return {in(){return this},selectAll(){return this},boundingClientRect(callback){this.callback=callback;return this},exec(){const callback=()=>this.callback(calls.rects||[]);if(calls.deferRects)calls.completeRects=callback;else callback()}}},showModal(value){calls.modals.push(value);value.success({confirm:calls.confirmDelete!==false})},navigateTo(value){calls.navigation.push(value)},chooseMedia(options){calls.chooseCount=options.count;options.success({tempFiles:[{tempFilePath:"wxfile://album.jpg",size:1024}]})},previewImage(value){calls.preview=value},showToast(value){calls.toast=value}}});
   page.data=structuredClone(page.data);
   page.setData=function(patch){calls.patches.push(patch);for(const [key,value]of Object.entries(patch)){const parts=key.replace(/\[(\d+)\]/g,".$1").split(".");let target=this.data;for(const part of parts.slice(0,-1))target=target[part];target[parts.at(-1)]=value}};
   return {page,state,calls,service};
 }
 const photoEvent={currentTarget:{dataset:{column:0,index:0}}};
+
+test("saved album order pins visible photos before newer photos without retaining revoked photos",()=>{
+  const items=Array.from({length:8},(_,i)=>moment("ordered-"+i,{occurredAt:`2026-10-${String(i+1).padStart(2,"0")}T10:00:00+08:00`}));
+  const photos=album.albumPhotos(items,"PAIRED",[],["ordered-0-asset","revoked","ordered-1-asset"]);
+  assert.deepEqual(Array.from(photos.slice(0,3),p=>p.assetId),["ordered-0-asset","ordered-1-asset","ordered-7-asset"]);
+  assert.equal(photos.length,6);
+});
+
+test("album capacity includes pending uploads, but excludes failed or removed photos",()=>{
+  const uploads=[{assetId:"pending",status:"PROCESSING"},{assetId:"failed",status:"FAILED"},{assetId:"deleted",status:"DELETED"}];
+  assert.equal(album.albumSlots([moment("ready")],"PAIRED",uploads),2);
+  assert.equal(album.albumSlots([moment("ready")],"ENDED",uploads),0);
+});
+
+test("full albums cannot open the picker, and incomplete albums select only free positions",async()=>{
+  const {page,state,service,calls}=pageFixture();
+  state.moments=Array.from({length:6},(_,i)=>moment("full-"+i));await page.onShow();
+  service.uploadAlbumPhotos=async()=>{throw new Error("must not upload")};
+  await page.uploadAlbum();assert.equal(calls.chooseCount,undefined);assert.equal(page.data.albumRemaining,0);
+  state.moments=state.moments.slice(0,4);await page.onShow();service.uploadAlbumPhotos=async()=>[];
+  await page.uploadAlbum();assert.equal(calls.chooseCount,2);
+});
+test("partner pending photos reserve capacity without exposing their media",async()=>{
+  const {page,state,calls,service}=pageFixture();state.moments=Array.from({length:5},(_,i)=>moment("visible-"+i));
+  state.album={coupleId:"pair",photos:[],used:6};await page.onShow();await page.uploadAlbum();
+  assert.equal(page.data.albumCount,5);assert.equal(page.data.albumRemaining,0);assert.equal(calls.chooseCount,undefined);
+  assert.equal(page.data.albumPending,1);assert.equal(typeof calls.timer,"function");
+  service.albumPhotos=async()=>{state.album.used=5;return []};await calls.timer();
+  assert.equal(page.data.albumRemaining,1);assert.equal(page.data.albumPending,0);assert.equal(calls.timer,undefined);
+});
+
+function dragFixture(){
+  const value=pageFixture();value.state.moments=[moment("one"),moment("two"),moment("three")];
+  value.calls.rects=[
+    {dataset:{column:0,index:0},left:0,right:100,top:0,bottom:100,width:100,height:100},
+    {dataset:{column:0,index:1},left:0,right:100,top:110,bottom:210,width:100,height:100},
+    {dataset:{column:1,index:0},left:110,right:210,top:0,bottom:100,width:100,height:100}];
+  value.service.reorderAlbumPhotos=async ids=>{value.calls.savedOrder=Array.from(ids);value.state.couple.albumOrder=ids};
+  return value;
+}
+const touch=(x,y)=>({...photoEvent,touches:[{clientX:x,clientY:y}]});
+test("long press moves a photo on drop, retains its source and saves the shared order",async()=>{
+  const {page,calls,state}=dragFixture();await page.onShow();const oldPath=page.data.albumColumns[0][0].path;
+  page.albumTouchStart();await page.startAlbumDrag(touch(50,50));
+  page.moveAlbumDrag(touch(160,50));assert.equal(page.data.albumDropKey,"two:two-image");
+  await page.endAlbumDrag();assert.deepEqual(calls.savedOrder,["two-asset","one-asset","three-asset"]);
+  assert.equal(page.data.albumColumns[1][0].path,oldPath);assert.equal(page.data.albumSaving,false);
+  page.onHide();await page.onShow();assert.equal(page.data.albumColumns[0][0].assetId,state.couple.albumOrder[0]);
+  page.viewAlbum();assert.deepEqual(Array.from(calls.preview.urls),["https://test/two","https://test/one","https://test/three"]);
+});
+test("cancelled and interrupted drag gestures never save or open a preview",async()=>{
+  for(const reason of ["cancel","hide","account","ended-before-measure"]){
+    const {page,calls,state}=dragFixture();await page.onShow();page.albumTouchStart();
+    if(reason==="ended-before-measure")calls.deferRects=true;
+    const starting=page.startAlbumDrag(touch(50,50));
+    if(reason==="ended-before-measure"){await page.endAlbumDrag();calls.completeRects()}
+    await starting;
+    if(reason==="cancel")page.cancelAlbumDrag();if(reason==="hide")page.onHide();if(reason==="account")state.profile.id="other";
+    page.moveAlbumDrag(touch(160,50));await page.endAlbumDrag();
+    assert.equal(calls.savedOrder,undefined,reason);assert.equal(page.data.albumDragging,false,reason);
+  }
+});
+test("failed reorder restores original positions and allows retry",async()=>{
+  const {page,service,calls}=dragFixture();await page.onShow();
+  service.reorderAlbumPhotos=async()=>{throw new Error("保存失败")};page.albumTouchStart();await page.startAlbumDrag(touch(50,50));
+  page.moveAlbumDrag(touch(160,50));await page.endAlbumDrag();
+  assert.equal(page.data.albumColumns[0][0].assetId,"one-asset");assert.equal(page.data.albumSaving,false);
+  assert.equal(page.data.error,"保存失败");assert.equal(calls.savedOrder,undefined);
+});
 
 test("album excludes private, deleted, unpublished and unready media and retains only six newest photos",()=>{
   const shared=Array.from({length:8},(_,index)=>moment("shared-"+index,{occurredAt:`2026-10-${String(index+1).padStart(2,"0")}T10:00:00+08:00`}));

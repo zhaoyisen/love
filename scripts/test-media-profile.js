@@ -161,6 +161,7 @@ function albumServiceFixture() {
   const calls = { uploaded: [], attached: [] };
   const mediaService = { async upload(file) { calls.uploaded.push(file); return { asset: { id: "photo", status: "PROCESSING" } }; } };
   const coupleService = { async addAlbumPhotos(coupleId, ids) { calls.attached.push({ coupleId, ids }); }, async albumPhotos() { return [{ id: "photo", uploader_id: "me", status: "PROCESSING", created_at: new Date().toISOString() }]; } };
+  coupleService.albumCapacity = async () => ({used:1});
   const dependencies = {
     "../core/api-config": { API_CONFIG: { useRemoteApi: true } }, "../core/mock-api": {},
     "../core/store": { store: { getState: () => state, update: mutate => mutate(state) } },
@@ -168,6 +169,7 @@ function albumServiceFixture() {
     "./couple-service": { coupleService }
   };
   for (const name of ["auth", "compliance", "message", "moment", "pet", "recap", "notification-preference", "template-render"]) dependencies[`./${name}-service`] = {};
+  dependencies["../core/couple-album"] = load("miniprogram/core/couple-album.ts");
   const { appService } = load("miniprogram/services/app-service.ts", dependencies, { wx: { getImageInfo(options) { options.success({ type: "png" }); } } });
   return { appService, mediaService, coupleService, state, calls };
 }
@@ -257,6 +259,7 @@ test("a detail response cannot be cached under a changed account, relationship o
     const state = { profile: { id: "me" }, couple: { id: "pair", status: "PAIRED" } }; let finish, session = true; const saved = [];
     const dependencies = { "../core/api-config": { API_CONFIG: { useRemoteApi: true } }, "../core/mock-api": {}, "../core/store": { store: { getState: () => state, upsertRemoteMoment: value => saved.push(value) } }, "./request": { hasSession: () => session }, "./moment-service": { momentService: { detail: () => new Promise(resolve => { finish = resolve; }) } } };
     for (const name of ["auth", "compliance", "couple", "media", "message", "pet", "recap", "notification-preference", "template-render"]) dependencies[`./${name}-service`] = {};
+    dependencies["../core/couple-album"] = load("miniprogram/core/couple-album.ts");
     const { appService } = load("miniprogram/services/app-service.ts", dependencies);
     const request = appService.detail("video");
     if (changed === "account") state.profile.id = "other";

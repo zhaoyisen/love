@@ -45,8 +45,8 @@ public class CoupleController {
         var partner=users.findById(partnerId).orElse(null);
         String partnerName=partner==null?"TA":partner.getNickname();
         String partnerAvatarUrl=partner==null?null:media.profileAvatarUrlIfReady(actorId,partnerId,partner.getAvatarMediaId());
-        return new CoupleResponse(entity.getId(),entity.getStatus().name(),entity.getRelationshipName(),entity.getAnniversary(),entity.getVersion(),partnerId,partnerName,partnerAvatarUrl);
+        return new CoupleResponse(entity.getId(),entity.getStatus().name(),entity.getRelationshipName(),entity.getAnniversary(),entity.getVersion(),partnerId,partnerName,partnerAvatarUrl,entity.getAlbumOrder());
     }
     public record CoupleResponse(UUID id,String status,String relationshipName,LocalDate anniversary,int version,
-                                 UUID partnerId,String partnerNickname,String partnerAvatarUrl){}
+                                 UUID partnerId,String partnerNickname,String partnerAvatarUrl,List<UUID> albumOrder){}
 }
