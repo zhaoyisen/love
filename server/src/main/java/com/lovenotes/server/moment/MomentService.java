@@ -33,7 +33,17 @@ public class MomentService {
     public MomentView get(UUID actorId,UUID id){MomentEntity moment=moments.findById(id).orElseThrow(()->notFound());authorizeRead(actorId,moment);return view(actorId,moment);}
     @Transactional(readOnly=true)
     public List<MomentView> album(UUID actorId){
-        return members.findById(actorId).map(member -> moments.album(member.getCoupleId(),PageRequest.of(0,6)).stream().map(moment -> view(actorId,moment,true)).toList()).orElseGet(List::of);
+        return members.findById(actorId).map(member -> {
+            UUID coupleId=member.getCoupleId();
+            var selected=new LinkedHashMap<UUID,MomentEntity>();
+            moments.album(coupleId,PageRequest.of(0,6)).forEach(moment->selected.put(moment.getId(),moment));
+            var order=couples.findById(coupleId).map(CoupleSpaceEntity::getAlbumOrder).orElseGet(List::of);
+            if(!order.isEmpty()) {
+                var pinned=assets.findSortableAlbumPhotos(coupleId,order).stream().map(MediaAssetEntity::getMomentId).filter(Objects::nonNull).distinct().toList();
+                moments.findAllById(pinned).forEach(moment->selected.putIfAbsent(moment.getId(),moment));
+            }
+            return selected.values().stream().map(moment->view(actorId,moment,true)).toList();
+        }).orElseGet(List::of);
     }
 
     @Transactional(readOnly=true)

@@ -33,6 +33,8 @@ public class SyncController {
         StringBuilder fingerprint = new StringBuilder(actor.userId()+":"+couple);
         fingerprint.append(stats("UserEntity", "x.id in :people", "x.updatedAt", params));
         fingerprint.append(stats("CoupleSpaceEntity", "x.id=:couple", "x.updatedAt", params));
+        // Partner processing files stay private, but occupied album slots are shared.
+        fingerprint.append("|album-slots:").append(stats("MediaAssetEntity", "x.albumCoupleId=:couple and x.status in (com.lovenotes.server.domain.DomainEnums$MediaStatus.READY,com.lovenotes.server.domain.DomainEnums$MediaStatus.PROCESSING)", "x.createdAt", params));
         fingerprint.append(stats("MomentEntity", "x.id in ("+visible+")", "x.updatedAt", params));
         fingerprint.append(stats("MomentReactionEntity", "x.momentId in ("+visible+")", "x.updatedAt", params));
         fingerprint.append(stats("MomentCommentEntity", "x.momentId in ("+visible+")", "x.createdAt", params));

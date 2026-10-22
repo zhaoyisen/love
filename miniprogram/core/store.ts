@@ -185,6 +185,7 @@ class LoveNotesStore {
       }
       state.couple.id = couple.id;
       state.couple.version = couple.version;
+      state.couple.albumOrder = couple.album_order || [];
       state.couple.status = couple.status === "PAIRED" ? "PAIRED" : "ENDED";
       state.couple.partnerName = couple.partner_nickname || "TA";
       state.couple.partnerAvatarUrl = couple.partner_avatar_url || undefined;

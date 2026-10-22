@@ -23,6 +23,8 @@ public class CoupleSpaceEntity {
     @Column(name = "relationship_name", length = 40)
     private String relationshipName;
     private LocalDate anniversary;
+    @Column(name = "album_order", length = 240)
+    private String albumOrder;
     @Version
     private int version;
     @Column(name = "ended_at")
@@ -52,6 +54,13 @@ public class CoupleSpaceEntity {
     public String getRelationshipName() { return relationshipName; }
     public LocalDate getAnniversary() { return anniversary; }
     public int getVersion() { return version; }
+    public java.util.List<UUID> getAlbumOrder() {
+        return albumOrder == null || albumOrder.isBlank() ? java.util.List.of()
+                : java.util.Arrays.stream(albumOrder.split(",")).map(UUID::fromString).toList();
+    }
+    public void reorderAlbum(java.util.List<UUID> ids) {
+        albumOrder = ids.stream().map(UUID::toString).collect(java.util.stream.Collectors.joining(","));
+    }
     public void update(String name, LocalDate anniversary) { this.relationshipName = name; this.anniversary = anniversary; }
     public void freeze() { this.status = DomainEnums.CoupleStatus.FROZEN; this.endedAt = Instant.now(); }
 }

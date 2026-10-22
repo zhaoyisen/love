@@ -1,5 +1,5 @@
 import { store } from "../../core/store";
-import { albumPhotos } from "../../core/couple-album";
+import { albumPhotos, albumSlots } from "../../core/couple-album";
 import { mediaCache } from "../../core/media-cache";
 import type { AlbumPhoto } from "../../core/types";
 import { appService, redirectExpiredSession, userError } from "../../services/app-service";
@@ -7,7 +7,13 @@ Page({
   data: { couple: {} as any, unread: 0, days: 0, myInitial: "我", myAvatarUrl: "", partnerInitial: "TA", partnerAvatarUrl: "", loading: false, loaded: false, error: "", isRemote: appService.isRemote,
     albumColumns: [[], []] as any[][], albumCount: 0, albumOffset: 0, albumLoading: false, albumOwner: "",
     albumUploading: false, albumUploadText: "上传照片", albumPending: 0, albumFailed: 0, albumRetrying: false,
-    albumManaging: false, albumCanManage: false, albumDeleting: "", myAvatarError: false, partnerAvatarError: false },
+    albumManaging: false, albumCanManage: false, albumDeleting: "", albumRemaining: 6, albumSaving: false,
+    albumDragging: false, albumDragKey: "", albumDropKey: "", albumDragPhoto: {} as any, albumDragLeft: 0, albumDragTop: 0,
+    albumDragWidth: 0, albumDragHeight: 0, myAvatarError: false, partnerAvatarError: false },
+  dragSession: null as any,
+  touchSequence: 0,
+  touchActive: false,
+  draftAlbumOrder: undefined as string[] | undefined,
   requestId: 0,
   albumScope: "",
   remoteAlbum: [] as any[],
@@ -17,6 +23,7 @@ Page({
   albumVisible: false,
   syncVersion: "",
   async onShow(force = false) {
+    this.cancelAlbumDrag();
     this.albumVisible = true;
     this.albumPollCount = 0;
     clearTimeout(this.albumTimer);
@@ -57,7 +64,7 @@ Page({
       }
     }
   },
-  onHide() { this.requestId++; this.albumVisible = false; clearTimeout(this.albumTimer); },
+  onHide() { this.requestId++; this.albumVisible = false; this.cancelAlbumDrag(); clearTimeout(this.albumTimer); },
   onUnload() { this.onHide(); },
   onPullDownRefresh() { return this.onShow(true); },
   onPageScroll(event: any) {
@@ -78,9 +85,11 @@ Page({
     const uploads = this.albumScope === this.currentAlbumScope() ? this.remotePhotos
       : state.album?.coupleId === (state.couple.id || "local") ? state.album.photos : [];
     const allowedUploads = authenticated ? uploads : [];
+    const reserved = authenticated && state.couple.status === "PAIRED" && state.album?.coupleId === state.couple.id ? state.album?.used || 0 : 0;
+    const preview = albumPhotos(source, state.couple.status, allowedUploads, this.draftAlbumOrder || state.couple.albumOrder);
     const ownUploads = allowedUploads.filter(photo => photo.author === "我" && !photo.momentId && (!photo.status || photo.status === "READY"));
     const previous = this.data.albumOwner === owner && this.albumScope === this.currentAlbumScope() ? this.data.albumColumns.flat() : [];
-    const photos = (this.data.albumManaging && state.couple.status === "PAIRED" ? ownUploads : albumPhotos(source, state.couple.status, allowedUploads)).map((photo, index) => {
+    const photos = (this.data.albumManaging && state.couple.status === "PAIRED" ? ownUploads : preview).map((photo, index) => {
       const shown = previous.find(value => value.key === photo.key && !value.error
         && (photo.author !== "TA" || mediaCache.isUrlCurrent(photo.source))
         && value.original.split("?")[0] === photo.original.split("?")[0]
@@ -88,7 +97,7 @@ Page({
       const originalFallback = shown && shown.source.split("?")[0] === photo.original.split("?")[0];
       return { ...photo, source: originalFallback ? photo.original : photo.source,
         path: shown?.path || mediaCache.get(owner, photo.assetId, photo.source, photo.author === "TA") || photo.source,
-        error: false, aspect: ["portrait", "landscape", "landscape", "square", "wide", "landscape"][index % 6] };
+        error: false, slot: index, aspect: ["portrait", "landscape", "landscape", "square", "wide", "landscape"][index % 6] };
     });
     const columns = [photos.filter((_photo, index) => index % 2 === 0), photos.filter((_photo, index) => index % 2 === 1)];
     const patch: Record<string, any> = {};
@@ -101,7 +110,9 @@ Page({
     }));
     this.setData({
       ...patch, albumCount: photos.length, albumOwner: owner, albumCanManage: ownUploads.length > 0,
-      albumPending: state.couple.status === "PAIRED" ? allowedUploads.filter(photo => photo.status === "PROCESSING").length : 0,
+      albumRemaining: 6 - Math.min(6, Math.max(albumSlots(source, state.couple.status, allowedUploads), reserved)),
+      albumPending: state.couple.status === "PAIRED" ? Math.max(allowedUploads.filter(photo => photo.status === "PROCESSING").length,
+        Math.max(0, Math.min(6, reserved) - preview.length)) : 0,
       albumFailed: state.couple.status === "PAIRED" ? allowedUploads.filter(photo => photo.status === "FAILED" || photo.status === "BLOCKED").length : 0,
       couple: state.couple,
       unread: state.messages.filter((item) => !item.read).length,
@@ -117,6 +128,60 @@ Page({
   albumPhoto(event: any) {
     const { column, index } = event.currentTarget.dataset;
     return this.data.albumColumns[column]?.[index];
+  },
+  albumTouchStart() { this.touchActive = true; this.touchSequence++; },
+  albumSequence() { return this.data.albumColumns.flat().slice().sort((a, b) => a.slot - b.slot); },
+  async startAlbumDrag(event: any) {
+    const photo = this.albumPhoto(event), point = event.touches?.[0];
+    if (!this.touchActive || !photo || !point || this.data.albumCount < 2 || this.data.albumManaging || this.data.albumSaving
+      || this.data.albumUploading || this.data.albumLoading || this.data.albumRetrying || !store.getState().loggedIn) return;
+    const scope = this.currentAlbumScope(), touch = this.touchSequence;
+    return new Promise<void>(resolve => {
+      wx.createSelectorQuery().in(this).selectAll(".album-photo").boundingClientRect((rects: any[]) => {
+        if (!this.albumVisible || !this.touchActive || touch !== this.touchSequence || scope !== this.currentAlbumScope()) { resolve(); return; }
+        const rect = rects.find(rect => this.albumPhoto({ currentTarget: { dataset: rect.dataset } })?.key === photo.key);
+        if (!rect) { resolve(); return; }
+        clearTimeout(this.albumTimer);
+        this.dragSession = { scope, rects, photo, offsetX: point.clientX - rect.left, offsetY: point.clientY - rect.top };
+        this.setData({ albumDragging: true, albumDragKey: photo.key, albumDropKey: photo.key, albumDragPhoto: photo,
+          albumDragLeft: rect.left, albumDragTop: rect.top, albumDragWidth: rect.width, albumDragHeight: rect.height });
+        resolve();
+      }).exec();
+    });
+  },
+  moveAlbumDrag(event: any) {
+    const drag = this.dragSession, point = event.touches?.[0];
+    if (!drag || !point) return;
+    if (drag.scope !== this.currentAlbumScope() || !this.albumVisible) { this.cancelAlbumDrag(); return; }
+    const target = drag.rects.find((rect: any) => point.clientX >= rect.left && point.clientX <= rect.right
+      && point.clientY >= rect.top && point.clientY <= rect.bottom);
+    this.setData({ albumDragLeft: point.clientX - drag.offsetX, albumDragTop: point.clientY - drag.offsetY,
+      albumDropKey: target ? this.albumPhoto({ currentTarget: { dataset: target.dataset } })?.key || "" : "" });
+  },
+  cancelAlbumDrag() {
+    this.touchActive = false; this.touchSequence++; this.dragSession = null;
+    if (this.data.albumDragging) this.setData({ albumDragging: false, albumDragKey: "", albumDropKey: "", albumDragPhoto: {} });
+    this.scheduleAlbumRefresh();
+  },
+  async endAlbumDrag() {
+    const drag = this.dragSession, targetKey = this.data.albumDropKey;
+    this.cancelAlbumDrag();
+    if (!drag || drag.scope !== this.currentAlbumScope() || !this.albumVisible || !targetKey || targetKey === drag.photo.key) return;
+    const photos = this.albumSequence(), from = photos.findIndex(photo => photo.key === drag.photo.key), to = photos.findIndex(photo => photo.key === targetKey);
+    if (from < 0 || to < 0) return;
+    photos.splice(to, 0, photos.splice(from, 1)[0]);
+    this.draftAlbumOrder = photos.map(photo => photo.assetId);
+    this.setData({ albumSaving: true, error: "" }); this.render();
+    try {
+      await appService.reorderAlbumPhotos(this.draftAlbumOrder);
+    } catch (error) {
+      if (drag.scope === this.currentAlbumScope() && this.albumVisible && !redirectExpiredSession())
+        this.setData({ error: userError(error, "排序没有保存，请重试。") });
+    } finally {
+      this.draftAlbumOrder = undefined;
+      this.setData({ albumSaving: false });
+      if (drag.scope === this.currentAlbumScope() && this.albumVisible) { this.render(); this.scheduleAlbumRefresh(); }
+    }
   },
   async albumPhotoLoaded(event: any) {
     const photo = this.albumPhoto(event);
@@ -138,6 +203,7 @@ Page({
     } else this.setData({ [`${key}.error`]: true });
   },
   openAlbumPhoto(event: any) {
+    if (this.data.albumDragging || this.data.albumSaving) return;
     const photo = this.albumPhoto(event);
     if (!photo || store.getState().couple.status !== "PAIRED"
       || (appService.isRemote && (!appService.hasSession() || !store.getState().loggedIn || this.albumScope !== this.currentAlbumScope()))) return;
@@ -163,7 +229,7 @@ Page({
     const state = store.getState();
     if (state.couple.status !== "PAIRED" || !state.loggedIn || (appService.isRemote && !appService.hasSession()) || this.albumScope !== this.currentAlbumScope()) return;
     const scope = this.currentAlbumScope(), requestId = this.requestId;
-    const available = () => [...this.remotePhotos.filter(photo => photo.status === "READY" || !photo.status), ...albumPhotos(this.remoteAlbum, state.couple.status)];
+    const available = () => albumPhotos(appService.isRemote ? this.remoteAlbum : state.moments, state.couple.status, this.remotePhotos, store.getState().couple.albumOrder);
     if (appService.isRemote && available().some(photo => /[?&]q-key-time=/.test(photo.original) && !mediaCache.isUrlCurrent(photo.original))) {
       const selected = available().find(photo => photo.original === current)?.assetId;
       try {
@@ -185,7 +251,7 @@ Page({
   },
   viewAlbum() { return this.previewAlbum(); },
   toggleAlbumManage() {
-    if (this.data.albumDeleting) return;
+    if (this.data.albumDeleting || this.data.albumSaving || this.data.albumDragging) return;
     this.setData({ albumManaging: !this.data.albumManaging }); this.render();
   },
   async deleteAlbumPhoto(event: any) {
@@ -210,11 +276,12 @@ Page({
     } finally { if (scope === this.currentAlbumScope()) this.setData({ albumDeleting: "" }); }
   },
   async uploadAlbum() {
-    if (this.data.albumUploading || store.getState().couple.status !== "PAIRED") return;
+    if (this.data.albumUploading || this.data.albumSaving || this.data.albumDragging || store.getState().couple.status !== "PAIRED") return;
+    if (this.data.albumRemaining <= 0) { wx.showToast({ title: "相册最多保留 6 张照片，请先移除照片。", icon: "none" }); return; }
     const scope = this.currentAlbumScope();
     this.setData({ albumUploading: true, error: "" });
     try {
-      const selected: any = await new Promise((resolve, reject) => wx.chooseMedia({ count: 9, mediaType: ["image"], sourceType: ["album", "camera"], success: resolve, fail: reject }));
+      const selected: any = await new Promise((resolve, reject) => wx.chooseMedia({ count: this.data.albumRemaining, mediaType: ["image"], sourceType: ["album", "camera"], success: resolve, fail: reject }));
       const photos = await appService.uploadAlbumPhotos(selected.tempFiles || [], text => this.setData({ albumUploadText: text }));
       if (scope !== this.currentAlbumScope()) return;
       this.remotePhotos = photos; this.albumScope = scope; this.albumPollCount = 0; this.render();
@@ -235,14 +302,16 @@ Page({
   },
   scheduleAlbumRefresh() {
     clearTimeout(this.albumTimer);
-    if (!this.albumVisible || !this.data.albumPending || this.albumPollCount >= 12 || !appService.isRemote) return;
+    if (!this.albumVisible || this.data.albumDragging || this.data.albumSaving || !this.data.albumPending || this.albumPollCount >= 12 || !appService.isRemote) return;
     const scope = this.currentAlbumScope(), requestId = this.requestId;
     this.albumTimer = setTimeout(async () => {
       this.albumPollCount++;
       try {
         const photos = await appService.albumPhotos();
         if (!this.albumVisible || requestId !== this.requestId || scope !== this.currentAlbumScope()) return;
-        this.remotePhotos = photos; this.render(); this.scheduleAlbumRefresh();
+        this.remotePhotos = photos;
+        if (!this.data.albumDragging && !this.data.albumSaving) this.render();
+        this.scheduleAlbumRefresh();
       } catch (_) { this.scheduleAlbumRefresh(); }
     }, 5000);
   },

@@ -33,6 +33,10 @@ page { background: var(--color-home-paper); }
 .album-grid { display: flex; align-items: flex-start; gap: var(--album-gap); margin-top: var(--space-md); }
 .album-column { flex: 1 1 0; min-width: 0; }
 .album-tile { position: relative; }
+.album-tile--dragging { opacity: .35; }
+.album-tile--target { outline: var(--rule-strong) solid var(--color-accent); outline-offset: var(--space-3xs); border-radius: var(--album-media-radius); }
+.album-drag-preview { position: fixed; z-index: 100; pointer-events: none; overflow: hidden; border-radius: var(--album-media-radius); opacity: .9; }
+.album-drag-preview image { display: block; width: 100%; height: 100%; }
 .couple-page .album-delete { position: absolute; top: var(--space-xs); right: var(--space-xs); display: flex; align-items: center; justify-content: center; min-width: var(--touch-target); min-height: var(--touch-target); padding: 0 var(--space-sm); border-radius: var(--album-control-radius); color: var(--color-error); background: var(--color-paper); font-size: var(--text-meta); }
 .couple-page .album-photo { position: relative; display: block; width: 100%; min-width: 0; height: 0; min-height: 0; margin-bottom: var(--album-gap); padding: 0 0 var(--album-landscape); overflow: hidden; border: 0; border-radius: var(--album-media-radius); background: var(--color-surface); }
 .couple-page .album-photo--portrait { padding-bottom: var(--album-portrait); }

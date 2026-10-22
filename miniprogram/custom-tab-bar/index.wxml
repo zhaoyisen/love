@@ -1,31 +1,26 @@
-<view class="tab-shell {{selected === 0 || selected === 1 || selected === 3 ? 'home-refined tab-shell--refined' : ''}}">
+<view class="tab-shell home-refined tab-shell--refined">
   <view class="tab-rule"></view>
   <view class="tab-list">
-    <button size="{{selected === 0 || selected === 1 || selected === 3 ? 'mini' : 'default'}}" class="tab-item {{selected === 0 ? 'is-selected' : ''}} press" data-index="0" data-page="/pages-main/time/index" bindtap="switchTab" aria-label="甜蜜">
-      <image wx:if="{{selected === 0 || selected === 1 || selected === 3}}" class="tab-glyph" src="{{selected === 0 ? '/assets/icons/home/notebook.png' : '/assets/icons/home/notebook-neutral.png'}}" mode="aspectFit" aria-hidden="true"></image>
-      <view wx:else class="tab-glyph glyph-time"></view>
+    <button size="mini" class="tab-item {{selected === 0 ? 'is-selected' : ''}} press" data-index="0" data-page="/pages-main/time/index" bindtap="switchTab" aria-label="甜蜜">
+      <image class="tab-glyph" src="{{selected === 0 ? '/assets/icons/home/notebook.png' : '/assets/icons/home/notebook-neutral.png'}}" mode="aspectFit" aria-hidden="true"></image>
       <text>甜蜜</text>
     </button>
-    <button size="{{selected === 0 || selected === 1 || selected === 3 ? 'mini' : 'default'}}" class="tab-item {{selected === 1 ? 'is-selected' : ''}} press" data-index="1" data-page="/pages-main/couple/index" bindtap="switchTab" aria-label="我们">
-      <image wx:if="{{selected === 0 || selected === 1 || selected === 3}}" class="tab-glyph" src="{{selected === 1 ? '/assets/icons/home/users-active.png' : '/assets/icons/home/users.png'}}" mode="aspectFit" aria-hidden="true"></image>
-      <view wx:else class="tab-glyph glyph-couple"></view>
+    <button size="mini" class="tab-item {{selected === 1 ? 'is-selected' : ''}} press" data-index="1" data-page="/pages-main/couple/index" bindtap="switchTab" aria-label="我们">
+      <image class="tab-glyph" src="{{selected === 1 ? '/assets/icons/home/users-active.png' : '/assets/icons/home/users.png'}}" mode="aspectFit" aria-hidden="true"></image>
       <text>我们</text>
     </button>
     <view class="compose-slot">
-      <button size="{{selected === 0 || selected === 1 || selected === 3 ? 'mini' : 'default'}}" class="compose-button press" bindtap="compose" aria-label="记录一个时刻">
-        <image wx:if="{{selected === 0 || selected === 1 || selected === 3}}" class="compose-icon" src="/assets/icons/home/plus.png" mode="aspectFit" aria-hidden="true"></image>
-        <text wx:else class="compose-plus">＋</text>
+      <button size="mini" class="compose-button press" bindtap="compose" aria-label="记录一个时刻">
+        <image class="compose-icon" src="/assets/icons/home/plus.png" mode="aspectFit" aria-hidden="true"></image>
         <text class="compose-label">这一刻</text>
       </button>
     </view>
-    <button size="{{selected === 0 || selected === 1 || selected === 3 ? 'mini' : 'default'}}" class="tab-item {{selected === 2 ? 'is-selected' : ''}} press" data-index="2" data-page="/pages-main/recap/index" bindtap="switchTab" aria-label="回忆">
-      <image wx:if="{{selected === 0 || selected === 1 || selected === 3}}" class="tab-glyph" src="/assets/icons/home/images.png" mode="aspectFit" aria-hidden="true"></image>
-      <view wx:else class="tab-glyph glyph-recap"></view>
+    <button size="mini" class="tab-item {{selected === 2 ? 'is-selected' : ''}} press" data-index="2" data-page="/pages-main/recap/index" bindtap="switchTab" aria-label="回忆">
+      <image class="tab-glyph" src="/assets/icons/home/images.png" mode="aspectFit" aria-hidden="true"></image>
       <text>回忆</text>
     </button>
-    <button size="{{selected === 0 || selected === 1 || selected === 3 ? 'mini' : 'default'}}" class="tab-item {{selected === 3 ? 'is-selected' : ''}} press" data-index="3" data-page="/pages-main/mine/index" bindtap="switchTab" aria-label="我的">
-      <image wx:if="{{selected === 0 || selected === 1 || selected === 3}}" class="tab-glyph" src="{{selected === 3 ? '/assets/icons/home/user-round-active.png' : '/assets/icons/home/user-round.png'}}" mode="aspectFit" aria-hidden="true"></image>
-      <view wx:else class="tab-glyph glyph-mine"></view>
+    <button size="mini" class="tab-item {{selected === 3 ? 'is-selected' : ''}} press" data-index="3" data-page="/pages-main/mine/index" bindtap="switchTab" aria-label="我的">
+      <image class="tab-glyph" src="{{selected === 3 ? '/assets/icons/home/user-round-active.png' : '/assets/icons/home/user-round.png'}}" mode="aspectFit" aria-hidden="true"></image>
       <text>我的</text>
     </button>
   </view>

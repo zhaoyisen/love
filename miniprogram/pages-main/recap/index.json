@@ -1,5 +1,6 @@
 {
   "navigationBarTitleText": "回顾",
+  "navigationBarBackgroundColor": "#FCFCFA",
   "enablePullDownRefresh": true,
   "usingComponents": {
     "empty-state": "/components/empty-state/index"

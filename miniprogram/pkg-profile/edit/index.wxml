@@ -1,12 +1,12 @@
-<view class="page edit-profile-page">
+<view class="page edit-profile-page home-refined">
   <view class="edit-heading">
-    <text class="eyebrow">PROFILE</text>
+    <text class="profile-kicker">PROFILE</text>
     <text class="display-title">让称呼更像你</text>
     <text class="section-note">这个昵称会出现在“我的”、情侣空间和你发布的记录里。</text>
   </view>
 
-  <view class="profile-preview card">
-    <button class="avatar-picker press" open-type="chooseAvatar" bindchooseavatar="chooseWechatAvatar" disabled="{{submitting}}" aria-label="选择微信头像">
+  <view class="profile-preview">
+    <button size="mini" class="avatar-picker press" open-type="chooseAvatar" bindchooseavatar="chooseWechatAvatar" disabled="{{submitting}}" aria-label="选择微信头像">
       <image wx:if="{{avatarUrl}}" src="{{avatarUrl}}" mode="aspectFill"></image>
       <text wx:else>{{initial}}</text>
       <view class="avatar-edit-mark">换</view>
@@ -17,18 +17,20 @@
     </view>
   </view>
 
-  <view class="form-card card">
+  <view class="profile-form">
     <view class="field-heading">
       <text class="form-label">昵称</text>
       <text class="character-count">还可输入 {{remaining}} 个字符</text>
     </view>
     <input
-      class="input nickname-input"
+      class="nickname-input"
       type="nickname"
       value="{{nickname}}"
       maxlength="30"
       confirm-type="done"
       placeholder="输入昵称，或选择微信昵称"
+      placeholder-class="nickname-placeholder"
+      disabled="{{submitting}}"
       bindinput="inputNickname"
       bindconfirm="save"
       aria-label="昵称"
@@ -42,9 +44,11 @@
     <text>{{isRemote ? '选择后会通过临时凭证上传到你的私有对象存储，不会把永久密钥放进小程序。' : '当前是演示模式，头像只保存在这台设备。'}}</text>
   </view>
 
-  <button class="primary-button press" disabled="{{submitting || !canSubmit}}" loading="{{submitting}}" bindtap="save">
-    {{submitting ? savingText : '保存资料'}}
-  </button>
-  <button class="cancel-button press" disabled="{{submitting}}" bindtap="cancel">取消</button>
+  <view class="profile-actions">
+    <button size="mini" class="primary-button press" disabled="{{submitting || !canSubmit}}" loading="{{submitting}}" bindtap="save">
+      {{submitting ? savingText : '保存资料'}}
+    </button>
+    <button size="mini" class="cancel-button press" disabled="{{submitting}}" bindtap="cancel">取消</button>
+  </view>
   <privacy-consent id="privacy-consent"></privacy-consent>
 </view>

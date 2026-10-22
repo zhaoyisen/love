@@ -1,8 +1,5 @@
-<view class="page recap-page">
-  <view class="recap-heading"><view class="recap-intro">
-    <text class="recap-title">回看共同留下的日子</text>
-    <text class="recap-note">从共同可见的记录里选出片段，整理成一份只属于你们的年度回顾。</text>
-  </view><main-actions unread="{{unread}}"></main-actions></view>
+<view class="page recap-page home-refined">
+  <view class="recap-heading"><main-actions unread="{{unread}}"></main-actions></view>
 
   <view wx:if="{{loading && recap.year}}" class="sync-status" aria-live="polite">
     <view class="sync-dot"></view>
@@ -11,7 +8,7 @@
 
   <view wx:if="{{error}}" class="status-banner status-banner--error" role="alert">
     <text>{{error}}</text>
-    <button bindtap="onShow">重试</button>
+    <button size="mini" bindtap="onShow">重试</button>
   </view>
 
   <view wx:if="{{loading && !recap.year}}" class="recap-skeleton" role="status" aria-live="polite" aria-label="正在读取年度回顾">
@@ -41,7 +38,7 @@
 
   <block wx:else>
     <view class="recap-feature">
-      <view class="feature-visual full-bleed {{coverPath ? 'has-photo' : 'is-text'}}">
+      <view class="feature-visual {{coverPath ? 'has-photo' : 'is-text'}}">
         <image wx:if="{{coverPath}}" src="{{coverPath}}" mode="aspectFill" aria-label="年度回顾封面照片"></image>
         <view wx:else class="feature-fallback">
           <text class="feature-year">{{recap.year}}</text>
@@ -54,34 +51,10 @@
         <text class="feature-meta">{{recap.year}} 年 · 已选 {{selectedCount}} 段 · 共 {{count}} 条可用</text>
         <text class="feature-title">{{recap.title}}</text>
         <text class="feature-note">{{recap.status === 'READY' ? '已经可以重温；重新选片后，可以再生成一个版本。' : selectedCount ? '草稿已经保留，继续选择或调整想放进故事里的片段。' : '还没有选择片段，可以从共同记录里慢慢挑。'}}</text>
-        <button class="primary-button feature-action press" bindtap="openCover">{{recap.status === 'READY' ? '一起重温' : selectedCount ? '继续选片' : '开始选片'}}</button>
-        <button wx:if="{{recap.status === 'READY'}}" class="text-button edit-action press" bindtap="create">重新选择片段</button>
+        <button size="mini" class="primary-button feature-action press" bindtap="openCover">{{recap.status === 'READY' ? '一起重温' : selectedCount ? '继续选片' : '开始选片'}}</button>
+        <button wx:if="{{recap.status === 'READY'}}" size="mini" class="text-button edit-action press" bindtap="create">重新选择片段</button>
       </view>
     </view>
 
-    <view class="recap-rules">
-      <text class="rules-title">选片时会遵守这些规则</text>
-      <view class="rule-row">
-        <view>
-          <text class="rule-title">只使用共同可见的记录</text>
-          <text class="rule-note">仅自己可见的内容不会进入候选。</text>
-        </view>
-        <text class="rule-state">已保护</text>
-      </view>
-      <view class="rule-row">
-        <view>
-          <text class="rule-title">敏感片段不会自动加入</text>
-          <text class="rule-note">你仍然可以回到原记录单独查看。</text>
-        </view>
-        <text class="rule-state">默认跳过</text>
-      </view>
-      <view class="rule-row">
-        <view>
-          <text class="rule-title">生成之前再次确认</text>
-          <text class="rule-note">标题、片段和分享内容都由你们决定。</text>
-        </view>
-        <text class="rule-state">由你确认</text>
-      </view>
-    </view>
   </block>
 </view>
